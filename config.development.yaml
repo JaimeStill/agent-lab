@@ -1,0 +1,18 @@
+# Development environment configuration
+# Loaded when ENV=development
+
+server:
+  port: 8080
+  host: "localhost"
+
+database:
+  host: "localhost"
+  port: 5432
+  database: "agentlab_dev"
+  user: "agentlab"
+  max_conns: 10
+  min_conns: 2
+
+logging:
+  level: "debug"
+  format: "text"

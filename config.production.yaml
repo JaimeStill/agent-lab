@@ -1,0 +1,22 @@
+# Production environment configuration
+# Loaded when ENV=production
+
+server:
+  port: 8080
+  host: "0.0.0.0"
+  read_timeout: 5s
+  write_timeout: 10s
+  idle_timeout: 60s
+
+database:
+  # Connection details should come from environment variables
+  # Use underscore-separated paths that mirror YAML structure:
+  #   database_host, database_port, database_database,
+  #   database_user, database_password
+  max_conns: 25
+  min_conns: 5
+  max_idle_time: 15m
+
+logging:
+  level: "info"
+  format: "json"
