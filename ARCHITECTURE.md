@@ -353,48 +353,86 @@ If blocking limitations emerge, re-evaluate with chi or httprouter.
 
 Configuration is loaded in priority order:
 
-1. `config.yaml` - Base defaults
-2. `config.{ENV}.yaml` - Environment-specific (ENV=development, production, staging, etc.)
-3. `config.local.yaml` - Local overrides (gitignored)
+1. `config.toml` - Base defaults
+2. `config.{ENV}.toml` - Environment-specific (ENV=development, production, staging, etc.)
+3. `config.local.toml` - Local overrides (gitignored)
 4. Environment variables - Highest priority
+
+### Configuration Format: TOML
+
+agent-lab uses **TOML** (Tom's Obvious, Minimal Language) for configuration files.
+
+**Migration from YAML**: The project initially planned to use YAML but migrated to TOML during planning phase.
+
+**Rationale for TOML**:
+
+1. **Stable Go Library**: `github.com/pelletier/go-toml/v2` is actively maintained with TOML 1.0.0 compliance
+2. **No Unmaintained Dependencies**: `gopkg.in/yaml.v3` was officially archived (frozen, security fixes only) with no spec-compliant Go YAML library available
+3. **Comments Support**: TOML supports inline comments for documentation (unlike JSON)
+4. **Human-Readable**: Clear section headers and key-value syntax
+5. **Type Safety**: Explicit types reduce parsing ambiguity
+6. **Long-Term Stability**: Well-maintained library reduces technical debt risk
+
+**Why Not JSON**: While `encoding/json` is stdlib with zero dependencies, lack of comments significantly reduces config readability and maintainability for complex service configurations.
+
+**Why Not YAML**: Despite familiarity and human-friendliness, the absence of a maintained, spec-compliant Go library introduces unacceptable maintenance risk for a long-term project.
+
+**Example Configuration**:
+```toml
+# HTTP server configuration
+[server]
+host = "0.0.0.0"
+port = 8080
+read_timeout = "30s"
+write_timeout = "30s"
+
+# PostgreSQL connection settings
+[database]
+host = "localhost"
+port = 5432
+database = "agent_lab"
+user = "agent_lab"
+password = ""
+max_open_conns = 25
+```
 
 ### Configuration Structure
 
 ```go
 type Config struct {
-    Server   ServerConfig   `yaml:"server"`
-    Database DatabaseConfig `yaml:"database"`
-    Logging  LoggingConfig  `yaml:"logging"`
+    Server   ServerConfig   `toml:"server"`
+    Database DatabaseConfig `toml:"database"`
+    Logging  LoggingConfig  `toml:"logging"`
 }
 
 type ServerConfig struct {
-    Port         int           `yaml:"port"`
-    Host         string        `yaml:"host"`
-    ReadTimeout  time.Duration `yaml:"read_timeout"`
-    WriteTimeout time.Duration `yaml:"write_timeout"`
-    IdleTimeout  time.Duration `yaml:"idle_timeout"`
+    Port         int           `toml:"port"`
+    Host         string        `toml:"host"`
+    ReadTimeout  time.Duration `toml:"read_timeout"`
+    WriteTimeout time.Duration `toml:"write_timeout"`
+    IdleTimeout  time.Duration `toml:"idle_timeout"`
 }
 
 type DatabaseConfig struct {
-    Host        string        `yaml:"host"`
-    Port        int           `yaml:"port"`
-    Database    string        `yaml:"database"`
-    User        string        `yaml:"user"`
-    Password    string        `yaml:"password"`
-    MaxConns    int           `yaml:"max_conns"`
-    MinConns    int           `yaml:"min_conns"`
-    MaxIdleTime time.Duration `yaml:"max_idle_time"`
+    Host        string        `toml:"host"`
+    Port        int           `toml:"port"`
+    Database    string        `toml:"database"`
+    User        string        `toml:"user"`
+    Password    string        `toml:"password"`
+    MaxConns    int           `toml:"max_conns"`
+    MinConns    int           `toml:"min_conns"`
+    MaxIdleTime time.Duration `toml:"max_idle_time"`
 }
 
 type LoggingConfig struct {
-    Level  string `yaml:"level"`   // debug, info, warn, error
-    Format string `yaml:"format"`  // text, json
+    Level  string `toml:"level"`   // debug, info, warn, error
+    Format string `toml:"format"`  // text, json
 }
 ```
 
 ### Environment Variable Convention
 
-Environment variables mirror the YAML structure using underscores:
+Environment variables mirror the TOML structure using underscores:
 
 **Simple values:**
 ```bash
@@ -422,7 +460,7 @@ database_replicas_1_weight=2
 ```
 
 **Rationale:**
-- Mirrors YAML structure (intuitive mapping)
+- Mirrors TOML structure (intuitive mapping)
 - Self-documenting (clear what each variable controls)
 - Scales naturally (adding fields is straightforward)
 - Standard Kubernetes/cloud-native convention
@@ -1074,15 +1112,17 @@ CREATE TABLE execution_cache_entries (
 
 ### Configuration Pattern
 
-```yaml
-blob_storage:
-  type: "filesystem"
-  filesystem:
-    directory: "./.data/blobs"
-  azure:
-    account: "agentlabstorage"
-    container: "agent-lab"
-    auth_type: "managed_identity"
+```toml
+[blob_storage]
+type = "filesystem"
+
+[blob_storage.filesystem]
+directory = "./.data/blobs"
+
+[blob_storage.azure]
+account = "agentlabstorage"
+container = "agent-lab"
+auth_type = "managed_identity"
 ```
 
 **Environment Variable Override**:
@@ -2595,8 +2635,8 @@ logging_format=json
 
 **Environment Selection**:
 ```bash
-ENV=development go run ./cmd/server  # Loads config.development.yaml
-ENV=production go run ./cmd/server   # Loads config.production.yaml
+ENV=development go run ./cmd/server  # Loads config.development.toml
+ENV=production go run ./cmd/server   # Loads config.production.toml
 ```
 
 ### Docker Compose Deployment

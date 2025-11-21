@@ -113,6 +113,11 @@ mkdir -p api
 mkdir -p web/scalar
 ```
 
+Install TOML configuration library:
+```bash
+go get github.com/pelletier/go-toml/v2
+```
+
 #### Step 1.3: Docker Compose Setup
 
 Create modular compose structure for flexibility:
@@ -243,47 +248,44 @@ CREATE INDEX idx_agents_name ON agents(name);
 
 #### Step 1.5: Application Configuration
 
-**config.yaml**:
-```yaml
-server:
-  host: "0.0.0.0"
-  port: 8080
-  read_timeout: 30s
-  write_timeout: 30s
-  idle_timeout: 120s
-  shutdown_timeout: 15s
+**config.toml**:
+```toml
+# HTTP server configuration
+[server]
+host = "0.0.0.0"
+port = 8080
+read_timeout = "30s"
+write_timeout = "30s"
+idle_timeout = "120s"
+shutdown_timeout = "15s"
 
-database:
-  host: "localhost"
-  port: 5432
-  database: "agent_lab"
-  user: "agent_lab"
-  password: ""
-  max_open_conns: 25
-  max_idle_conns: 5
-  conn_max_lifetime: 15m
+# PostgreSQL connection settings
+[database]
+host = "localhost"
+port = 5432
+database = "agent_lab"
+user = "agent_lab"
+password = ""
+max_open_conns = 25
+max_idle_conns = 5
+conn_max_lifetime = "15m"
 
-pagination:
-  default_page_size: 50
-  max_page_size: 100
+# Pagination defaults and limits
+[pagination]
+default_page_size = 50
+max_page_size = 100
 
-cors:
-  origins:
-    - "http://localhost:3000"
-  methods:
-    - GET
-    - POST
-    - PUT
-    - DELETE
-    - OPTIONS
-  headers:
-    - Content-Type
-    - Authorization
-  credentials: true
+# CORS configuration for web clients
+[cors]
+origins = ["http://localhost:3000"]
+methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+headers = ["Content-Type", "Authorization"]
+credentials = true
 
-logging:
-  level: "info"
-  format: "text"
+# Logging configuration
+[logging]
+level = "info"
+format = "text"
 ```
 
 **.env.example**:
@@ -315,52 +317,52 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v3"
+	"github.com/pelletier/go-toml/v2"
 )
 
 type Config struct {
-	Server     ServerConfig     `yaml:"server"`
-	Database   DatabaseConfig   `yaml:"database"`
-	Pagination PaginationConfig `yaml:"pagination"`
-	CORS       CORSConfig       `yaml:"cors"`
-	Logging    LoggingConfig    `yaml:"logging"`
+	Server     ServerConfig     `toml:"server"`
+	Database   DatabaseConfig   `toml:"database"`
+	Pagination PaginationConfig `toml:"pagination"`
+	CORS       CORSConfig       `toml:"cors"`
+	Logging    LoggingConfig    `toml:"logging"`
 }
 
 type ServerConfig struct {
-	Host            string        `yaml:"host"`
-	Port            int           `yaml:"port"`
-	ReadTimeout     time.Duration `yaml:"read_timeout"`
-	WriteTimeout    time.Duration `yaml:"write_timeout"`
-	IdleTimeout     time.Duration `yaml:"idle_timeout"`
-	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
+	Host            string        `toml:"host"`
+	Port            int           `toml:"port"`
+	ReadTimeout     time.Duration `toml:"read_timeout"`
+	WriteTimeout    time.Duration `toml:"write_timeout"`
+	IdleTimeout     time.Duration `toml:"idle_timeout"`
+	ShutdownTimeout time.Duration `toml:"shutdown_timeout"`
 }
 
 type DatabaseConfig struct {
-	Host            string        `yaml:"host"`
-	Port            int           `yaml:"port"`
-	Database        string        `yaml:"database"`
-	User            string        `yaml:"user"`
-	Password        string        `yaml:"password"`
-	MaxOpenConns    int           `yaml:"max_open_conns"`
-	MaxIdleConns    int           `yaml:"max_idle_conns"`
-	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
+	Host            string        `toml:"host"`
+	Port            int           `toml:"port"`
+	Database        string        `toml:"database"`
+	User            string        `toml:"user"`
+	Password        string        `toml:"password"`
+	MaxOpenConns    int           `toml:"max_open_conns"`
+	MaxIdleConns    int           `toml:"max_idle_conns"`
+	ConnMaxLifetime time.Duration `toml:"conn_max_lifetime"`
 }
 
 type PaginationConfig struct {
-	DefaultPageSize int `yaml:"default_page_size"`
-	MaxPageSize     int `yaml:"max_page_size"`
+	DefaultPageSize int `toml:"default_page_size"`
+	MaxPageSize     int `toml:"max_page_size"`
 }
 
 type CORSConfig struct {
-	Origins     []string `yaml:"origins"`
-	Methods     []string `yaml:"methods"`
-	Headers     []string `yaml:"headers"`
-	Credentials bool     `yaml:"credentials"`
+	Origins     []string `toml:"origins"`
+	Methods     []string `toml:"methods"`
+	Headers     []string `toml:"headers"`
+	Credentials bool     `toml:"credentials"`
 }
 
 type LoggingConfig struct {
-	Level  string `yaml:"level"`
-	Format string `yaml:"format"`
+	Level  string `toml:"level"`
+	Format string `toml:"format"`
 }
 
 func Load(filename string) (*Config, error) {
@@ -370,7 +372,7 @@ func Load(filename string) (*Config, error) {
 	}
 
 	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	if err := toml.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
@@ -497,7 +499,7 @@ func main() {
 		Level: slog.LevelInfo,
 	}))
 
-	cfg, err := config.Load("config.yaml")
+	cfg, err := config.Load("config.toml")
 	if err != nil {
 		logger.Error("failed to load configuration", "error", err)
 		os.Exit(1)

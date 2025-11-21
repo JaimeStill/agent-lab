@@ -32,10 +32,10 @@ agent-lab/
 │   ├── handlers/            # HTTP request handlers
 │   └── middleware/          # HTTP middleware
 ├── migrations/              # SQL database migrations
-├── config.yaml              # Base configuration
-├── config.development.yaml  # Development environment
-├── config.production.yaml   # Production environment
-└── config.local.yaml        # Local overrides (gitignored)
+├── config.toml              # Base configuration
+├── config.development.toml  # Development environment
+├── config.production.toml   # Production environment
+└── config.local.toml        # Local overrides (gitignored)
 ```
 
 ## Quick Start
@@ -115,7 +115,7 @@ docker compose -f docker-compose.full.yml up -d
    SERVER_PORT=8080
    ```
 
-3. **Override with YAML** (optional): Create `config.local.yaml` for structured configuration overrides.
+3. **Override with TOML** (optional): Create `config.local.toml` for structured configuration overrides.
 
 ### Useful Commands
 
@@ -150,14 +150,14 @@ Migrations will be managed using [golang-migrate](https://github.com/golang-migr
 
 Configuration is loaded in the following order (later sources override earlier ones):
 
-1. `config.yaml` - Base defaults
-2. `config.{ENV}.yaml` - Environment-specific (where ENV=development, production, etc.)
-3. `config.local.yaml` - Local overrides (gitignored)
+1. `config.toml` - Base defaults
+2. `config.{ENV}.toml` - Environment-specific (where ENV=development, production, etc.)
+3. `config.local.toml` - Local overrides (gitignored)
 4. Environment variables - Highest priority
 
 ### Environment Variable Naming
 
-Environment variables mirror the YAML structure using underscores:
+Environment variables mirror the TOML structure using underscores:
 
 **Simple values:**
 ```bash
