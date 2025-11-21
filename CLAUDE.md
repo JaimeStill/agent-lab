@@ -44,6 +44,36 @@ func NewItemService(db *sql.DB, logger *slog.Logger, userID string) (*ItemServic
 }
 ```
 
+**Constructor Pattern for Requests**: Encapsulate finalize-validate-transform in `FromRequest()` methods:
+
+```go
+func (s *ProviderService) FromRequest(name string, configJSON []byte) (*Provider, error) {
+    // 1. Finalize: Parse into go-agents config
+    var providerConfig config.ProviderConfig
+    if err := json.Unmarshal(configJSON, &providerConfig); err != nil {
+        return nil, fmt.Errorf("invalid config: %w", err)
+    }
+
+    // 2. Validate: Test provider creation
+    _, err := providers.New(&providerConfig)
+    if err != nil {
+        return nil, fmt.Errorf("invalid provider: %w", err)
+    }
+
+    // 3. Transform: Create domain model
+    return &Provider{...}, nil
+}
+
+// Used in service methods
+func (s *ProviderService) Create(ctx context.Context, name string, configJSON []byte) (*Provider, error) {
+    provider, err := s.FromRequest(name, configJSON)
+    if err != nil {
+        return nil, err
+    }
+    // Save to database...
+}
+```
+
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete patterns.
 
 ### Data vs Behavior
@@ -77,6 +107,45 @@ See [config.yaml](./config.yaml) and [.env.example](./.env.example) for examples
 - Parameterized queries (`$1`, `$2`, etc.)
 - Commands use transactions, queries don't
 - Context-aware operations (`QueryRowContext`, `ExecContext`)
+
+### Query Engine
+
+**Never expose simple GET all endpoints** - Always use paginated search with filters.
+
+Three-layer architecture inspired by S2va pattern:
+
+**Layer 1: ProjectionMap** (Structure Definition):
+- Static, reusable query structure per domain entity
+- Defines tables, joins, column mappings
+- Resolves view property names to `table.column` references
+
+**Layer 2: QueryBuilder** (Operations):
+- Fluent builder for filters, sorting, pagination
+- Methods: `WhereEquals`, `WhereContains`, `WhereSearch`, `OrderBy`
+- Automatic null-checking: only applies filters when values are non-null
+- Generates: `BuildCount()`, `BuildPage()`, `BuildSingle()`
+
+**Layer 3: Execution** (database/sql):
+- Execute generated SQL + args with `QueryContext`/`ExecContext`
+- Two-query pattern: COUNT for total, SELECT with OFFSET/FETCH
+
+**Example Usage**:
+```go
+// Define once per domain entity (static)
+var providerProjection = query.NewProjectionMap("public", "providers", "p").
+    Project("id", "Id").
+    Project("name", "Name")
+
+// Use in service methods (per-request)
+qb := query.NewBuilder(providerProjection, "Name").
+    WhereContains("Name", filters.Name).
+    WhereSearch(page.Search, "Name").
+    OrderBy(page.SortBy, page.Descending)
+
+// Execute count + page queries
+countSQL, countArgs := qb.BuildCount()
+pageSQL, pageArgs := qb.BuildPage(page.Page, page.PageSize)
+```
 
 ### Error Handling
 
@@ -145,11 +214,16 @@ AI reviews and validates implementation:
 - Table-driven test pattern for multiple scenarios
 
 ### 6. Documentation Phase
-AI adds code documentation:
+AI adds code documentation and maintains API specifications:
 - Add godoc comments to exported types, functions, methods
 - Document non-obvious behavior
 - Explain complex logic
 - Update examples if needed
+- **Maintain OpenAPI specification** (`api/openapi.yaml`) after any API surface changes
+  - Update paths, request/response schemas, error codes
+  - Keep examples current and accurate
+  - Ensure consistency with actual implementation
+  - Treat OpenAPI spec maintenance like tests and docs: AI responsibility after changes
 
 ### 7. Session Closeout
 Create session summary and update project docs:

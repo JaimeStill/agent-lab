@@ -10,22 +10,41 @@ server:
   host: "0.0.0.0"
 
   # Timeouts
-  read_timeout: 5s
-  write_timeout: 10s
-  idle_timeout: 60s
+  read_timeout: 30s
+  write_timeout: 30s
+  idle_timeout: 120s
+  shutdown_timeout: 15s
 
 database:
   # PostgreSQL connection settings
   host: "localhost"
   port: 5432
-  database: "agentlab"
-  user: "agentlab"
+  database: "agent_lab"
+  user: "agent_lab"
   password: ""  # Override via DB_PASSWORD env var
 
   # Connection pool settings
   max_conns: 25
   min_conns: 5
   max_idle_time: 15m
+
+pagination:
+  default_page_size: 50
+  max_page_ssize: 100
+
+cors:
+  origins:
+    - "http://localhost:3000"
+  methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  headers:
+    - Content-Type
+    - Authorization
+  credentials: true
 
 logging:
   # Logging configuration

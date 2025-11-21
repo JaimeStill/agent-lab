@@ -23,7 +23,6 @@ vendor/
 
 # Configuration overrides (local development)
 config.local.yaml
-.env
 
 # IDE specific files
 .vscode/
