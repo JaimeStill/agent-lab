@@ -263,12 +263,13 @@ shutdown_timeout = "15s"
 [database]
 host = "localhost"
 port = 5432
-database = "agent_lab"
+name = "agent_lab"
 user = "agent_lab"
 password = ""
 max_open_conns = 25
 max_idle_conns = 5
 conn_max_lifetime = "15m"
+conn_timeout = "5s"
 
 # Pagination defaults and limits
 [pagination]
@@ -294,7 +295,7 @@ SERVER_PORT=8080
 
 DATABASE_HOST=localhost
 DATABASE_PORT=5432
-DATABASE_DATABASE=agent_lab
+DATABASE_NAME=agent_lab
 DATABASE_USER=agent_lab
 DATABASE_PASSWORD=agent_lab
 
@@ -340,12 +341,13 @@ type ServerConfig struct {
 type DatabaseConfig struct {
 	Host            string        `toml:"host"`
 	Port            int           `toml:"port"`
-	Database        string        `toml:"database"`
+	Name            string        `toml:"name"`
 	User            string        `toml:"user"`
 	Password        string        `toml:"password"`
 	MaxOpenConns    int           `toml:"max_open_conns"`
 	MaxIdleConns    int           `toml:"max_idle_conns"`
 	ConnMaxLifetime time.Duration `toml:"conn_max_lifetime"`
+	ConnTimeout     time.Duration `toml:"conn_timeout"`
 }
 
 type PaginationConfig struct {
@@ -400,8 +402,8 @@ func applyEnvironmentOverrides(config *Config) {
 			config.Database.Port = p
 		}
 	}
-	if db := os.Getenv("DATABASE_DATABASE"); db != "" {
-		config.Database.Database = db
+	if db := os.Getenv("DATABASE_NAME"); db != "" {
+		config.Database.Name = db
 	}
 	if user := os.Getenv("DATABASE_USER"); user != "" {
 		config.Database.User = user
@@ -441,7 +443,7 @@ func validate(config *Config) error {
 	if config.Database.Host == "" {
 		return fmt.Errorf("database host is required")
 	}
-	if config.Database.Database == "" {
+	if config.Database.Name == "" {
 		return fmt.Errorf("database name is required")
 	}
 
@@ -461,7 +463,7 @@ func validate(config *Config) error {
 func (c *DatabaseConfig) DSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
-		c.Host, c.Port, c.Database, c.User, c.Password,
+		c.Host, c.Port, c.Name, c.User, c.Password,
 	)
 }
 ```
@@ -568,7 +570,7 @@ func openDB(cfg config.DatabaseConfig) (*sql.DB, error) {
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.ConnTimeout)
 	defer cancel()
 
 	if err = db.PingContext(ctx); err != nil {

@@ -390,10 +390,13 @@ write_timeout = "30s"
 [database]
 host = "localhost"
 port = 5432
-database = "agent_lab"
+name = "agent_lab"
 user = "agent_lab"
 password = ""
 max_open_conns = 25
+max_idle_conns = 5
+max_idle_time = "15m"
+conn_timeout = "5s"
 ```
 
 ### Configuration Structure
@@ -416,12 +419,13 @@ type ServerConfig struct {
 type DatabaseConfig struct {
     Host        string        `toml:"host"`
     Port        int           `toml:"port"`
-    Database    string        `toml:"database"`
+    Name        string        `toml:"name"`
     User        string        `toml:"user"`
     Password    string        `toml:"password"`
     MaxConns    int           `toml:"max_conns"`
     MinConns    int           `toml:"min_conns"`
     MaxIdleTime time.Duration `toml:"max_idle_time"`
+    ConnTimeout time.Duration `toml:"conn_timeout"`
 }
 
 type LoggingConfig struct {
@@ -487,7 +491,7 @@ Using `database/sql` with pgx driver (raw SQL approach):
 func Open(cfg DatabaseConfig) (*sql.DB, error) {
     dsn := fmt.Sprintf(
         "host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
-        cfg.Host, cfg.Port, cfg.Database, cfg.User, cfg.Password)
+        cfg.Host, cfg.Port, cfg.Name, cfg.User, cfg.Password)
 
     db, err := sql.Open("pgx", dsn)
     if err != nil {
@@ -500,7 +504,7 @@ func Open(cfg DatabaseConfig) (*sql.DB, error) {
     db.SetConnMaxIdleTime(cfg.MaxIdleTime)
 
     // Verify connection
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    ctx, cancel := context.WithTimeout(context.Background(), cfg.ConnTimeout)
     defer cancel()
 
     if err := db.PingContext(ctx); err != nil {
