@@ -1,0 +1,377 @@
+# agent-lab Project
+
+**Status**: Active Development - Planning Phase
+
+## Overview
+
+agent-lab is a containerized Go web service platform for building and orchestrating agentic workflows. It provides a laboratory environment for iteratively designing, testing, and refining intelligent workflows, then deploying them operationally.
+
+Built on the go-agents ecosystem:
+- **go-agents** (v0.2.1): LLM integration with multi-provider support
+- **go-agents-orchestration** (v0.1.0+): Workflow orchestration patterns
+- **document-context** (v0.1.0+): PDF processing with LCA architecture
+
+## Long-Term Vision
+
+### Core Value Proposition
+
+agent-lab enables organizations to:
+
+1. **Iteratively Develop Intelligent Workflows**: Design multi-agent workflows with full observability into decision-making and confidence scoring
+2. **Refine Through Experimentation**: Test workflow configurations, analyze results, adjust parameters, and re-execute without redeployment
+3. **Deploy Operationally**: Transition refined workflows from lab environment to production with bulk processing and monitoring
+4. **Maintain Enterprise Standards**: RBAC, audit logging, air-gap deployment, and compliance requirements
+
+### Platform Capabilities
+
+**Workflow Lab Environment**:
+- Multi-agent workflow designer with configurable stages
+- Real-time execution monitoring via SSE streaming
+- Detailed execution traces showing agent reasoning and confidence scores
+- Side-by-side comparison of workflow variants
+- Document preview with detected markings visualization
+- Confidence score evolution graphs (D3.js visualizations)
+
+**Operational Deployment**:
+- One-click workflow execution from lab to operations
+- Bulk document processing with queue-based execution
+- Standardized output formats integrating with existing systems
+- Webhook notifications for completion events
+- Result export (JSON, JSONL, CSV)
+
+**Ecosystem Integration**:
+- Complete go-agents ecosystem through unified HTTP API
+- Multi-provider LLM support (Ollama, Azure AI Foundry)
+- Adaptive document processing with filter adjustments
+- OpenAPI specification with Scalar interactive interface
+
+**Enterprise Ready**:
+- RBAC with resource ownership and sharing (Phase 8)
+- Audit logging for compliance requirements
+- Azure cloud integration (Phase 8)
+- Air-gap deployable with embedded assets
+
+### Technology Principles
+
+1. **Go-Native Web Standards**: Raw web platform without Node.js/npm complexity
+2. **Minimal Dependencies**: Only essential, industry-recognized libraries
+3. **Embedded Assets**: All dependencies embedded via `go:embed`, self-hosted (D3.js embedded)
+4. **Zero Build Process**: Serve embedded assets directly, no preprocessing
+5. **Standards-Forward**: Web Components, TC39 Signals, SSE, Fetch API
+6. **Air-Gap Compatible**: Build with minimal resources for IL6 Azure Secret Government
+
+## Success Criteria
+
+### Primary Goal
+
+**Refine classify-docs workflow from 96.3% → 100% accuracy** through iterative experimentation enabled by agent-lab tooling.
+
+The classify-docs prototype demonstrates:
+- Document classification via vision API analysis
+- Per-page processing with context accumulation
+- Conservative confidence scoring (HIGH/MEDIUM/LOW)
+- 96.3% accuracy on 27-document test set
+
+agent-lab will enable experimentation with:
+- Multi-stage workflows (marking identification → classification → QA)
+- Agent collaboration with feedback loops
+- Adaptive image processing for problematic pages
+- Semantic confidence scoring (0.0-1.0 scale with tangible factors)
+- Two-person integrity through QA agent validation
+
+### Secondary Goals
+
+1. **Production-Ready Classification Platform**: Deliver reliable document classification capability meeting customer requirements
+2. **Foundation for Multi-Workflow Orchestration**: Establish patterns applicable to data extraction, content generation, analysis, and translation workflows
+
+### Success Metrics
+
+- Classification accuracy: 100% on test document set
+- Workflow iteration cycle: < 5 minutes (design → test → analyze → adjust)
+- Execution observability: Complete trace of agent decisions and confidence factors
+- Operational reliability: Bulk processing with error handling and retry logic
+
+## Technology Stack
+
+### Backend
+
+- **Language**: Go 1.25.2+
+- **Database**: PostgreSQL 17 (containerized)
+- **Data Access**: Raw SQL with `database/sql` + pgx driver
+- **Templating**: `html/template` for server-side rendering
+- **Asset Management**: `go:embed` for embedded static assets
+- **Libraries**:
+  - go-agents v0.2.1 (LLM integration)
+  - go-agents-orchestration v0.1.0+ (workflow patterns)
+  - document-context v0.1.0+ (PDF processing)
+
+### Frontend
+
+- **JavaScript**: Vanilla JS (no build process)
+- **Components**: Web Components for encapsulated UI elements
+- **State Management**: TC39 Signals for reactive state
+- **Real-Time**: Server-Sent Events (SSE) for execution monitoring
+- **HTTP**: Fetch API for REST interactions
+- **Visualization**: D3.js (embedded) for confidence score graphs
+
+### API
+
+- **REST**: CRUD operations for resources (providers, agents, workflows, documents)
+- **SSE**: Real-time event streaming for execution progress
+- **OpenAPI**: Specification with Scalar interactive documentation
+- **HTML Fragments**: Server-side rendered partials for dynamic updates
+
+### Deployment
+
+- **Development**: Docker Compose (PostgreSQL 17 + agent-lab service)
+- **Production**: Kubernetes (Phase 8)
+- **External Dependencies**: PostgreSQL 17, ImageMagick 7+
+- **Cloud Platform**: Azure (Phase 8)
+
+## Architecture Principles
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete technical specifications.
+
+**Key Principles**:
+- **Layered Composition Architecture (LCA)**: Data vs behavior separation, interface-based APIs
+- **Service Lifecycle Model**: Long-running (application-scoped) vs ephemeral (request-scoped) services
+- **Configuration-Driven Initialization**: Finalize → Validate → Transform pattern
+- **Async-First Execution**: All workflows non-blocking with real-time monitoring
+- **Experimental Platform**: Provide primitives for workflow experimentation, not prescribed implementations
+
+## Iterative Milestones
+
+### Milestone 1: Provider & Agent Configuration Management
+
+**Objective**: Establish foundation for agent management and connectivity testing.
+
+**Deliverables**:
+- PostgreSQL 17 container setup with agent_lab database
+- Database schema: `providers`, `agents` tables
+- REST API: CRUD operations for provider/agent configurations
+- Configuration validation using go-agents config structures
+- Test connectivity endpoint (health check for agents)
+- OpenAPI specification with Scalar UI at `/api/docs`
+
+**Success Criteria**:
+- Create Ollama provider configuration via API
+- Create gpt-4o agent with Azure AI Foundry provider
+- Test agent connectivity returns success/failure status
+- OpenAPI docs accessible and interactive
+
+### Milestone 2: Document Upload & Processing
+
+**Objective**: Enable PDF upload with document-context integration for rendering.
+
+**Deliverables**:
+- Document upload API (`POST /api/documents`, multipart/form-data)
+- Database schema: `documents` table with metadata
+- FilesystemBlobStorage implementation (`.data/blobs/documents/`)
+- document-context integration (PDF → page extraction → image rendering)
+- FilesystemCache configuration (`.data/cache/images/`)
+- Enhancement filter configuration API
+- Document preview endpoint (`GET /api/documents/{id}/pages/{num}`)
+
+**Success Criteria**:
+- Upload multi-page PDF, extract metadata (page count)
+- Render page as PNG with default settings (300 DPI)
+- Apply enhancement filters (brightness, contrast)
+- Serve rendered page image for preview
+- Cache subsequent requests (verify cache hit performance)
+
+### Milestone 3: Async Workflow Execution Engine
+
+**Objective**: Implement queue-based async execution with state management.
+
+**Deliverables**:
+- Database schema: `workflows`, `execution_runs`, `execution_cache_entries` tables
+- ExecutionQueueService (long-running, channel-based queue)
+- WorkerPoolService (long-running, goroutine pool)
+- WorkflowExecutionService (ephemeral, orchestrates execution)
+- EventBus (long-running, pub/sub messaging)
+- Execution state management (pending → running → completed/failed/cancelled)
+- Context cancellation support (`DELETE /api/runs/{id}`)
+
+**Success Criteria**:
+- Execute workflow returns immediately with run_id (202 Accepted)
+- Worker pool processes queued executions
+- Update execution status throughout lifecycle
+- Cancel running execution via API
+- Track cache entries per execution run
+
+### Milestone 4: Real-Time Monitoring & SSE
+
+**Objective**: Enable real-time observability of workflow execution.
+
+**Deliverables**:
+- SSE streaming endpoint (`GET /api/runs/{id}/stream`)
+- Event publishing from workflow execution (step_started, step_completed, confidence_scored)
+- Selective event persistence (`execution_events` table)
+- Execution history API (`GET /api/runs`, filtering and pagination)
+- Run details endpoint (`GET /api/runs/{id}` with trace data)
+- Client-side EventSource integration (vanilla JS)
+
+**Success Criteria**:
+- Client establishes SSE connection, receives real-time events
+- Heartbeat keeps connection alive (30-second interval)
+- Stream closes on execution completion
+- Persisted events queryable via history API
+- Execution trace shows step-by-step progression
+
+### Milestone 5: classify-docs Workflow Integration
+
+**Objective**: Implement document classification workflow using go-agents-orchestration.
+
+**Deliverables**:
+- System prompt management (storage in workflows table)
+- Sequential workflow implementation using `ProcessChain`
+- Per-page classification with vision API
+- Confidence scoring algorithm (0.0-1.0 scale with semantic meaning)
+- Marking detection and spatial combination logic
+- Classification result aggregation across pages
+- Validation against 27-document test set
+
+**Success Criteria**:
+- Execute classification workflow on test document
+- Achieve baseline 96.3% accuracy (matching prototype)
+- Confidence scores reflect tangible factors (marking clarity, consistency, spatial distribution)
+- Execution trace shows per-page analysis progression
+- Results include detected markings with positions
+
+### Milestone 6: Workflow Lab Interface
+
+**Objective**: Build web interface for workflow monitoring and iteration.
+
+**Deliverables**:
+- OpenAPI Scalar interface (established in Milestone 1, enhanced)
+- Document preview web component (view rendered pages)
+- Execution monitoring interface (SSE client with progress display)
+- Confidence score visualization (D3.js line/bar charts)
+- Results display with detected markings overlay
+- Side-by-side comparison of execution runs
+- Workflow parameter adjustment UI
+
+**Success Criteria**:
+- View document pages with enhancement filter controls
+- Monitor execution in real-time with progress indicators
+- Visualize confidence score evolution across pages
+- Compare multiple runs side-by-side
+- Adjust agent options and filter overrides, re-execute
+- Complete iteration cycle in < 5 minutes
+
+### Milestone 7: Operational Features
+
+**Objective**: Enable production-ready bulk processing and operations.
+
+**Deliverables**:
+- Bulk document processing (`POST /api/workflows/{id}/execute/bulk`)
+- Execution history filtering and search (status, date range, workflow)
+- RBAC foundations (ownership model, defer authentication to Phase 8)
+- Audit logging (execution events, user actions)
+- Result export API (JSON, JSONL, CSV formats)
+- Webhook support for completion notifications (Phase 7+)
+
+**Success Criteria**:
+- Submit batch of documents for classification
+- Monitor bulk execution progress
+- Filter execution history by status and workflow
+- Export results in multiple formats
+- Audit log captures all significant actions
+
+### Milestone 8: Production Deployment
+
+**Objective**: Deploy to Azure with production integrations.
+
+**Deliverables**:
+- Azure Blob Storage integration (replace FilesystemBlobStorage)
+- Azure AI Foundry integration with Entra ID authentication
+- Managed identity for service authentication
+- Kubernetes manifests (deployment, service, ingress, configmap, secret)
+- Production configuration (environment-specific overrides)
+- Application Insights integration (observability)
+- Air-gap deployment validation
+
+**Success Criteria**:
+- Deploy to Azure Kubernetes Service (AKS)
+- Authenticate to Azure AI Foundry with managed identity
+- Store documents in Azure Blob Storage
+- Production workload handles concurrent executions
+- Monitoring via Application Insights
+- Air-gap deployment successfully builds and runs
+
+## Current Status
+
+**Phase**: Planning (Session 02)
+
+**Completed**:
+- Session 01: Foundation architecture design (ARCHITECTURE.md)
+- Session 02: Project vision and roadmap establishment (PROJECT.md)
+- Library ecosystem analysis (go-agents, go-agents-orchestration, document-context)
+- classify-docs prototype requirements mapping
+
+**Next Steps**:
+- Begin Milestone 1 implementation (provider & agent configuration management)
+- Establish docker-compose.yml with PostgreSQL 17
+- Initialize project structure (`cmd/server`, `internal/`, `migrations/`)
+
+## Future Phases (Beyond Milestone 8)
+
+### Multi-Workflow Support
+
+Expand beyond classification to additional workflow types:
+- **Data Extraction**: Extract structured data from documents
+- **Content Generation**: Generate reports, summaries, documentation
+- **Analysis**: Analyze documents for compliance, sentiment, topics
+- **Translation**: Multi-language document translation
+
+### Visual Workflow Designer
+
+Drag-and-drop interface for workflow composition:
+- Node-based workflow design (agents, routing, conditions)
+- Visual state flow representation
+- Real-time validation of workflow configuration
+- Template library for common patterns
+
+### Advanced Orchestration
+
+Leverage complete go-agents-orchestration capabilities:
+- **Parallel Execution**: Concurrent page analysis with worker pools
+- **Conditional Routing**: Decision-based workflow branches
+- **State Graphs**: Complex multi-stage workflows with checkpointing
+- **Workflow Composition**: Reusable sub-workflows and modules
+
+### External Integrations
+
+Connect agent-lab to external systems:
+- **Data Sources**: Azure Blob Storage, S3, databases, SharePoint
+- **Output Destinations**: Webhooks, queues, databases, file systems
+- **Identity Providers**: Entra ID, Active Directory, SAML, OAuth
+- **Monitoring**: Prometheus, Grafana, Application Insights
+
+### A/B Testing Framework
+
+Compare workflow variants for optimization:
+- Configure multiple workflow versions
+- Split traffic across variants
+- Compare accuracy and confidence metrics
+- Promote winning variant to production
+
+### Workflow Versioning
+
+Manage workflow evolution:
+- Version control for workflow configurations
+- Rollback to previous versions
+- Deployment history tracking
+- Impact analysis before promotion
+
+## Contributing
+
+This project is currently in early development. Contributions welcome as the project matures.
+
+**Development Workflow**: See [CLAUDE.md](./CLAUDE.md) for development session workflow and conventions.
+
+**Architecture Guidelines**: See [ARCHITECTURE.md](./ARCHITECTURE.md) for technical specifications and patterns.
+
+## License
+
+TBD (To be determined during open-source preparation)
