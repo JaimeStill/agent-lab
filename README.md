@@ -15,26 +15,30 @@ This project is in active development. The architecture is designed to be flexib
 
 ## Documentation
 
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Comprehensive architectural documentation and design principles
-- **[CLAUDE.md](./CLAUDE.md)** - Development conventions and guidelines for working with this codebase
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Technical specifications and design patterns (source of truth for implementation)
+- **[CLAUDE.md](./CLAUDE.md)** - Development conventions and session workflow
+- **[PROJECT.md](./PROJECT.md)** - Project vision, milestones, and roadmap
+- **[_context/web-service-architecture.md](./_context/web-service-architecture.md)** - Architectural philosophy and core principles
 
 ## Project Structure
 
 ```
 agent-lab/
-├── cmd/server/              # Application entry point
-├── internal/
-│   ├── config/              # Configuration loading and management
-│   ├── server/              # Application and HTTP routing
-│   ├── database/            # Database connection management
-│   ├── models/              # Pure data structures
-│   ├── services/            # Business logic (ephemeral services)
-│   ├── handlers/            # HTTP request handlers
-│   └── middleware/          # HTTP middleware
+├── cmd/server/              # Process: composition root, entry point
+│   ├── main.go                  # Main entry point
+│   ├── server.go                # Server system
+│   └── config.go                # Configuration loading
+├── internal/                # Private API: domain systems
+│   ├── providers/               # Provider configuration system
+│   ├── agents/                  # Agent configuration system
+│   ├── database/                # Database connection system
+│   ├── routes/                  # Route registration system
+│   └── middleware/              # Middleware stack
+├── pkg/                     # Public API: shared infrastructure
+│   ├── query/                   # SQL query builder
+│   └── pagination/              # Pagination utilities
 ├── migrations/              # SQL database migrations
 ├── config.toml              # Base configuration
-├── config.development.toml  # Development environment
-├── config.production.toml   # Production environment
 └── config.local.toml        # Local overrides (gitignored)
 ```
 

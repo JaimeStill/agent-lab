@@ -130,34 +130,92 @@ agent-lab will enable experimentation with:
 
 ## Architecture Principles
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete technical specifications.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete technical specifications and [_context/web-service-architecture.md](./_context/web-service-architecture.md) for architectural philosophy.
 
 **Key Principles**:
-- **Layered Composition Architecture (LCA)**: Data vs behavior separation, interface-based APIs
-- **Service Lifecycle Model**: Long-running (application-scoped) vs ephemeral (request-scoped) services
-- **Configuration-Driven Initialization**: Finalize → Validate → Transform pattern
+- **State Flows Down, Never Up**: State flows through method parameters unless owned by the object/process
+- **Systems, Not Services/Models**: Use domain-specific terminology, clear separation of stateful systems vs functional infrastructure
+- **Cold Start/Hot Start Lifecycle**: State initialization (`New*()`) separate from process activation (`Start()`)
+- **Configuration-Driven Initialization**: Encapsulated config interfaces with finalize → validate → transform pattern
+- **Package Organization**: cmd/server (process), pkg/ (public API), internal/ (private API)
 - **Async-First Execution**: All workflows non-blocking with real-time monitoring
 - **Experimental Platform**: Provide primitives for workflow experimentation, not prescribed implementations
 
+## Development Process
+
+### Milestone Structure
+
+**Milestones** are high-level stepping stones toward the project vision and goals. Each milestone represents a complete, validated capability that moves the platform forward.
+
+**Development Sessions** are focused, manageable implementation chunks that complete a milestone incrementally. Each session should be completable in 2-3 hours.
+
+### Workflow
+
+1. **Milestone Planning** - Break milestone into focused development sessions
+2. **Session Execution** - Implement → Validate → Commit
+3. **Milestone Review** - After all sessions complete, review and adjust
+4. **Milestone Completion** - Confirm all success criteria met
+
+**Benefits**:
+- Incremental progress with regular validation
+- Manageable cognitive load per session
+- Clear completion criteria at each level
+- Regular commit points for working code
+
+See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
+
+---
+
 ## Iterative Milestones
 
-### Milestone 1: Provider & Agent Configuration Management
+### Milestone 1: Foundation - Provider & Agent Configuration Management
 
-**Objective**: Establish foundation for agent management and connectivity testing.
+**Objective**: Establish foundation with core systems for agent configuration management.
 
-**Deliverables**:
-- PostgreSQL 17 container setup with agent_lab database
-- Database schema: `providers`, `agents` tables
-- REST API: CRUD operations for provider/agent configurations
-- Configuration validation using go-agents config structures
-- Test connectivity endpoint (health check for agents)
-- OpenAPI specification with Scalar UI at `/api/docs`
+**Development Sessions**:
 
-**Success Criteria**:
+#### Session 1a: Foundation Infrastructure
+- PostgreSQL 17 Docker setup
+- Configuration management (TOML + environment variables)
+- Server system with Cold/Hot Start lifecycle
+- Basic HTTP server with health check endpoint
+- Graceful shutdown
+
+**Validation**: Health check endpoint returns 200 OK
+
+#### Session 1b: Database & Query Infrastructure
+- Database system with connection pool management
+- Database migrations setup (golang-migrate)
+- Query builder infrastructure (pkg/query)
+- Pagination utilities (pkg/pagination)
+
+**Validation**: Database connection successful, migrations run, query builder tests pass
+
+#### Session 1c: Providers System
+- Database schema: `providers` table
+- Providers system (repository pattern with config interface)
+- Routes system with smart route grouping
+- Middleware system (CORS, logging, recovery)
+- Provider CRUD + Search endpoints
+
+**Validation**: Create/Read/Update/Delete/Search providers via API
+
+#### Session 1d: Agents System
+- Database schema: `agents` table
+- Agents system (repository pattern with config interface)
+- Agent CRUD + Search endpoints
+- Validation using go-agents structures
+
+**Validation**: Create/Read/Update/Delete/Search agents via API
+
+---
+
+**Milestone Success Criteria**:
 - Create Ollama provider configuration via API
-- Create gpt-4o agent with Azure AI Foundry provider
-- Test agent connectivity returns success/failure status
-- OpenAPI docs accessible and interactive
+- Create gpt-4o agent configuration with provider reference
+- Search providers and agents with filters and pagination
+- Configuration validation using go-agents structures
+- Graceful server shutdown on SIGTERM/SIGINT
 
 ### Milestone 2: Document Upload & Processing
 
@@ -166,9 +224,9 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete technical specifications.
 **Deliverables**:
 - Document upload API (`POST /api/documents`, multipart/form-data)
 - Database schema: `documents` table with metadata
-- FilesystemBlobStorage implementation (`.data/blobs/documents/`)
+- Blob storage system with filesystem implementation (`.data/blobs/documents/`)
 - document-context integration (PDF → page extraction → image rendering)
-- FilesystemCache configuration (`.data/cache/images/`)
+- Filesystem cache configuration (`.data/cache/images/`)
 - Enhancement filter configuration API
 - Document preview endpoint (`GET /api/documents/{id}/pages/{num}`)
 
@@ -185,10 +243,10 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete technical specifications.
 
 **Deliverables**:
 - Database schema: `workflows`, `execution_runs`, `execution_cache_entries` tables
-- ExecutionQueueService (long-running, channel-based queue)
-- WorkerPoolService (long-running, goroutine pool)
-- WorkflowExecutionService (ephemeral, orchestrates execution)
-- EventBus (long-running, pub/sub messaging)
+- Execution queue system (long-running, channel-based queue)
+- Worker pool system (long-running, goroutine pool)
+- Workflow execution system (orchestrates execution)
+- Event bus system (long-running, pub/sub messaging)
 - Execution state management (pending → running → completed/failed/cancelled)
 - Context cancellation support (`DELETE /api/runs/{id}`)
 
@@ -283,7 +341,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete technical specifications.
 **Objective**: Deploy to Azure with production integrations.
 
 **Deliverables**:
-- Azure Blob Storage integration (replace FilesystemBlobStorage)
+- Azure blob storage system (replace filesystem implementation)
 - Azure AI Foundry integration with Entra ID authentication
 - Managed identity for service authentication
 - Kubernetes manifests (deployment, service, ingress, configmap, secret)
