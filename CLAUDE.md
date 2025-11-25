@@ -118,10 +118,25 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete patterns.
 
 **Format**: TOML (Tom's Obvious, Minimal Language)
 
+**Configuration Precedence Principle**:
+All configuration values (scalar or array) are atomic units that replace at each precedence level:
+```
+Environment Variables (highest precedence)
+    ↓ replaces (not merges)
+config.local.toml / config.*.toml
+    ↓ replaces (not merges)
+config.toml (base configuration)
+```
+
+**Key Principles**:
+- **Atomic Replacement**: Values never merge - presence indicates complete replacement
+- **Array Format**: Use comma-separated strings in environment variables
+- **Consistent Behavior**: Scalar and array configs follow same precedence rules
+
 **Environment Variable Convention**:
-- Mirrors TOML structure with underscores: `section_field`
-- Arrays use indexed suffix: `cors_origins_0`, `cors_origins_1`
-- Nested objects: `database_replicas_0_host`, `database_replicas_0_port`
+- Mirrors TOML structure with underscores: `SECTION_FIELD` (uppercase)
+- Scalar values: `SERVER_PORT=9090`
+- Array values: `CORS_ORIGINS="http://example.com,http://other.com"` (comma-separated)
 
 See [config.toml](./config.toml) for examples.
 

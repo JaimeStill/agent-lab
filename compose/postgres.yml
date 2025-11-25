@@ -22,6 +22,6 @@ volumes:
   postgres-data:
 
 networks:
-  agent-abl:
+  agent-lab:
     name: agent-lab
     driver: bridge

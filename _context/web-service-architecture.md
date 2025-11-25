@@ -1,9 +1,15 @@
 # Web Service Architecture
 
 **Established**: 2025-11-22
-**Purpose**: Define the architectural principles, layer structure, and design patterns for agent-lab
+**Purpose**: Define architectural principles, layer structure, and design patterns for web service development
+
+This document contains both validated patterns (proven in agent-lab codebase) and conceptual architecture (not yet implemented but planned).
 
 ---
+
+# Section 1: Validated Patterns
+
+**Status**: These patterns have been implemented and validated in the agent-lab codebase (Session 01a).
 
 ## Core Architectural Principles
 
@@ -70,16 +76,16 @@ func (s *Server) Start() {
 Systems are organized in clear dependency layers:
 
 ```
-Layer 1: Server (Composition Root)
-  cmd/server/
+Layer 1: Service (Composition Root)
+  cmd/service/
   ↓ initializes with config
 
 Layer 2: Core Systems (Domain)
-  internal/[providers|agents|database|routes|middleware]
+  internal/[config|logger|routes|middleware|server]
   ↓ uses
 
 Layer 3: Public Infrastructure (Shared Toolkit)
-  pkg/[query|pagination]
+  pkg/[query|pagination] (future)
   ↓ uses
 
 Layer 4: External Services
@@ -92,7 +98,7 @@ Layer 4: External Services
 - State flows DOWN through parameters
 - Events flow UP through return values or channels
 
-### 4. State vs Process Initialization
+### 4. Cold Start vs Hot Start
 
 **Cold Start** (State Initialization):
 - `New*()` constructor functions
@@ -102,22 +108,22 @@ Layer 4: External Services
 - No processes running
 - Returns ready-to-start system
 
-**Hot Start** (Process Initialization):
+**Hot Start** (Process Activation):
 - `Start()` methods
 - State objects → Running processes
 - Cascade start through dependency graph
 - Context boundaries for lifecycle management
 - System becomes interactable
-- Blocks until shutdown
 
 Example:
 ```go
 // Cold Start - Build state graph
-srv, err := NewServer(cfg)  // All systems initialized but dormant
+svc, err := NewService(cfg)  // All systems initialized but dormant
 
 // Hot Start - Activate processes
-ctx := context.Background()
-err := srv.Start(ctx)  // Cascades start, blocks until shutdown
+if err := svc.Start(); err != nil {
+    log.Fatal(err)
+}
 ```
 
 ### 5. System Interface Contract
@@ -127,8 +133,8 @@ Every system provides:
 1. **Internal State** (private) - Only accessible within the system
 2. **Internal Processes** (private) - Implementation details
 3. **Getter Methods** (public) - Immutable access to state
-4. **Commands** (public) - Write operations from owner (downward)
-5. **Events** (public, optional) - Notifications to owner (upward)
+4. **Commands** (public) - Write operations from owner
+5. **Events** (public, optional) - Notifications to owner
 
 ### 6. Interface Naming Convention
 
@@ -184,17 +190,16 @@ type ProviderSystem interface {
 }
 ```
 
----
-
 ## Package Structure
 
-### **Layer 1: Server (Composition Root)**
+### **Layer 1: Service (Composition Root)**
 
 ```
-cmd/server/
+cmd/service/
 ├── main.go          # Entry point: Load config → Cold start → Hot start
-├── server.go        # Server system (owns all subsystems)
-└── config.go        # Configuration loading and validation
+├── service.go       # Service (composition root, owns all subsystems)
+├── middleware.go    # Middleware configuration
+└── routes.go        # Route registration
 ```
 
 **Responsibilities**:
@@ -205,27 +210,39 @@ cmd/server/
 
 ### **Layer 2: Core Systems (Domain)**
 
+**Currently Implemented**:
+```
+internal/
+├── config/          # Configuration System
+│   ├── config.go        # Root configuration
+│   ├── server.go        # Server configuration
+│   ├── database.go      # Database configuration
+│   ├── logging.go       # Logging configuration
+│   ├── cors.go          # CORS configuration
+│   └── types.go         # Shared types
+│
+├── logger/          # Logger System
+│   └── logger.go        # Structured logging
+│
+├── routes/          # HTTP Route Registration System
+│   ├── routes.go        # Route system
+│   └── group.go         # Route group definition
+│
+├── middleware/      # HTTP Middleware System
+│   ├── middleware.go    # Middleware stack
+│   ├── logger.go        # Logger middleware
+│   └── cors.go          # CORS middleware
+│
+└── server/          # HTTP Server System
+    └── server.go        # Server lifecycle management
+```
+
+**Future** (not yet implemented, see Section 2):
 ```
 internal/
 ├── providers/       # Provider Configuration System
-│   ├── provider.go      # State structures
-│   ├── system.go        # Interface definition
-│   ├── repository.go    # System implementation
-│   ├── handlers.go      # HTTP handlers
-│   └── routes.go        # Route group definition
-│
 ├── agents/          # Agent Configuration System
-│   └── (same structure as providers)
-│
-├── database/        # Database Connection System
-│   └── database.go      # Connection pool management
-│
-├── routes/          # HTTP Route Registration System
-│   ├── routes.go        # Route system & group management
-│   └── group.go         # Route group definition
-│
-└── middleware/      # HTTP Middleware System
-    └── middleware.go    # Middleware stack (CORS, logging, etc.)
+└── database/        # Database Connection System
 ```
 
 **Responsibilities**:
@@ -236,6 +253,7 @@ internal/
 
 ### **Layer 3: Public Infrastructure (Shared Toolkit)**
 
+**Future** (not yet implemented, see Section 2):
 ```
 pkg/
 ├── query/           # SQL Query Building Toolkit
@@ -257,234 +275,675 @@ pkg/
 - Other services/tools can import these utilities
 - Clear separation: `pkg/` = public API, `internal/` = private implementation
 
----
+## Configuration Management
 
-## Configuration Interface Pattern
+### Configuration Precedence
+
+**Principle**: All configuration values (scalar or array) are atomic units that replace at each precedence level.
+
+```
+Environment Variables (highest precedence)
+    ↓ replaces (not merges)
+config.{env}.toml (overlay)
+    ↓ replaces (not merges)
+config.toml (base configuration)
+```
+
+**Key Principles:**
+1. **Atomic Replacement**: Configuration values are never merged - presence indicates complete replacement
+2. **Array Format**: Array values use comma-separated strings in environment variables
+3. **Consistent Behavior**: Scalar and array configs follow the same precedence rules
+4. **Predictable**: What you see at each level is exactly what you get
+
+**Examples:**
+
+Scalar value replacement:
+```toml
+# config.toml
+[server]
+port = 8080
+```
+```bash
+# Environment override (replaces)
+SERVER_PORT=9090
+# Result: port = 9090
+```
+
+Array value replacement:
+```toml
+# config.toml
+[cors]
+origins = ["http://localhost:3000", "http://localhost:8080"]
+```
+```bash
+# Environment override (replaces entire array, does not merge)
+CORS_ORIGINS="http://example.com,http://other.com"
+# Result: origins = ["http://example.com", "http://other.com"]
+```
+
+### Encapsulated Configuration Sections
+
+**Principle**: Each configuration section owns its environment mapping, finalization, and validation logic through internal methods.
+
+**Section Pattern**:
+```go
+type SectionConfig struct {
+    Field1 string `toml:"field1"`
+    Field2 int    `toml:"field2"`
+}
+
+func (c *SectionConfig) loadDefaults() {
+    // Apply defaults for any zero-value fields
+    if c.Field1 == "" {
+        c.Field1 = "default"
+    }
+    if c.Field2 == 0 {
+        c.Field2 = 42
+    }
+}
+
+func (c *SectionConfig) loadEnv() {
+    // Map SECTION_FIELD environment variables to struct fields
+    if v := os.Getenv("SECTION_FIELD1"); v != "" {
+        c.Field1 = v
+    }
+    if v := os.Getenv("SECTION_FIELD2"); v != "" {
+        if n, err := strconv.Atoi(v); err == nil {
+            c.Field2 = n
+        }
+    }
+}
+
+func (c *SectionConfig) validate() error {
+    // Validate field constraints
+    if c.Field1 == "" {
+        return fmt.Errorf("field1 required")
+    }
+    return nil
+}
+```
+
+**Root Config Pattern**:
+```go
+type Config struct {
+    Server   ServerConfig
+    Database DatabaseConfig
+    Logging  LoggingConfig
+    CORS     CORSConfig
+}
+
+func (c *Config) Finalize() error {
+    c.loadDefaults()
+    c.loadEnv()
+    return c.validate()
+}
+
+func (c *Config) loadDefaults() {
+    c.Server.loadDefaults()
+    c.Database.loadDefaults()
+    c.Logging.loadDefaults()
+    c.CORS.loadDefaults()
+}
+
+func (c *Config) loadEnv() {
+    c.Server.loadEnv()
+    c.Database.loadEnv()
+    c.Logging.loadEnv()
+    c.CORS.loadEnv()
+}
+
+func (c *Config) validate() error {
+    if err := c.Server.validate(); err != nil {
+        return fmt.Errorf("server: %w", err)
+    }
+    if err := c.Database.validate(); err != nil {
+        return fmt.Errorf("database: %w", err)
+    }
+    if err := c.Logging.validate(); err != nil {
+        return fmt.Errorf("logging: %w", err)
+    }
+    return nil
+}
+```
+
+### Environment Variable Convention
+
+**Pattern**: `SECTION_FIELD` (all uppercase, underscores for nesting)
+
+**Docker vs Application**:
+- **Docker Compose variables** (e.g., `POSTGRES_*`, `OLLAMA_*`) → Configure containers
+- **Application variables** (e.g., `DATABASE_*`, `SERVER_*`) → Override TOML config
+
+**Complete Mapping**:
+```
+TOML Section → Environment Variable
+
+[server]
+  host              → SERVER_HOST
+  port              → SERVER_PORT
+  read_timeout      → SERVER_READ_TIMEOUT
+  write_timeout     → SERVER_WRITE_TIMEOUT
+
+[database]
+  host              → DATABASE_HOST
+  port              → DATABASE_PORT
+  name              → DATABASE_NAME
+  user              → DATABASE_USER
+  password          → DATABASE_PASSWORD
+
+[logging]
+  level             → LOGGING_LEVEL
+  format            → LOGGING_FORMAT
+
+[cors]
+  origins           → CORS_ORIGINS (comma-separated)
+  credentials       → CORS_CREDENTIALS (true/false)
+  headers           → CORS_HEADERS (comma-separated)
+  methods           → CORS_METHODS (comma-separated)
+  max_age           → CORS_MAX_AGE
+```
+
+### Configuration Loading Flow
+
+```go
+func Load() (*Config, error) {
+    basePath := BaseConfigFile
+    overlayPath := overlayPath()
+
+    data, err := os.ReadFile(basePath)
+    if err != nil {
+        return nil, fmt.Errorf("read base config: %w", err)
+    }
+
+    var cfg Config
+    if err := toml.Unmarshal(data, &cfg); err != nil {
+        return nil, fmt.Errorf("parse base config: %w", err)
+    }
+
+    if overlayPath != "" {
+        overlayData, err := os.ReadFile(overlayPath)
+        if err != nil {
+            return nil, fmt.Errorf("read overlay config: %w", err)
+        }
+
+        var overlay Config
+        if err := toml.Unmarshal(overlayData, &overlay); err != nil {
+            return nil, fmt.Errorf("parse overlay config: %w", err)
+        }
+
+        cfg.Merge(&overlay)
+    }
+
+    return &cfg, nil
+}
+
+// Usage in main()
+func main() {
+    cfg, err := config.Load()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // Finalize: defaults → env → validate
+    if err := cfg.Finalize(); err != nil {
+        log.Fatal("config invalid:", err)
+    }
+
+    // Config is now validated and ready for use
+    svc, err := NewService(cfg)
+    // ...
+}
+```
+
+**Simplified Pattern**:
+1. **Load()**: Loads base TOML + optional overlay
+2. **Finalize()**: Single public method orchestrates defaults → env → validate
+3. **Internal methods**: loadDefaults(), loadEnv(), validate() are implementation details
+4. **Caller controls**: main() decides when to finalize
+
+**Benefits**:
+1. **Implicit guarantee**: Every TOML field has a corresponding env override
+2. **Co-located logic**: Environment mapping lives with the struct it modifies
+3. **Self-contained**: Each section is independently testable
+4. **Clear mapping**: Easy to see what env vars exist per section
+5. **Single method**: One call does everything (Finalize())
+
+## Configuration is Ephemeral
+
+**Principle**: Configuration exists only to initialize systems, then it's discarded.
 
 ### Stateful Systems vs Functional Infrastructure
 
-**Apply config interface pattern to**:
+**Stateful Systems** (use concrete config structs):
 - Systems that own state and other systems
-- Complex initialization requiring finalize/validate/transform
-- Examples: Server, Database, Providers, Agents
+- Complex initialization requiring defaults → env → validate
+- Examples: Service, Database, Providers, Agents
 
-**Use simple parameters for**:
+**Functional Infrastructure** (use simple parameters):
 - Stateless or minimal-state utilities
 - Functional infrastructure with no owned subsystems
 - Examples: Handlers, middleware, routing, query builders
 
-### Config Interface Benefits
+### Simplified Pattern Benefits
 
-1. **Makes required state immediately apparent** - Look at the interface to see all dependencies
-2. **Self-describing initialization** - Config can implement its own `Finalize()` and `Validate()`
-3. **Configuration graph** - Parent configs contain child configs for owned systems
-4. **Clear ownership boundaries** - Explicit relationship between systems
-5. **Easier testing** - Mock the interface, not individual parameters
+1. **No interfaces needed** - Concrete structs are simpler and sufficient
+2. **Single Finalize() method** - One call does defaults → env → validate
+3. **Internal methods** - loadDefaults(), loadEnv(), validate() are implementation details
+4. **Configuration graph** - Config struct contains child config structs
+5. **Ephemeral** - Config is discarded after initialization
 
-### Configuration Graph Pattern
+### Configuration Lifecycle
 
-Parent system configs contain child configs for all owned subsystems:
-
-```go
-// Server owns Database, Providers, Agents, etc.
-type ServerConfig interface {
-    // Subsystem configs (configuration graph)
-    Database() DatabaseConfig
-    Providers() ProvidersConfig
-    Agents() AgentsConfig
-
-    // Direct configuration
-    Pagination() pagination.Config
-    Logging() LoggingConfig
-    HTTP() HTTPServerConfig
-    CORS() CORSConfig
-
-    // Self-describing initialization
-    Finalize()
-    Validate() error
-}
-
-// ProvidersConfig has its own dependencies
-type ProvidersConfig interface {
-    DB() *sql.DB
-    Logger() *slog.Logger
-    Pagination() pagination.Config
-
-    Finalize()
-    Validate() error
-}
+```
+Load TOML → Config struct → Finalize() → NewService(cfg) → [Config discarded]
+                              ↓
+                    defaults → env → validate
 ```
 
----
+## Validated System Patterns
 
-## System Design Patterns
+### Service System (Composition Root)
 
-### Server System (Layer 1)
+**Service is the composition root** - it owns all systems but doesn't store config (config is ephemeral).
 
 ```go
-// cmd/server/config.go - Configuration interfaces
-type ServerConfig interface {
-    Database() DatabaseConfig
-    Providers() ProvidersConfig
-    Agents() AgentsConfig
-    Pagination() pagination.Config
-    Logging() LoggingConfig
-    HTTP() HTTPServerConfig
-    CORS() CORSConfig
+// Service owns all subsystems
+type Service struct {
+    ctx        context.Context
+    cancel     context.CancelFunc
+    shutdownWg sync.WaitGroup
 
-    Finalize()
-    Validate() error
-}
-
-// cmd/server/server.go
-type Server struct {
-    config     ServerConfig
-    db         database.System
-    logger     *slog.Logger
-    providers  providers.System
-    agents     agents.System
-    middleware middleware.System
-    routes     routes.System
+    logger logger.System
+    server server.System
 }
 
 // Cold Start - Initialize state dependency graph
-func NewServer(cfg ServerConfig) (*Server, error) {
-    // 1. Finalize: Apply defaults across config graph
-    cfg.Finalize()
+func NewService(cfg *Config) (*Service, error) {
+    ctx, cancel := context.WithCancel(context.Background())
 
-    // 2. Validate: Check requirements across config graph
-    if err := cfg.Validate(); err != nil {
-        return nil, err
-    }
+    loggerSys := logger.New(&cfg.Logging)
+    routeSys := routes.New(loggerSys.Logger())
 
-    // 3. Transform: Build dependency graph
-    logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-        Level: parseLevel(cfg.Logging().Level()),
-    }))
+    middlewareSys := buildMiddleware(loggerSys, cfg)
+    registerRoutes(routeSys)
+    handler := middlewareSys.Apply(routeSys.Build())
 
-    db, err := database.New(cfg.Database())
-    if err != nil {
-        return nil, fmt.Errorf("database: %w", err)
-    }
+    serverSys := server.New(&cfg.Server, handler, loggerSys.Logger())
 
-    providers, err := providers.New(cfg.Providers())
-    if err != nil {
-        return nil, fmt.Errorf("providers: %w", err)
-    }
-
-    agents, err := agents.New(cfg.Agents())
-    if err != nil {
-        return nil, fmt.Errorf("agents: %w", err)
-    }
-
-    middleware := middleware.New(cfg.CORS(), logger)
-
-    return &Server{
-        config:     cfg,
-        db:         db,
-        logger:     logger,
-        providers:  providers,
-        agents:     agents,
-        middleware: middleware,
+    return &Service{
+        ctx:    ctx,
+        cancel: cancel,
+        logger: loggerSys,
+        server: serverSys,
     }, nil
 }
 
 // Hot Start - Activate processes
-func (s *Server) Start(ctx context.Context) error {
-    // Cascade start to subsystems
-    if err := s.db.Start(ctx); err != nil {
-        return err
+func (s *Service) Start() error {
+    s.logger.Logger().Info("starting service")
+
+    if err := s.server.Start(s.ctx, &s.shutdownWg); err != nil {
+        return fmt.Errorf("server start failed: %w", err)
     }
 
-    // Build HTTP handler
-    handler := s.buildHandler()
-
-    // Start HTTP server (blocking)
-    return s.startHTTP(ctx, handler)
+    s.logger.Logger().Info("service started")
+    return nil
 }
 
-func (s *Server) buildHandler() http.Handler {
-    routeSys := routes.New(s.logger)
+// Graceful Shutdown
+func (s *Service) Shutdown(ctx context.Context) error {
+    s.logger.Logger().Info("initiating shutdown")
 
-    // Register route groups (state flows DOWN)
-    routeSys.RegisterGroup(providers.Routes(s.providers, s.logger))
-    routeSys.RegisterGroup(agents.Routes(s.agents, s.logger))
+    s.cancel()
 
-    handler := routeSys.Build()
-    return s.middleware.Apply(handler)
+    done := make(chan struct{})
+    go func() {
+        s.shutdownWg.Wait()
+        close(done)
+    }()
+
+    select {
+    case <-done:
+        s.logger.Logger().Info("all subsystems shut down successfully")
+        return nil
+    case <-ctx.Done():
+        return fmt.Errorf("shutdown timeout: %w", ctx.Err())
+    }
 }
-
-// Getters - Nouns (access owned state)
-func (s *Server) Config() *Config { return s.config }
-func (s *Server) Logger() *slog.Logger { return s.logger }
-func (s *Server) Providers() providers.System { return s.providers }
-func (s *Server) Agents() agents.System { return s.agents }
 ```
 
-### Domain System (Layer 2)
+### Server System
 
 ```go
-// internal/providers/system.go - Configuration & System interfaces
-type ProvidersConfig interface {
-    DB() *sql.DB
-    Logger() *slog.Logger
-    Pagination() pagination.Config
-
-    Finalize()
-    Validate() error
+type System interface {
+    Start(ctx context.Context, wg *sync.WaitGroup) error
+    Stop(ctx context.Context) error
 }
 
+type server struct {
+    http            *http.Server
+    logger          *slog.Logger
+    shutdownTimeout time.Duration
+}
+
+func New(cfg *ServerConfig, handler http.Handler, logger *slog.Logger) System {
+    return &server{
+        http: &http.Server{
+            Addr:         cfg.Addr(),
+            Handler:      handler,
+            ReadTimeout:  cfg.ReadTimeoutDuration(),
+            WriteTimeout: cfg.WriteTimeoutDuration(),
+        },
+        logger:          logger,
+        shutdownTimeout: cfg.ShutdownTimeoutDuration(),
+    }
+}
+```
+
+### Logger System
+
+```go
 type System interface {
-    // Commands - Verbs (actions)
+    Logger() *slog.Logger
+}
+
+type logger struct {
+    logger *slog.Logger
+}
+
+func New(cfg *LoggingConfig) System {
+    var handler slog.Handler
+
+    opts := &slog.HandlerOptions{
+        Level: parseLevel(cfg.Level),
+    }
+
+    switch cfg.Format {
+    case "json":
+        handler = slog.NewJSONHandler(os.Stdout, opts)
+    default:
+        handler = slog.NewTextHandler(os.Stdout, opts)
+    }
+
+    return &logger{
+        logger: slog.New(handler),
+    }
+}
+```
+
+### Route System
+
+**Functional Infrastructure** - Uses simple constructor, not config interface. Stateless utility for organizing routes.
+
+```go
+type System interface {
+    RegisterGroup(group Group)
+    RegisterRoute(route Route)
+    Build() http.Handler
+}
+
+type system struct {
+    groups []Group
+    routes []Route
+    logger *slog.Logger
+}
+
+func New(logger *slog.Logger) System {
+    return &system{
+        groups: make([]Group, 0),
+        routes: make([]Route, 0),
+        logger: logger,
+    }
+}
+
+type Group struct {
+    Prefix      string
+    Tags        []string
+    Description string
+    Routes      []Route
+}
+
+type Route struct {
+    Method  string
+    Pattern string
+    Handler http.HandlerFunc
+}
+```
+
+### Middleware System
+
+**Functional Infrastructure** - Stateless utility for composing middleware stack.
+
+```go
+type System interface {
+    Use(mw func(http.Handler) http.Handler)
+    Apply(handler http.Handler) http.Handler
+}
+
+type middleware struct {
+    stack []func(http.Handler) http.Handler
+}
+
+func New() System {
+    return &middleware{
+        stack: make([]func(http.Handler) http.Handler, 0),
+    }
+}
+
+func (m *middleware) Use(mw func(http.Handler) http.Handler) {
+    m.stack = append(m.stack, mw)
+}
+
+func (m *middleware) Apply(handler http.Handler) http.Handler {
+    for i := len(m.stack) - 1; i >= 0; i-- {
+        handler = m.stack[i](handler)
+    }
+    return handler
+}
+```
+
+## Graceful Shutdown
+
+Service implements graceful shutdown using context cancellation and coordinated timeout handling:
+
+```go
+// main.go
+func main() {
+    cfg, err := config.Load()
+    if err != nil {
+        log.Fatal("config load failed:", err)
+    }
+
+    if err := cfg.Finalize(); err != nil {
+        log.Fatal("config finalize failed:", err)
+    }
+
+    svc, err := NewService(cfg)
+    if err != nil {
+        log.Fatal("service init failed:", err)
+    }
+
+    ctx, stop := signal.NotifyContext(
+        context.Background(),
+        os.Interrupt,
+        syscall.SIGTERM,
+    )
+    defer stop()
+
+    if err := svc.Start(); err != nil {
+        log.Fatal("service failed:", err)
+    }
+
+    <-ctx.Done()
+
+    shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+
+    if err := svc.Shutdown(shutdownCtx); err != nil {
+        log.Fatal("shutdown failed:", err)
+    }
+
+    log.Println("service stopped gracefully")
+}
+```
+
+**Shutdown Flow**:
+1. **Signal received** (SIGINT/SIGTERM) → context cancelled
+2. **Service.Shutdown()** called → cancels service context
+3. **HTTP server** gracefully closes connections (configurable timeout)
+4. **WaitGroup** waits for all subsystems to complete
+5. **Service.Shutdown()** returns → main() exits
+
+## Testing Strategy
+
+### Black-Box Testing
+
+All tests use `package <name>_test` and import the package being tested:
+
+```go
+package config_test
+
+import (
+    "testing"
+
+    "github.com/JaimeStill/agent-lab/internal/config"
+)
+
+func TestLoad(t *testing.T) {
+    cfg, err := config.Load()
+    if err != nil {
+        t.Fatalf("Load() failed: %v", err)
+    }
+
+    if cfg == nil {
+        t.Fatal("Load() returned nil config")
+    }
+}
+```
+
+### Table-Driven Tests
+
+```go
+func TestServerConfig_Validate(t *testing.T) {
+    tests := []struct {
+        name      string
+        cfg       config.ServerConfig
+        expectErr bool
+    }{
+        {
+            name: "valid config",
+            cfg: config.ServerConfig{
+                Host:         "localhost",
+                Port:         8080,
+                ReadTimeout:  "30s",
+                WriteTimeout: "30s",
+            },
+            expectErr: false,
+        },
+        {
+            name: "invalid port",
+            cfg: config.ServerConfig{
+                Host:         "localhost",
+                Port:         99999,
+                ReadTimeout:  "30s",
+                WriteTimeout: "30s",
+            },
+            expectErr: true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            tt.cfg.loadDefaults()
+            err := tt.cfg.validate()
+            if tt.expectErr && err == nil {
+                t.Error("expected error but got nil")
+            }
+            if !tt.expectErr && err != nil {
+                t.Errorf("unexpected error: %v", err)
+            }
+        })
+    }
+}
+```
+
+### Test Organization
+
+Tests mirror package structure:
+```
+tests/
+├── internal_config/      # Mirrors internal/config
+├── internal_logger/      # Mirrors internal/logger
+├── internal_routes/      # Mirrors internal/routes
+├── internal_middleware/  # Mirrors internal/middleware
+├── internal_server/      # Mirrors internal/server
+└── cmd_service/          # Mirrors cmd/service
+```
+
+---
+
+# Section 2: Conceptual Architecture
+
+**Status**: These patterns are planned but not yet implemented in agent-lab.
+
+## Domain System Pattern
+
+**Domain systems receive concrete dependencies** - no config interfaces needed.
+
+```go
+// internal/providers/system.go
+type System interface {
     Create(ctx context.Context, cmd CreateCommand) (*Provider, error)
     Update(ctx context.Context, id uuid.UUID, cmd UpdateCommand) (*Provider, error)
     Delete(ctx context.Context, id uuid.UUID) error
     Search(ctx context.Context, req SearchRequest) (*SearchResult, error)
-
-    // Getters - Nouns (state access)
-    // Note: For repository pattern, these are still verbs since they're queries
     FindByID(ctx context.Context, id uuid.UUID) (*Provider, error)
 }
 
-// internal/providers/repository.go - Implementation
+// internal/providers/repository.go
 type repository struct {
-    db         *sql.DB
-    logger     *slog.Logger
-    pagination pagination.Config
+    db              *sql.DB
+    logger          *slog.Logger
+    defaultPageSize int
 }
 
-func New(cfg ProvidersConfig) (System, error) {
-    // 1. Finalize: Apply defaults
-    cfg.Finalize()
-
-    // 2. Validate: Check requirements
-    if err := cfg.Validate(); err != nil {
-        return nil, err
+func New(db *sql.DB, logger *slog.Logger, defaultPageSize int) (System, error) {
+    if db == nil {
+        return nil, fmt.Errorf("db required")
+    }
+    if logger == nil {
+        return nil, fmt.Errorf("logger required")
+    }
+    if defaultPageSize <= 0 {
+        defaultPageSize = 20
     }
 
-    // 3. Transform: Create validated instance
     return &repository{
-        db:         cfg.DB(),
-        logger:     cfg.Logger().With("system", "providers"),
-        pagination: cfg.Pagination(),
+        db:              db,
+        logger:          logger.With("system", "providers"),
+        defaultPageSize: defaultPageSize,
     }, nil
 }
+```
 
+## Handler Pattern
+
+Handlers are **pure functions**, not structs with stored state:
+
+```go
 // internal/providers/handlers.go - Functional infrastructure (simple parameters)
 func HandleCreate(
     w http.ResponseWriter,
     r *http.Request,
-    system System,  // Interface injected from owner
+    system System,
     logger *slog.Logger,
 ) {
-    // Parse request
     var cmd CreateCommand
     if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
         respondError(w, logger, http.StatusBadRequest, err)
         return
     }
 
-    // Execute on system (state flows DOWN)
     result, err := system.Create(r.Context(), cmd)
     if err != nil {
         respondError(w, logger, http.StatusInternalServerError, err)
@@ -493,10 +952,13 @@ func HandleCreate(
 
     respondJSON(w, logger, http.StatusCreated, result)
 }
+```
 
-// NOTE: Handlers are functional infrastructure - they use simple parameters,
-// not config interfaces. They're stateless and well-encapsulated as-is.
+## Route Group Pattern
 
+Domain packages define route groups:
+
+```go
 // internal/providers/routes.go - Route group
 func Routes(system System, logger *slog.Logger) routes.Group {
     return routes.Group{
@@ -519,89 +981,22 @@ func Routes(system System, logger *slog.Logger) routes.Group {
                     HandleGetByID(w, r, system, logger)
                 },
             },
-            // More routes...
         },
     }
 }
 ```
 
-### Route System (Layer 2)
+## Database System Pattern
 
-**Functional Infrastructure** - Uses simple constructor, not config interface. Stateless utility for organizing routes.
-
-```go
-// internal/routes/routes.go
-type System struct {
-    groups []Group
-    logger *slog.Logger
-}
-
-func New(logger *slog.Logger) System {
-    return System{logger: logger}
-}
-
-func (s *System) RegisterGroup(group Group) {
-    s.groups = append(s.groups, group)
-}
-
-func (s *System) Build() http.Handler {
-    mux := http.NewServeMux()
-
-    mux.HandleFunc("GET /healthz", func(w, r) {
-        w.WriteHeader(http.StatusOK)
-    })
-
-    for _, group := range s.groups {
-        s.registerGroup(mux, group)
-    }
-
-    return mux
-}
-
-// internal/routes/group.go
-type Group struct {
-    Prefix      string
-    Tags        []string
-    Description string
-    Middleware  []func(http.Handler) http.Handler
-    Routes      []Route
-}
-
-type Route struct {
-    Method  string
-    Pattern string
-    Handler http.HandlerFunc
-}
-```
-
-### Database System (Layer 2)
+**Database system receives concrete config struct** - applies its own defaults and validation.
 
 ```go
-// internal/database/database.go - Configuration & System interfaces
-type DatabaseConfig interface {
-    Host() string
-    Port() int
-    Name() string
-    User() string
-    Password() string
-    MaxOpenConns() int
-    MaxIdleConns() int
-    ConnMaxLifetime() time.Duration
-    ConnTimeout() time.Duration
-
-    Logger() *slog.Logger
-
-    Finalize()
-    Validate() error
-}
-
+// internal/database/database.go
 type System interface {
-    // Getters - Nouns (state access)
     Connection() *sql.DB
-
-    // Commands - Verbs (actions)
     Start(ctx context.Context) error
     Stop(ctx context.Context) error
+    Health(ctx context.Context) error
 }
 
 type database struct {
@@ -609,41 +1004,37 @@ type database struct {
     logger *slog.Logger
 }
 
-func New(cfg DatabaseConfig) (System, error) {
-    // 1. Finalize: Apply defaults
-    cfg.Finalize()
-
-    // 2. Validate: Check requirements
-    if err := cfg.Validate(); err != nil {
-        return nil, err
+func New(cfg *DatabaseConfig, logger *slog.Logger) (System, error) {
+    if cfg == nil {
+        return nil, fmt.Errorf("config required")
+    }
+    if logger == nil {
+        return nil, fmt.Errorf("logger required")
     }
 
-    // 3. Transform: Build connection
     dsn := fmt.Sprintf(
-        "host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
-        cfg.Host(), cfg.Port(), cfg.Name(), cfg.User(), cfg.Password())
+        "host=%s port=%d dbname=%s user=%s password=%s sslmode=disable connect_timeout=%d",
+        cfg.Host, cfg.Port, cfg.Name, cfg.User, cfg.Password, int(cfg.ConnTimeoutDuration().Seconds()))
 
     db, err := sql.Open("pgx", dsn)
     if err != nil {
-        return nil, fmt.Errorf("failed to open: %w", err)
+        return nil, fmt.Errorf("open failed: %w", err)
     }
 
-    db.SetMaxOpenConns(cfg.MaxOpenConns())
-    db.SetMaxIdleConns(cfg.MaxIdleConns())
-    db.SetConnMaxLifetime(cfg.ConnMaxLifetime())
+    db.SetMaxOpenConns(cfg.MaxOpenConns)
+    db.SetMaxIdleConns(cfg.MaxIdleConns)
+    db.SetConnMaxLifetime(cfg.ConnMaxLifetimeDuration())
 
     return &database{
         conn:   db,
-        logger: cfg.Logger().With("system", "database"),
+        logger: logger.With("system", "database"),
     }, nil
 }
 
-// Getter - Noun (state access)
 func (d *database) Connection() *sql.DB {
     return d.conn
 }
 
-// Command - Verb (action)
 func (d *database) Start(ctx context.Context) error {
     d.logger.Info("starting database connection")
 
@@ -651,87 +1042,120 @@ func (d *database) Start(ctx context.Context) error {
     defer cancel()
 
     if err := d.conn.PingContext(pingCtx); err != nil {
-        return fmt.Errorf("failed to ping: %w", err)
+        return fmt.Errorf("ping failed: %w", err)
     }
 
     d.logger.Info("database connection established")
     return nil
 }
-```
 
----
+func (d *database) Stop(ctx context.Context) error {
+    d.logger.Info("stopping database connection")
+    return d.conn.Close()
+}
 
-## Main Entry Point
-
-```go
-// cmd/server/main.go
-func main() {
-    // 1. Load configuration
-    cfg, err := LoadConfig("config.toml")
-    if err != nil {
-        log.Fatal("config load failed:", err)
-    }
-
-    // 2. Cold Start - Initialize state
-    srv, err := NewServer(cfg)
-    if err != nil {
-        log.Fatal("server init failed:", err)
-    }
-
-    // 3. Context with signal handling
-    ctx, stop := signal.NotifyContext(
-        context.Background(),
-        os.Interrupt,
-        syscall.SIGTERM,
-    )
-    defer stop()
-
-    // 4. Hot Start - Start processes (blocking)
-    if err := srv.Start(ctx); err != nil {
-        log.Fatal("server failed:", err)
-    }
-
-    log.Println("server stopped gracefully")
+func (d *database) Health(ctx context.Context) error {
+    return d.conn.PingContext(ctx)
 }
 ```
 
----
+## Query Infrastructure Pattern
 
-## Current Milestone Scope
+Three-layer architecture for building parameterized SQL queries:
 
-**What We're Building NOW (Milestone 1)**:
+**Layer 1: ProjectionMap** (Structure Definition):
+- Static, reusable query structure per domain entity
+- Defines tables, joins, column mappings
+- Resolves view property names to `table.column` references
 
-✅ Layer 1: Server system with graceful shutdown
-✅ Layer 2: Provider Configuration System (CRUD + Search)
-✅ Layer 2: Agent Configuration System (CRUD + Search)
-✅ Layer 2: Database System (connection pool)
-✅ Layer 2: Routes System (smart grouping)
-✅ Layer 2: Middleware System (CORS, logging)
-✅ Layer 3: Query Builder (pkg/query)
-✅ Layer 3: Pagination (pkg/pagination)
+**Layer 2: QueryBuilder** (Operations):
+- Fluent builder for filters, sorting, pagination
+- Methods: `WhereEquals`, `WhereContains`, `WhereSearch`, `OrderBy`
+- Automatic null-checking: only applies filters when values are non-null
+- Generates: `BuildCount()`, `BuildPage()`, `BuildSingle()`
 
-**What We're NOT Building Yet**:
+**Layer 3: Execution** (database/sql):
+- Execute generated SQL + args with `QueryContext`/`ExecContext`
+- Two-query pattern: COUNT for total, SELECT with OFFSET/FETCH
 
-❌ Authentication/Authorization
-❌ OpenAPI generation infrastructure
-❌ Agent Protocol execution (Chat, Vision, Tools, Embed)
-❌ Document processing
-❌ Workflow orchestration
-❌ Blob storage
-❌ Caching layer
+## Pagination Pattern
 
-**Principle**: Build only what's needed for the current milestone. Add infrastructure when there's a concrete requirement.
+Reusable pagination structures for all search operations:
 
----
+```go
+// pkg/pagination/pagination.go
+type Config struct {
+    DefaultPageSize int
+    MaxPageSize     int
+}
 
-## Key Decisions
+type PageRequest struct {
+    Page     int
+    PageSize int
+}
 
-### 1. No PaginationService
-- Eliminated `PaginationService` - it was just a config wrapper
-- Use `PaginationConfig` directly
-- Pagination logic as functions in `pkg/pagination`
+type PageResult[T any] struct {
+    Data  []T `json:"data"`
+    Total int `json:"total"`
+    Page  int `json:"page"`
+}
+```
 
-### 2. Long-Running vs Ephemeral Systems
+## Database Patterns
+
+### Transaction Pattern
+
+Commands always use transactions:
+
+```go
+func (r *repository) Create(ctx context.Context, cmd CreateCommand) (*Provider, error) {
+    tx, err := r.db.BeginTx(ctx, nil)
+    if err != nil {
+        return nil, fmt.Errorf("begin transaction: %w", err)
+    }
+    defer tx.Rollback()
+
+    // Execute mutations within transaction
+    var p Provider
+    err = tx.QueryRowContext(ctx, query, args...).Scan(&p.ID, &p.Name, ...)
+    if err != nil {
+        return nil, fmt.Errorf("insert: %w", err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        return nil, fmt.Errorf("commit: %w", err)
+    }
+
+    return &p, nil
+}
+```
+
+### Query Pattern
+
+Queries don't use transactions:
+
+```go
+func (r *repository) FindByID(ctx context.Context, id uuid.UUID) (*Provider, error) {
+    query := `SELECT id, name, config, created_at, updated_at FROM providers WHERE id = $1`
+
+    var p Provider
+    err := r.db.QueryRowContext(ctx, query, id).Scan(
+        &p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt)
+    if err == sql.ErrNoRows {
+        return nil, ErrNotFound
+    }
+    if err != nil {
+        return nil, fmt.Errorf("query: %w", err)
+    }
+
+    return &p, nil
+}
+```
+
+## Key Design Decisions
+
+### 1. Long-Running vs Ephemeral Systems
+
 **Long-Running** (Application-Scoped):
 - Provider Configuration System
 - Agent Configuration System
@@ -744,101 +1168,16 @@ func main() {
 - Future: When systems need request context (userID, auth)
 - Created per-request in handlers
 
-### 3. Routes and Middleware as Systems
-- Not just functions - proper packages with clear responsibilities
-- Routes system manages smart grouping and registration
-- Middleware system manages request/response pipeline
-- Each domain defines its own route group
+### 2. Handler Pattern
 
-### 4. Handler Pattern
 - Handlers are **pure functions**, not structs with stored state
 - State flows DOWN through parameters
 - Each handler receives: `(w, r, system, logger)`
 - Handlers live in domain packages (e.g., `providers/handlers.go`)
 
-### 5. Interface Boundaries
+### 3. Interface Boundaries
+
 - Systems expose interfaces, not concrete types
 - Enables testing with mocks
 - Clear contract between layers
 - Owner defines interface, implementation is private
-
-### 6. Naming Conventions
-- **Getters**: Pure nouns - `Id()`, `Name()`, `Connection()`
-- **Commands**: Action verbs - `Start()`, `Create()`, `Update()`
-- **Events**: On* prefix - `OnShutdown()`, `OnProgress()`
-
----
-
-## Migration Notes
-
-**From Previous Architecture**:
-
-| Old Concept | New Concept | Rationale |
-|-------------|-------------|-----------|
-| `Application` struct in `internal/app` | `Server` struct in `cmd/server` | Server IS the application; no need for extra layer |
-| `PaginationService` | `PaginationConfig` | Just config + utility functions; not a stateful system |
-| Handlers store `*Application` | Handlers receive state as params | State flows DOWN, never stored upward |
-| Systems created per-request | Systems are long-running | No current need for request context |
-| Routes in `routes()` method | Routes system with smart grouping | Better organization, domain boundaries |
-| Flat middleware | Middleware system | Proper package, composable stack |
-| Everything in `internal/` | Split `internal/` + `pkg/` | Public infrastructure vs private implementation |
-| `GetId()`, `GetName()` | `Id()`, `Name()` | Pure nouns for getters |
-
-**Breaking Changes**:
-- Complete restructure required
-- Cannot incrementally migrate
-- Start fresh with new architecture
-
----
-
-## Testing Strategy
-
-### Unit Tests
-- Test systems with mocked dependencies
-- Test handlers with mocked systems
-- Test route registration
-- Black-box testing (`package name_test`)
-
-### Integration Tests
-- Test with real database (Docker)
-- Test full HTTP request/response cycle
-- Test graceful shutdown
-
-### What to Test
-- ✅ Repository operations (CRUD, search)
-- ✅ Query builder correctness
-- ✅ Pagination calculations
-- ✅ Handler request/response formats
-- ✅ Route registration
-- ✅ Middleware behavior
-
-### What NOT to Test Yet
-- ❌ Authentication (doesn't exist)
-- ❌ Authorization (doesn't exist)
-- ❌ OpenAPI generation (not building yet)
-
----
-
-## Next Steps
-
-1. **Re-align Documentation**:
-   - Update ARCHITECTURE.md with this design
-   - Update CLAUDE.md with new principles
-   - Update PROJECT.md with new vocabulary
-   - Update README.md with new structure
-
-2. **Rewrite Implementation Guide**:
-   - Completely rewrite `_context/01-milestone-1-foundation.md`
-   - Follow new architecture principles
-   - Focus only on Milestone 1 scope
-
-3. **Implement**:
-   - Execute updated implementation guide
-   - Validate with tests
-   - Document with godoc
-
-4. **Future Milestones**:
-   - Add authentication when needed
-   - Add agent protocols when needed
-   - Add OpenAPI generation when beneficial
-   - Each addition follows established patterns
