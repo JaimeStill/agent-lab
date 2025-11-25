@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -34,10 +33,7 @@ func main() {
 
 	<-sigChan
 
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeoutDuration())
-	defer cancel()
-
-	if err := svc.Shutdown(shutdownCtx); err != nil {
+	if err := svc.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
 		log.Fatal("shutdown failed:", err)
 	}
 

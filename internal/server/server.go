@@ -6,16 +6,15 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/JaimeStill/agent-lab/internal/config"
+	"github.com/JaimeStill/agent-lab/internal/lifecycle"
 )
 
 // System manages the HTTP server lifecycle including startup and shutdown.
 type System interface {
-	Start(ctx context.Context, wg *sync.WaitGroup) error
-	Stop(ctx context.Context) error
+	Start(lc *lifecycle.Coordinator) error
 }
 
 type server struct {
@@ -39,15 +38,16 @@ func New(cfg *config.ServerConfig, handler http.Handler, logger *slog.Logger) Sy
 }
 
 // Start begins listening for HTTP requests and sets up graceful shutdown on context cancellation.
-func (s *server) Start(ctx context.Context, wg *sync.WaitGroup) error {
-	wg.Go(func() {
+func (s *server) Start(lc *lifecycle.Coordinator) error {
+	go func() {
+		s.logger.Info("server listening", "addr", s.http.Addr)
 		if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.logger.Error("server error", "error", err)
 		}
-	})
+	}()
 
-	go func() {
-		<-ctx.Done()
+	lc.OnShutdown(func() {
+		<-lc.Context().Done()
 		s.logger.Info("shutting down server")
 
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
@@ -58,13 +58,7 @@ func (s *server) Start(ctx context.Context, wg *sync.WaitGroup) error {
 		} else {
 			s.logger.Info("server shutdown complete")
 		}
-	}()
+	})
 
-	s.logger.Info("server started", "addr", s.http.Addr)
 	return nil
-}
-
-// Stop gracefully shuts down the server within the provided context deadline.
-func (s *server) Stop(ctx context.Context) error {
-	return s.http.Shutdown(ctx)
 }

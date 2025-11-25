@@ -1,17 +1,16 @@
 package internal_server_test
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/JaimeStill/agent-lab/internal/config"
+	"github.com/JaimeStill/agent-lab/internal/lifecycle"
 	"github.com/JaimeStill/agent-lab/internal/server"
 )
 
@@ -68,13 +67,9 @@ func TestStart_ServerResponds(t *testing.T) {
 	})
 
 	sys := server.New(cfg, handler, testLogger())
+	lc := lifecycle.New()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var wg sync.WaitGroup
-
-	err := sys.Start(ctx, &wg)
+	err := sys.Start(lc)
 	if err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
@@ -91,11 +86,13 @@ func TestStart_ServerResponds(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
 	}
 
-	cancel()
-	time.Sleep(200 * time.Millisecond)
+	err = lc.Shutdown(5 * time.Second)
+	if err != nil {
+		t.Errorf("Shutdown() failed: %v", err)
+	}
 }
 
-func TestStop(t *testing.T) {
+func TestShutdown(t *testing.T) {
 	port := getAvailablePort(t)
 
 	cfg := &config.ServerConfig{
@@ -111,13 +108,9 @@ func TestStop(t *testing.T) {
 	})
 
 	sys := server.New(cfg, handler, testLogger())
+	lc := lifecycle.New()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var wg sync.WaitGroup
-
-	err := sys.Start(ctx, &wg)
+	err := sys.Start(lc)
 	if err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
@@ -126,22 +119,19 @@ func TestStop(t *testing.T) {
 
 	_, err = http.Get(fmt.Sprintf("http://localhost:%d/test", port))
 	if err != nil {
-		t.Fatalf("Server not responding before stop: %v", err)
+		t.Fatalf("Server not responding before shutdown: %v", err)
 	}
 
-	stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer stopCancel()
-
-	err = sys.Stop(stopCtx)
+	err = lc.Shutdown(5 * time.Second)
 	if err != nil {
-		t.Fatalf("Stop() failed: %v", err)
+		t.Fatalf("Shutdown() failed: %v", err)
 	}
 
 	time.Sleep(100 * time.Millisecond)
 
 	_, err = http.Get(fmt.Sprintf("http://localhost:%d/test", port))
 	if err == nil {
-		t.Error("Server still responding after stop")
+		t.Error("Server still responding after shutdown")
 	}
 }
 
@@ -163,12 +153,9 @@ func TestGracefulShutdown(t *testing.T) {
 	})
 
 	sys := server.New(cfg, handler, testLogger())
+	lc := lifecycle.New()
 
-	ctx, cancel := context.WithCancel(context.Background())
-
-	var wg sync.WaitGroup
-
-	err := sys.Start(ctx, &wg)
+	err := sys.Start(lc)
 	if err != nil {
 		t.Fatalf("Start() failed: %v", err)
 	}
@@ -188,7 +175,10 @@ func TestGracefulShutdown(t *testing.T) {
 	}()
 
 	time.Sleep(25 * time.Millisecond)
-	cancel()
+
+	go func() {
+		lc.Shutdown(5 * time.Second)
+	}()
 
 	success := <-done
 	if !success {

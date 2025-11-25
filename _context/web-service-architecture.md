@@ -9,7 +9,7 @@ This document contains both validated patterns (proven in agent-lab codebase) an
 
 # Section 1: Validated Patterns
 
-**Status**: These patterns have been implemented and validated in the agent-lab codebase (Session 01a).
+**Status**: These patterns have been implemented and validated in the agent-lab codebase.
 
 ## Core Architectural Principles
 
@@ -742,12 +742,67 @@ func (m *middleware) Apply(handler http.Handler) http.Handler {
 }
 ```
 
-## Graceful Shutdown
+## Lifecycle Coordinator Pattern
 
-Service implements graceful shutdown using context cancellation and coordinated timeout handling:
+Centralizes startup/shutdown orchestration, decoupling subsystem lifecycle from the composition root.
+
+### ReadinessChecker Interface
 
 ```go
-// main.go
+type ReadinessChecker interface {
+    Ready() bool
+}
+```
+
+### Coordinator
+
+```go
+type Coordinator struct {
+    ctx        context.Context
+    cancel     context.CancelFunc
+    startupWg  sync.WaitGroup
+    shutdownWg sync.WaitGroup
+    ready      bool
+    readyMu    sync.RWMutex
+}
+
+func (c *Coordinator) OnStartup(fn func())   // Register startup task
+func (c *Coordinator) OnShutdown(fn func())  // Register shutdown task
+func (c *Coordinator) WaitForStartup()       // Block until startup complete
+func (c *Coordinator) Ready() bool           // One-time gate after startup
+func (c *Coordinator) Shutdown(timeout time.Duration) error
+```
+
+### Subsystem Integration Pattern
+
+Subsystems receive the coordinator and register their hooks:
+
+```go
+func (d *database) Start(lc *lifecycle.Coordinator) error {
+    lc.OnStartup(func() {
+        // Verify connectivity (e.g., ping)
+    })
+
+    lc.OnShutdown(func() {
+        <-lc.Context().Done()  // Wait for cancellation
+        // Cleanup (e.g., close connections)
+    })
+
+    return nil
+}
+```
+
+**Key Insight**: OnShutdown hooks should wait for `Context().Done()` before cleanup, ensuring coordinated shutdown.
+
+**Subsystem Patterns**:
+- **Database**: Uses OnStartup (ping) and OnShutdown (close)
+- **Server**: Uses OnShutdown only (ListenAndServe is long-running)
+
+## Graceful Shutdown
+
+Service implements graceful shutdown through the lifecycle coordinator:
+
+```go
 func main() {
     cfg, err := config.Load()
     if err != nil {
@@ -763,23 +818,16 @@ func main() {
         log.Fatal("service init failed:", err)
     }
 
-    ctx, stop := signal.NotifyContext(
-        context.Background(),
-        os.Interrupt,
-        syscall.SIGTERM,
-    )
-    defer stop()
-
     if err := svc.Start(); err != nil {
-        log.Fatal("service failed:", err)
+        log.Fatal("service start failed:", err)
     }
 
-    <-ctx.Done()
+    sigChan := make(chan os.Signal, 1)
+    signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-    shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-    defer cancel()
+    <-sigChan
 
-    if err := svc.Shutdown(shutdownCtx); err != nil {
+    if err := svc.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
         log.Fatal("shutdown failed:", err)
     }
 
@@ -788,11 +836,11 @@ func main() {
 ```
 
 **Shutdown Flow**:
-1. **Signal received** (SIGINT/SIGTERM) → context cancelled
-2. **Service.Shutdown()** called → cancels service context
-3. **HTTP server** gracefully closes connections (configurable timeout)
-4. **WaitGroup** waits for all subsystems to complete
-5. **Service.Shutdown()** returns → main() exits
+1. **Signal received** (SIGINT/SIGTERM)
+2. **Service.Shutdown()** → delegates to lifecycle.Shutdown()
+3. **Lifecycle cancels context** → triggers OnShutdown hooks
+4. **Subsystems clean up** in parallel
+5. **WaitGroup completes** → Shutdown returns
 
 ## Testing Strategy
 
@@ -885,6 +933,8 @@ tests/
 # Section 2: Conceptual Architecture
 
 **Status**: These patterns are planned but not yet implemented in agent-lab.
+
+**Note**: Database System, Query Infrastructure, and Pagination patterns have been validated and moved to Section 1 and ARCHITECTURE.md. This section now focuses on domain system patterns (Providers, Agents) that will use that infrastructure.
 
 ## Domain System Pattern
 

@@ -1,12 +1,12 @@
 # agent-lab Development Guide
 
+## Role and Scope
+
 You are an expert in building web services and agentic workflow platforms with Go.
 
 I'm asking for advice and mentorship, not direct code modifications. This is a project I want to execute myself, but I need guidance and sanity checks when making decisions.
 
 You are authorized to create and modify documentation files, but implementation should be guided through detailed planning documents rather than direct code changes.
-
-**Key Documents**: [README](./README.md), [ARCHITECTURE](./ARCHITECTURE.md), [_context/](./_context/)
 
 ## Project Overview
 
@@ -17,186 +17,22 @@ agent-lab is a containerized Go web service for building and orchestrating agent
 
 The project follows **Layered Composition Architecture (LCA)** principles from these libraries.
 
-## Core Conventions
+## Documentation Hierarchy
 
-### System Lifecycle
+| Document | Purpose | Authoritative For |
+|----------|---------|-------------------|
+| CLAUDE.md | Project orientation, workflow instructions | How we work together |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Patterns implemented in current codebase | Technical implementation details |
+| [PROJECT.md](./PROJECT.md) | Vision, goals, milestone roadmap | What we're building and when |
+| [_context/web-service-architecture.md](./_context/web-service-architecture.md) | General web service architecture | Broader architectural philosophy |
+| [_context/service-design.md](./_context/service-design.md) | Project-specific conceptual patterns | Future design directions |
 
-**Stateful Systems** (Application-scoped):
-- Long-running systems that own state and processes
-- Examples: Server, Database, Providers, Agents
-- Initialized at server startup, live for application lifetime
-- Use encapsulated config interface pattern
-
-**Functional Infrastructure** (Stateless):
-- Pure functions or minimal-state utilities
-- Examples: Handlers, middleware, routing, query builders
-- Use simple function signatures
-
-**Cold Start vs Hot Start**:
-
-**Cold Start** (State Initialization):
-- `New*()` constructor functions
-- Builds entire dependency graph
-- All configurations → State objects
-- All systems created but dormant
-- No processes running
-
-**Hot Start** (Process Activation):
-- `Start()` methods
-- State objects → Running processes
-- Cascade start through dependency graph
-- Context boundaries for lifecycle management
-- System becomes interactable
-
-### Initialization Pattern
-
-**Stateful Systems**: Use config interface pattern following: **Finalize → Validate → Transform**
-
-```go
-type ProvidersConfig interface {
-    DB() *sql.DB
-    Logger() *slog.Logger
-    Pagination() pagination.Config
-
-    Finalize()
-    Validate() error
-}
-
-func New(cfg ProvidersConfig) (System, error) {
-    // 1. Finalize: Apply defaults
-    cfg.Finalize()
-
-    // 2. Validate: Check required dependencies
-    if err := cfg.Validate(); err != nil {
-        return nil, err
-    }
-
-    // 3. Transform: Create validated instance
-    return &repository{
-        db:         cfg.DB(),
-        logger:     cfg.Logger().With("system", "providers"),
-        pagination: cfg.Pagination(),
-    }, nil
-}
-```
-
-**Why Config Interfaces**:
-- Makes required state immediately apparent
-- Config can define its own finalize/validate/transform behaviors
-- Configuration graph for owned objects lives in parent config
-- Clear ownership boundaries
-- Easier testing (mock the interface)
-
-**Functional Infrastructure**: Use simple parameters (no config interface needed)
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete patterns.
-
-### State vs Process
-
-**State** = Pure Data (no methods):
-- Define structure only: entities, commands, filters
-- Located in domain packages (e.g., `internal/providers/provider.go`)
-- Examples: `Provider`, `CreateCommand`, `SearchRequest`
-
-**Process** = Behavior (system methods):
-- System methods that operate on state
-- Contain both queries (read) and commands (write)
-- Commands always use transactions
-- Located in system implementations (e.g., `internal/providers/repository.go`)
-
-**Handlers** = HTTP Layer (functional infrastructure):
-- Pure functions that receive state as parameters
-- State flows DOWN through parameters
-- Located in domain packages (e.g., `internal/providers/handlers.go`)
-
-**Package Organization**:
-- **cmd/server**: The process (composition root, entry point)
-- **pkg/**: Public API (shared infrastructure, reusable toolkit)
-- **internal/**: Private API (domain systems, business logic)
-
-### Configuration
-
-**Format**: TOML (Tom's Obvious, Minimal Language)
-
-**Configuration Precedence Principle**:
-All configuration values (scalar or array) are atomic units that replace at each precedence level:
-```
-Environment Variables (highest precedence)
-    ↓ replaces (not merges)
-config.local.toml / config.*.toml
-    ↓ replaces (not merges)
-config.toml (base configuration)
-```
-
-**Key Principles**:
-- **Atomic Replacement**: Values never merge - presence indicates complete replacement
-- **Array Format**: Use comma-separated strings in environment variables
-- **Consistent Behavior**: Scalar and array configs follow same precedence rules
-
-**Environment Variable Convention**:
-- Mirrors TOML structure with underscores: `SECTION_FIELD` (uppercase)
-- Scalar values: `SERVER_PORT=9090`
-- Array values: `CORS_ORIGINS="http://example.com,http://other.com"` (comma-separated)
-
-See [config.toml](./config.toml) for examples.
-
-### Database
-
-- Raw SQL with `database/sql` + pgx driver
-- Parameterized queries (`$1`, `$2`, etc.)
-- Commands use transactions, queries don't
-- Context-aware operations (`QueryRowContext`, `ExecContext`)
-
-### Query Engine
-
-**Never expose simple GET all endpoints** - Always use paginated search with filters.
-
-Three-layer architecture in `pkg/query`:
-
-**Layer 1: ProjectionMap** (Structure Definition):
-- Static, reusable query structure per domain entity
-- Defines tables, joins, column mappings
-- Resolves view property names to `table.column` references
-
-**Layer 2: QueryBuilder** (Operations):
-- Fluent builder for filters, sorting, pagination
-- Methods: `WhereEquals`, `WhereContains`, `WhereSearch`, `OrderBy`
-- Automatic null-checking: only applies filters when values are non-null
-- Generates: `BuildCount()`, `BuildPage()`, `BuildSingle()`
-
-**Layer 3: Execution** (database/sql):
-- Execute generated SQL + args with `QueryContext`/`ExecContext`
-- Two-query pattern: COUNT for total, SELECT with OFFSET/FETCH
-
-**Example Usage**:
-```go
-// Define once per domain entity (static)
-var providerProjection = query.NewProjectionMap("public", "providers", "p").
-    Project("id", "Id").
-    Project("name", "Name")
-
-// Use in system methods
-qb := query.NewBuilder(providerProjection, "Name").
-    WhereContains("Name", filters.Name).
-    WhereSearch(page.Search, "Name").
-    OrderBy(page.SortBy, page.Descending)
-
-// Execute count + page queries
-countSQL, countArgs := qb.BuildCount()
-pageSQL, pageArgs := qb.BuildPage(page.Page, page.PageSize)
-```
-
-### Error Handling
-
-- Wrap errors with context: `fmt.Errorf("operation failed: %w", err)`
-- Define system-level errors in domain packages (e.g., `internal/providers/errors.go`)
-- Map system errors to HTTP status codes in handlers
-
-### Logging
-
-- Structured logging with `slog`
-- Contextual loggers with attributes: `logger.With("system", "providers")`
-- Levels: debug (dev), info (normal), warn (unexpected), error (requires attention)
+**When to reference each:**
+- **Implementation questions** → ARCHITECTURE.md
+- **Workflow/process questions** → CLAUDE.md (this file)
+- **Roadmap/priorities** → PROJECT.md
+- **Architectural philosophy** → _context/web-service-architecture.md
+- **Conceptual/future patterns** → _context/service-design.md
 
 ## Development Workflow
 
@@ -211,7 +47,7 @@ Before starting a milestone, conduct a **Milestone Planning Session**:
 
 ### Development Session Workflow
 
-Each development session follows a structured workflow with clearly defined roles:
+Each development session follows a structured workflow:
 
 #### 1. Planning Phase
 **Collaborative exploration** of implementation approaches:
@@ -229,20 +65,25 @@ Present **outline of implementation guide** for approval:
 - Confirm scope and phases
 - Get explicit approval before detailed guide
 
+**Plan Mode Note**: If using plan mode, the plan file (`.claude/plans/`) serves as this outline. After plan mode approval, proceed to step 3 to create the full implementation guide - do NOT begin implementation.
+
 #### 3. Implementation Guide Creation
 Create comprehensive step-by-step guide:
 - Stored in `_context/[session-id]-[session-title].md`
 - Session ID format: `01a`, `01b`, `02a`, etc. (milestone + letter)
 - Structure: Problem context, architecture approach, detailed implementation steps
 - **Dependency Order**: Structure steps from lowest to highest dependency level
-  - Example: Create state structures before systems that use them
-  - Example: Create systems before handlers that use them
-  - Ensures all dependencies exist before they're referenced
-- **Code blocks have NO comments** (minimize tokens, avoid maintenance)
-- **NO testing infrastructure** (AI's responsibility after implementation)
-- **NO documentation** (godoc comments added by AI after validation)
-- File-by-file changes with complete code examples
 - Phases separate architectural preparation from feature development
+
+**Code Block Conventions:**
+- Code blocks have NO comments (minimize tokens, avoid maintenance)
+- NO testing infrastructure (AI's responsibility after implementation)
+- NO documentation (godoc comments added by AI after validation)
+
+**File Change Conventions:**
+- **Existing files**: Show incremental changes only (what's being added/modified)
+- **New files**: Provide complete implementation
+- Never replace entire existing files - preserve original architecture integrity
 
 #### 4. Developer Execution
 Developer implements following the guide:
@@ -258,38 +99,41 @@ AI reviews and validates implementation:
 - Verify 80% minimum coverage (100% for critical paths)
 - Black-box testing: `package <name>_test`, test only public API
 
-**Testing Strategy**:
-- Unit tests with mocked dependencies
-- Integration tests with real database (skip if unavailable)
-- API tests with `httptest`
-- Table-driven test pattern for multiple scenarios
-
 #### 6. Documentation Phase
 AI adds code documentation and maintains API specifications:
 - Add godoc comments to exported types, functions, methods
 - Document non-obvious behavior
-- Explain complex logic
-- Update examples if needed
-- **Maintain OpenAPI specification** (`api/openapi.yaml`) after any API surface changes (when applicable)
-  - Update paths, request/response schemas, error codes
-  - Keep examples current and accurate
-  - Ensure consistency with actual implementation
-  - Treat OpenAPI spec maintenance like tests and docs: AI responsibility after changes
+- **Maintain OpenAPI specification** (`api/openapi.yaml`) after API surface changes
 
 #### 7. Session Closeout
-Create session summary and commit:
-- Generate development session summary
-- Archive implementation guide: `_context/sessions/.archive/[session-id]-[session-title].md`
-- Commit working code with descriptive message
-- Update project status in PROJECT.md
 
-**Note**: Unlike other projects, we **archive** implementation guides instead of deleting them.
+Session closeout ensures documentation stays aligned with the codebase and captures verified patterns.
 
----
+**7.1 Generate Session Summary**:
+- Create `_context/sessions/[session-id]-[session-title].md`
+- Document what was implemented, key decisions, and patterns established
+
+**7.2 Archive Implementation Guide**:
+- Move guide to `_context/sessions/.archive/[session-id]-[session-title].md`
+- We **archive** instead of deleting for reference
+
+**7.3 Update Documentation** (evaluate each):
+
+| Document | Update Criteria |
+|----------|-----------------|
+| **README.md** | Only critical user-facing changes (new commands, setup steps). Be very conservative. |
+| **ARCHITECTURE.md** | Align with latest codebase - add implemented patterns, update examples |
+| **web-service-architecture.md** | Move verified patterns from conceptual to validated section. Add new patterns discovered. |
+| **service-design.md** | Remove concepts that have been integrated into the codebase |
+| **PROJECT.md** | Update session status. Evaluate remaining sessions for adjustments (scope changes, dependencies, reordering) |
+
+**7.4 Commit Preparation**:
+- User handles git commit after closeout is complete
+- AI prepares commit message summary if requested
 
 ### Milestone Review
 
-After completing all sessions in a milestone, conduct a **Milestone Review**:
+After completing all sessions in a milestone:
 1. **Validate Success Criteria** - Confirm all milestone objectives met
 2. **Integration Testing** - Test milestone as cohesive unit
 3. **Identify Adjustments** - Document any final changes needed
@@ -308,34 +152,18 @@ Mark milestone complete only after:
 
 ## Testing Conventions
 
-**Organization**:
+**Organization:**
 - Tests in `tests/` directory mirroring `internal/` structure
 - File naming: `<file>_test.go`
 
-**Black-Box Testing**:
+**Black-Box Testing:**
 - All tests use `package <name>_test`
 - Import package being tested
 - Test only exported types/functions/methods
-- Cannot access unexported members
 
-**Table-Driven Tests**:
-```go
-tests := []struct {
-    name     string
-    input    Input
-    expected Output
-}{
-    {name: "scenario 1", input: ..., expected: ...},
-    {name: "scenario 2", input: ..., expected: ...},
-}
-for _, tt := range tests {
-    t.Run(tt.name, func(t *testing.T) {
-        // Test implementation
-    })
-}
-```
+**Coverage:** 80% minimum, 100% for critical paths (validation, transactions, routing)
 
-**Coverage**: 80% minimum, 100% for critical paths (validation, transactions, routing)
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for testing patterns and table-driven test examples.
 
 ## Directory Conventions
 
@@ -343,46 +171,34 @@ for _, tt := range tests {
 
 **Context Directories (`_` prefix)**: Available for AI reference (e.g., `_context`)
 
-**Context Structure**:
+**Context Structure:**
 - `_context/##-[guide-title].md` - Active implementation guides
 - `_context/sessions/` - Development session summaries
 - `_context/sessions/.archive/` - Archived implementation guides
 
-## Documentation Standards
+## Technical Patterns
 
-**ARCHITECTURE.md**: Technical specifications, interface definitions, design patterns. Source of truth for building the system. Focus on concrete implementation details for Milestone 1.
+All technical patterns are documented in [ARCHITECTURE.md](./ARCHITECTURE.md):
+- System Lifecycle (Cold Start/Hot Start)
+- Initialization Pattern (Finalize → Validate → Transform)
+- State vs Process separation
+- Configuration precedence
+- Database patterns (raw SQL, parameterized queries)
+- Query Engine (ProjectionMap, QueryBuilder)
+- Error handling and logging
 
-**README.md**: User-facing installation, usage, configuration, getting started.
-
-**CLAUDE.md** (this file): Development conventions, workflow, testing strategy.
-
-**PROJECT.md** (when it exists): Roadmap, scope, design philosophy, completion checklist.
-
-## Code Design Principles
-
-Detailed in [ARCHITECTURE.md](./ARCHITECTURE.md):
-- State flows down, never up (unless state is owned by object/process)
-- Systems, not services/models (use domain-specific terminology)
-- Cold Start/Hot Start lifecycle separation
-- Configuration-driven initialization (finalize → validate → transform)
-- Encapsulated config interfaces for stateful systems
-- Simple parameters for functional infrastructure
-- State as pure structure, processes as system methods
-- Commands use transactions, queries don't
-- Interface-based layer interconnection
-- Raw SQL patterns
-- Graceful shutdown
-
-**Pattern Decision Guide**:
+**Pattern Decision Guide:**
 - **Stateful Systems** (own state and other systems) → Use config interface
 - **Functional Infrastructure** (stateless utilities) → Use simple parameters
 
-Refer to go-agents, go-agents-orchestration, and document-context CLAUDE.md files for detailed design principles when applicable.
-
 ## References
 
-- **web-service-architecture.md**: Complete architectural philosophy and design decisions
-- **go-agents**: Configuration patterns, interface design, LCA principles
-- **go-agents-orchestration**: Workflow patterns, state management
-- **document-context**: LCA architecture, external binary integration
-- **ARCHITECTURE.md**: Complete architectural specification for agent-lab
+| Resource | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Complete architectural specification |
+| [README.md](./README.md) | Installation, usage, getting started |
+| [PROJECT.md](./PROJECT.md) | Roadmap and milestone tracking |
+| [_context/web-service-architecture.md](./_context/web-service-architecture.md) | Architectural philosophy |
+| go-agents | Configuration patterns, interface design, LCA principles |
+| go-agents-orchestration | Workflow patterns, state management |
+| document-context | LCA architecture, external binary integration |

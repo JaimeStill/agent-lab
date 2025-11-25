@@ -1,8 +1,5 @@
 # agent-lab Architecture
 
-**Status**: Current implementation state
-**Scope**: Milestone 1 foundation - Infrastructure and service lifecycle
-
 ## Overview
 
 agent-lab is a containerized Go web service for building and orchestrating agentic workflows. This document defines the architectural patterns currently implemented in the system.
@@ -165,43 +162,67 @@ func NewService(cfg *Config) (*Service, error) {
 ### Directory Structure
 
 ```
-cmd/service/          # Process: Composition root
-├── main.go               # Entry point
-├── service.go            # Service system
-├── middleware.go         # Middleware configuration
-└── routes.go             # Route registration
+cmd/
+├── service/              # Service entry point
+│   ├── main.go               # Entry point
+│   ├── service.go            # Service system (composition root)
+│   ├── middleware.go         # Middleware configuration
+│   └── routes.go             # Route registration
+│
+└── migrate/              # Migration CLI
+    ├── main.go               # Migration entry point
+    └── migrations/           # Embedded SQL migrations
 
-internal/             # Private API: Domain systems
+internal/                 # Private API: Domain systems
 ├── config/
-│   ├── config.go         # Root configuration
-│   ├── server.go         # Server configuration
-│   ├── database.go       # Database configuration
-│   ├── logging.go        # Logging configuration
-│   ├── cors.go           # CORS configuration
-│   └── types.go          # Shared types
+│   ├── config.go             # Root configuration
+│   ├── server.go             # Server configuration
+│   ├── database.go           # Database configuration
+│   ├── logging.go            # Logging configuration
+│   ├── cors.go               # CORS configuration
+│   └── types.go              # Shared types
+│
+├── lifecycle/
+│   └── lifecycle.go          # Lifecycle coordinator
+│
+├── database/
+│   ├── database.go           # Database system
+│   └── errors.go             # Package errors
 │
 ├── logger/
-│   └── logger.go         # Logger system
+│   └── logger.go             # Logger system
 │
 ├── routes/
-│   ├── routes.go         # Route system
-│   └── group.go          # Route group definition
+│   ├── routes.go             # Route system
+│   └── group.go              # Route group definition
 │
 ├── middleware/
-│   ├── middleware.go     # Middleware system
-│   ├── logger.go         # Logger middleware
-│   └── cors.go           # CORS middleware
+│   ├── middleware.go         # Middleware system
+│   ├── logger.go             # Logger middleware
+│   └── cors.go               # CORS middleware
 │
 └── server/
-    └── server.go         # HTTP server system
+    └── server.go             # HTTP server system
 
-tests/                # Black-box tests
-├── internal_config/      # Config package tests
-├── internal_logger/      # Logger package tests
-├── internal_routes/      # Routes package tests
-├── internal_middleware/  # Middleware package tests
-├── internal_server/      # Server package tests
-└── cmd_service/          # Service integration tests
+pkg/                      # Public API: Shared infrastructure
+├── pagination/
+│   ├── config.go             # Pagination configuration
+│   └── pagination.go         # PageRequest/PageResult types
+│
+└── query/
+    ├── projection.go         # ProjectionMap for column mapping
+    └── builder.go            # Fluent query builder
+
+tests/                    # Black-box tests
+├── internal_config/
+├── internal_lifecycle/
+├── internal_logger/
+├── internal_routes/
+├── internal_middleware/
+├── internal_server/
+├── pkg_pagination/
+├── pkg_query/
+└── cmd_service/
 ```
 
 ### Component Flow
@@ -218,69 +239,97 @@ Handler Functions (healthz endpoint)
 HTTP Response
 ```
 
+## Lifecycle System (internal/lifecycle)
+
+The Lifecycle system coordinates application startup and shutdown, providing a centralized place for subsystems to register their lifecycle hooks.
+
+### ReadinessChecker Interface
+
+```go
+type ReadinessChecker interface {
+    Ready() bool
+}
+```
+
+### Coordinator
+
+```go
+type Coordinator struct {
+    ctx        context.Context
+    cancel     context.CancelFunc
+    startupWg  sync.WaitGroup
+    shutdownWg sync.WaitGroup
+    ready      bool
+    readyMu    sync.RWMutex
+}
+
+func New() *Coordinator
+func (c *Coordinator) Context() context.Context
+func (c *Coordinator) OnStartup(fn func())
+func (c *Coordinator) OnShutdown(fn func())
+func (c *Coordinator) Ready() bool
+func (c *Coordinator) WaitForStartup()
+func (c *Coordinator) Shutdown(timeout time.Duration) error
+```
+
+**Usage Pattern**:
+- **OnStartup**: Register tasks that must complete for service readiness (e.g., database ping)
+- **OnShutdown**: Register cleanup tasks triggered on context cancellation (e.g., close connections)
+- **WaitForStartup**: Called after Start() to block until all startup tasks complete
+- **Ready**: Returns true after WaitForStartup completes (one-time gate)
+
+**Subsystem Integration**:
+- Database: Uses OnStartup (ping) and OnShutdown (close)
+- Server: Uses OnShutdown only (ListenAndServe is long-running)
+
 ## Service System (cmd/service)
 
-The Service system is the composition root that owns all subsystems and manages the application lifecycle.
+The Service system is the composition root that owns all subsystems and delegates lifecycle to the Coordinator.
 
 ### Service Structure
 
 ```go
 type Service struct {
-    ctx        context.Context
-    cancel     context.CancelFunc
-    shutdownWg sync.WaitGroup
-
-    logger logger.System
-    server server.System
+    lifecycle *lifecycle.Coordinator
+    logger    logger.System
+    database  database.System
+    server    server.System
 }
 ```
 
-**Note**: Service is stateless - it only holds references to subsystems. Configuration is ephemeral and not stored.
+**Note**: Service delegates lifecycle management to the Coordinator. Configuration is ephemeral and not stored.
 
 ### Cold Start Pattern
 
 ```go
-type Config struct {
-    Server   ServerConfig
-    Database DatabaseConfig
-    Logging  LoggingConfig
-    CORS     CORSConfig
-
-    ShutdownTimeout string `toml:"shutdown_timeout"`
-}
-
-func (c *Config) Finalize() error {
-    c.loadDefaults()
-    c.loadEnv()
-    return c.validate()
-}
-
 func NewService(cfg *Config) (*Service, error) {
-    ctx, cancel := context.WithCancel(context.Background())
-
+    lc := lifecycle.New()
     loggerSys := logger.New(&cfg.Logging)
     routeSys := routes.New(loggerSys.Logger())
 
+    dbSys, err := database.New(&cfg.Database, loggerSys.Logger())
+    if err != nil {
+        return nil, fmt.Errorf("database init failed: %w", err)
+    }
+
     middlewareSys := buildMiddleware(loggerSys, cfg)
-    registerRoutes(routeSys)
+    registerRoutes(routeSys, lc)
     handler := middlewareSys.Apply(routeSys.Build())
 
     serverSys := server.New(&cfg.Server, handler, loggerSys.Logger())
 
     return &Service{
-        ctx:    ctx,
-        cancel: cancel,
-        logger: loggerSys,
-        server: serverSys,
+        lifecycle: lc,
+        logger:    loggerSys,
+        database:  dbSys,
+        server:    serverSys,
     }, nil
 }
 ```
 
-**Simplified Configuration Pattern**:
-- Config is a concrete struct, not an interface
-- Single `Finalize() error` method orchestrates initialization (vs old pattern of separate Finalize() then Validate() calls)
-- Finalize() cascades through config graph: loadDefaults → loadEnv → validate → child Finalize()
-- Each config section handles its own defaults, environment variables, and validation
+**Key Points**:
+- Lifecycle coordinator created first
+- ReadinessChecker (lc) passed to routes for `/readyz` endpoint
 - Config is ephemeral - used only during initialization, then discarded
 
 ### Hot Start Pattern
@@ -289,14 +338,28 @@ func NewService(cfg *Config) (*Service, error) {
 func (s *Service) Start() error {
     s.logger.Logger().Info("starting service")
 
-    if err := s.server.Start(s.ctx, &s.shutdownWg); err != nil {
+    if err := s.database.Start(s.lifecycle); err != nil {
+        return fmt.Errorf("database start failed: %w", err)
+    }
+
+    if err := s.server.Start(s.lifecycle); err != nil {
         return fmt.Errorf("server start failed: %w", err)
     }
+
+    go func() {
+        s.lifecycle.WaitForStartup()
+        s.logger.Logger().Info("all subsystems ready")
+    }()
 
     s.logger.Logger().Info("service started")
     return nil
 }
 ```
+
+**Subsystem Start Pattern**:
+- Each subsystem receives the lifecycle coordinator
+- Subsystems register their OnStartup/OnShutdown hooks
+- WaitForStartup blocks until all startup hooks complete
 
 ### Main Entry Point
 
@@ -316,23 +379,16 @@ func main() {
         log.Fatal("service init failed:", err)
     }
 
-    ctx, stop := signal.NotifyContext(
-        context.Background(),
-        os.Interrupt,
-        syscall.SIGTERM,
-    )
-    defer stop()
-
     if err := svc.Start(); err != nil {
-        log.Fatal("service failed:", err)
+        log.Fatal("service start failed:", err)
     }
 
-    <-ctx.Done()
+    sigChan := make(chan os.Signal, 1)
+    signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-    shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-    defer cancel()
+    <-sigChan
 
-    if err := svc.Shutdown(shutdownCtx); err != nil {
+    if err := svc.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
         log.Fatal("shutdown failed:", err)
     }
 
@@ -342,105 +398,64 @@ func main() {
 
 ### Graceful Shutdown
 
-The service implements graceful shutdown using context cancellation and coordinated timeout handling.
-
-**Signal Handling (main.go)**:
-```go
-ctx, stop := signal.NotifyContext(
-    context.Background(),
-    os.Interrupt,
-    syscall.SIGTERM,
-)
-defer stop()
-
-if err := svc.Start(); err != nil {
-    log.Fatal("service failed:", err)
-}
-
-<-ctx.Done()
-
-shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-defer cancel()
-
-if err := svc.Shutdown(shutdownCtx); err != nil {
-    log.Fatal("shutdown failed:", err)
-}
-```
+The service implements graceful shutdown through the lifecycle coordinator.
 
 **Service Shutdown**:
 ```go
-func (s *Service) Shutdown(ctx context.Context) error {
+func (s *Service) Shutdown(timeout time.Duration) error {
     s.logger.Logger().Info("initiating shutdown")
 
-    s.cancel()
+    if err := s.lifecycle.Shutdown(timeout); err != nil {
+        return err
+    }
+
+    s.logger.Logger().Info("all subsystems shut down successfully")
+    return nil
+}
+```
+
+**Lifecycle Coordinator Shutdown**:
+```go
+func (c *Coordinator) Shutdown(timeout time.Duration) error {
+    c.cancel()  // Cancel context, triggering OnShutdown hooks
 
     done := make(chan struct{})
     go func() {
-        s.shutdownWg.Wait()
+        c.shutdownWg.Wait()
         close(done)
     }()
 
     select {
     case <-done:
-        s.logger.Logger().Info("all subsystems shut down successfully")
         return nil
-    case <-ctx.Done():
-        return fmt.Errorf("shutdown timeout: %w", ctx.Err())
+    case <-time.After(timeout):
+        return fmt.Errorf("shutdown timeout after %v", timeout)
     }
 }
 ```
 
-**HTTP Server Shutdown (server.Start)**:
-```go
-func (s *server) Start(ctx context.Context, wg *sync.WaitGroup) error {
-    wg.Go(func() {
-        if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-            s.logger.Error("server error", "error", err)
-        }
-    })
-
-    go func() {
-        <-ctx.Done()
-        s.logger.Info("shutting down server")
-
-        shutdownCtx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
-        defer cancel()
-
-        if err := s.http.Shutdown(shutdownCtx); err != nil {
-            s.logger.Error("server shutdown error", "error", err)
-        } else {
-            s.logger.Info("server shutdown complete")
-        }
-    }()
-
-    s.logger.Info("server started", "addr", s.http.Addr)
-    return nil
-}
-```
-
 **Shutdown Flow**:
-1. **Signal received** (SIGINT/SIGTERM) → context cancelled in main
-2. **Service.Shutdown()** called → cancels service context
-3. **HTTP server** gracefully closes connections (configurable timeout)
-4. **WaitGroup** waits for all subsystems to complete
-5. **Service.Shutdown()** returns → main() exits
+1. **Signal received** (SIGINT/SIGTERM)
+2. **Service.Shutdown()** called → delegates to lifecycle.Shutdown()
+3. **Lifecycle cancels context** → triggers all OnShutdown hooks
+4. **Subsystems clean up**: Server gracefully closes connections, Database closes pool
+5. **WaitGroup completes** → Shutdown returns → main() exits
 
 **Key Points**:
-- Context cascades through all systems for coordinated shutdown
-- HTTP server gets configurable timeout to finish in-flight requests
-- WaitGroup ensures all subsystems complete before exit
-- No data loss - processes complete before shutdown
+- Lifecycle coordinator centralizes shutdown orchestration
+- OnShutdown hooks wait for context cancellation before cleanup
+- Timeout prevents indefinite hangs
+- No data loss - in-flight requests complete before shutdown
 
 ## Server System (internal/server)
 
-The Server system encapsulates the HTTP server and manages its lifecycle.
+The Server system encapsulates the HTTP server and manages its lifecycle through the coordinator.
 
 ### System Interface
 
 ```go
 type System interface {
-    Start(ctx context.Context, wg *sync.WaitGroup) error
-    Stop(ctx context.Context) error
+    Start(lc *lifecycle.Coordinator) error
 }
 ```
 
@@ -466,15 +481,16 @@ func New(cfg *config.ServerConfig, handler http.Handler, logger *slog.Logger) Sy
     }
 }
 
-func (s *server) Start(ctx context.Context, wg *sync.WaitGroup) error {
-    wg.Go(func() {
+func (s *server) Start(lc *lifecycle.Coordinator) error {
+    go func() {
+        s.logger.Info("server listening", "addr", s.http.Addr)
         if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
             s.logger.Error("server error", "error", err)
         }
-    })
+    }()
 
-    go func() {
-        <-ctx.Done()
+    lc.OnShutdown(func() {
+        <-lc.Context().Done()
         s.logger.Info("shutting down server")
 
         shutdownCtx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
@@ -485,16 +501,83 @@ func (s *server) Start(ctx context.Context, wg *sync.WaitGroup) error {
         } else {
             s.logger.Info("server shutdown complete")
         }
-    }()
+    })
 
-    s.logger.Info("server started", "addr", s.http.Addr)
     return nil
 }
+```
 
-func (s *server) Stop(ctx context.Context) error {
-    return s.http.Shutdown(ctx)
+**Note**: Server uses OnShutdown only (not OnStartup) because ListenAndServe is a long-running process started in a goroutine.
+
+## Database System (internal/database)
+
+The Database system manages PostgreSQL connection pooling and lifecycle.
+
+### System Interface
+
+```go
+type System interface {
+    Connection() *sql.DB
+    Start(lc *lifecycle.Coordinator) error
 }
 ```
+
+### Implementation
+
+```go
+type database struct {
+    conn        *sql.DB
+    logger      *slog.Logger
+    connTimeout time.Duration
+}
+
+func New(cfg *config.DatabaseConfig, logger *slog.Logger) (System, error) {
+    db, err := sql.Open("pgx", cfg.Dsn())
+    if err != nil {
+        return nil, fmt.Errorf("open database: %w", err)
+    }
+
+    db.SetMaxOpenConns(cfg.MaxOpenConns)
+    db.SetMaxIdleConns(cfg.MaxIdleConns)
+    db.SetConnMaxLifetime(cfg.ConnMaxLifetimeDuration())
+
+    return &database{
+        conn:        db,
+        logger:      logger.With("system", "database"),
+        connTimeout: cfg.ConnTimeoutDuration(),
+    }, nil
+}
+
+func (d *database) Start(lc *lifecycle.Coordinator) error {
+    d.logger.Info("starting database system")
+
+    lc.OnStartup(func() {
+        pingCtx, cancel := context.WithTimeout(lc.Context(), d.connTimeout)
+        defer cancel()
+
+        if err := d.conn.PingContext(pingCtx); err != nil {
+            d.logger.Error("database ping failed", "error", err)
+            return
+        }
+        d.logger.Info("database connection established")
+    })
+
+    lc.OnShutdown(func() {
+        <-lc.Context().Done()
+        d.logger.Info("closing database connection")
+
+        if err := d.conn.Close(); err != nil {
+            d.logger.Error("database close failed", "error", err)
+            return
+        }
+        d.logger.Info("database connection closed")
+    })
+
+    return nil
+}
+```
+
+**Note**: Database uses both OnStartup (ping to verify connectivity) and OnShutdown (close connection pool).
 
 ## Route System (internal/routes)
 
@@ -749,6 +832,131 @@ func parseLevel(level string) slog.Level {
         return slog.LevelInfo
     }
 }
+```
+
+## Pagination Package (pkg/pagination)
+
+Reusable pagination utilities for all search operations.
+
+### Configuration
+
+```go
+type Config struct {
+    DefaultPageSize int `toml:"default_page_size"`
+    MaxPageSize     int `toml:"max_page_size"`
+}
+
+func (c *Config) Finalize() error  // Applies defaults, env vars, validates
+func (c *Config) Merge(overlay *Config)
+```
+
+### Request/Response Types
+
+```go
+type PageRequest struct {
+    Page       int     `json:"page"`
+    PageSize   int     `json:"page_size"`
+    Search     *string `json:"search,omitempty"`
+    SortBy     string  `json:"sort_by,omitempty"`
+    Descending bool    `json:"descending,omitempty"`
+}
+
+func (r *PageRequest) Normalize(cfg Config)  // Clamps to valid ranges
+func (r *PageRequest) Offset() int           // Calculates SQL OFFSET
+
+type PageResult[T any] struct {
+    Data       []T `json:"data"`
+    Total      int `json:"total"`
+    Page       int `json:"page"`
+    PageSize   int `json:"page_size"`
+    TotalPages int `json:"total_pages"`
+}
+
+func NewPageResult[T any](data []T, total, page, pageSize int) PageResult[T]
+```
+
+## Query Package (pkg/query)
+
+Three-layer architecture for building parameterized SQL queries.
+
+### Layer 1: ProjectionMap (Structure Definition)
+
+Static, reusable query structure per domain entity:
+
+```go
+type ProjectionMap struct {
+    schema     string
+    table      string
+    alias      string
+    columns    map[string]string  // viewName -> alias.column
+    columnList []string           // ordered columns
+}
+
+func NewProjectionMap(schema, table, alias string) *ProjectionMap
+func (p *ProjectionMap) Project(column, viewName string) *ProjectionMap
+func (p *ProjectionMap) Table() string      // "schema.table alias"
+func (p *ProjectionMap) Column(viewName string) string  // "alias.column"
+func (p *ProjectionMap) Columns() string    // "alias.col1, alias.col2, ..."
+```
+
+**Usage**:
+```go
+var providerProjection = query.NewProjectionMap("public", "providers", "p").
+    Project("id", "Id").
+    Project("name", "Name").
+    Project("config", "Config")
+```
+
+### Layer 2: Builder (Operations)
+
+Fluent builder for filters, sorting, pagination:
+
+```go
+type Builder struct {
+    projection  *ProjectionMap
+    conditions  []condition
+    orderBy     string
+    descending  bool
+    defaultSort string
+}
+
+func NewBuilder(projection *ProjectionMap, defaultSort string) *Builder
+
+// Filter methods (nil/empty values are ignored)
+func (b *Builder) WhereEquals(field string, value any) *Builder
+func (b *Builder) WhereContains(field string, value *string) *Builder
+func (b *Builder) WhereIn(field string, values []any) *Builder
+func (b *Builder) WhereSearch(search *string, fields ...string) *Builder
+func (b *Builder) OrderBy(field string, descending bool) *Builder
+
+// SQL generation
+func (b *Builder) BuildCount() (sql string, args []any)
+func (b *Builder) BuildPage(page, pageSize int) (sql string, args []any)
+func (b *Builder) BuildSingle(idField string, id any) (sql string, args []any)
+```
+
+**Usage**:
+```go
+qb := query.NewBuilder(providerProjection, "Name").
+    WhereContains("Name", req.Name).
+    WhereSearch(req.Search, "Name", "Config").
+    OrderBy(req.SortBy, req.Descending)
+
+countSQL, countArgs := qb.BuildCount()
+pageSQL, pageArgs := qb.BuildPage(req.Page, req.PageSize)
+```
+
+### Layer 3: Execution
+
+Execute generated SQL with database/sql:
+
+```go
+// Count query
+var total int
+err := db.QueryRowContext(ctx, countSQL, countArgs...).Scan(&total)
+
+// Page query
+rows, err := db.QueryContext(ctx, pageSQL, pageArgs...)
 ```
 
 ## Configuration Management
@@ -1129,6 +1337,37 @@ func (r *repository) FindByID(ctx context.Context, id uuid.UUID) (*Provider, err
 
 ## Error Handling
 
+### Encapsulated Package Errors
+
+Each package defines its errors in a dedicated `errors.go` file for discoverability and consistent organization.
+
+```go
+// internal/database/errors.go
+package database
+
+import "errors"
+
+var ErrNotReady = errors.New("database not ready")
+```
+
+**Convention**:
+- Package-level errors live in `errors.go`
+- Use `Err` prefix for exported error variables
+- Error messages are lowercase, no punctuation
+- Enables clean external usage: `database.ErrNotReady`, `providers.ErrNotFound`
+
+**Directory Structure**:
+```
+internal/database/
+├── errors.go      # Package errors
+└── database.go    # Implementation
+
+internal/providers/
+├── errors.go      # Package errors (ErrNotFound, ErrInvalidConfig, etc.)
+├── provider.go    # State definitions
+└── repository.go  # System implementation
+```
+
 ### Error Wrapping
 
 ```go
@@ -1223,31 +1462,15 @@ func TestServerConfig_Validate(t *testing.T) {
 
 ```
 tests/
-├── internal_config/      # Mirrors internal/config
-│   ├── config_test.go
-│   ├── server_test.go
-│   ├── database_test.go
-│   ├── logging_test.go
-│   ├── cors_test.go
-│   └── types_test.go
-│
-├── internal_logger/      # Mirrors internal/logger
-│   └── logger_test.go
-│
-├── internal_routes/      # Mirrors internal/routes
-│   ├── routes_test.go
-│   └── group_test.go
-│
-├── internal_middleware/  # Mirrors internal/middleware
-│   ├── middleware_test.go
-│   ├── logger_test.go
-│   └── cors_test.go
-│
-├── internal_server/      # Mirrors internal/server
-│   └── server_test.go
-│
-└── cmd_service/          # Mirrors cmd/service
-    └── service_test.go
+├── internal_config/      # Config package tests
+├── internal_lifecycle/   # Lifecycle coordinator tests
+├── internal_logger/      # Logger package tests
+├── internal_routes/      # Routes package tests
+├── internal_middleware/  # Middleware package tests
+├── internal_server/      # Server package tests
+├── pkg_pagination/       # Pagination package tests
+├── pkg_query/            # Query builder tests
+└── cmd_service/          # Service integration tests
 ```
 
 ## Pattern Decision Guide

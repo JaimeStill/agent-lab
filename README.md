@@ -13,13 +13,20 @@ agent-lab provides a Go-based web service architecture for developing intelligen
 
 ```
 agent-lab/
-├── cmd/service/           # Service entry point and composition
+├── cmd/
+│   ├── service/          # Service entry point and composition
+│   └── migrate/          # Database migration CLI
 ├── internal/             # Private packages
 │   ├── config/           # Configuration management
+│   ├── database/         # Database connection management
+│   ├── lifecycle/        # Startup/shutdown coordination
 │   ├── logger/           # Logging system
 │   ├── middleware/       # HTTP middleware
 │   ├── routes/           # Route registration
 │   └── server/           # HTTP server
+├── pkg/                  # Public packages
+│   ├── pagination/       # Pagination utilities
+│   └── query/            # SQL query builder
 ├── tests/                # Black-box tests
 ├── compose/              # Docker Compose files
 └── config.toml           # Base configuration
@@ -33,12 +40,18 @@ agent-lab/
 # Start PostgreSQL
 docker compose -f compose/postgres.yml up -d
 
-# Build and run
+# Run database migrations
+go run ./cmd/migrate -dsn "postgres://agent_lab:agent_lab@localhost:5432/agent_lab?sslmode=disable" -up
+
+# Build and run service
 go build -o bin/service ./cmd/service
 ./bin/service
 
-# Health check
+# Health check (liveness)
 curl http://localhost:8080/healthz
+
+# Readiness check (subsystems operational)
+curl http://localhost:8080/readyz
 ```
 
 ### Configuration

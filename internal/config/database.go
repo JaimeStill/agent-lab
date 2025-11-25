@@ -61,6 +61,13 @@ func (c *DatabaseConfig) ConnTimeoutDuration() time.Duration {
 	return d
 }
 
+func (c *DatabaseConfig) Dsn() string {
+	return fmt.Sprintf(
+		"host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
+		c.Host, c.Port, c.Name, c.User, c.Password,
+	)
+}
+
 // Finalize applies defaults, loads environment overrides, and validates the database configuration.
 func (c *DatabaseConfig) Finalize() error {
 	c.loadDefaults()

@@ -200,26 +200,38 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **Impact on Future Sessions**: Session 1b will not implement runtime configuration updates (removed from scope). Database and query infrastructure remain as planned.
 
-#### Session 1b: Database & Query Infrastructure
-- Database system with connection pool management and lifecycle (Start/Stop/Health)
-- Database migrations setup (golang-migrate)
-- Query builder infrastructure (pkg/query)
-- Pagination utilities (pkg/pagination)
+#### Session 1b: Database & Query Infrastructure ✅
 
-**Validation**:
-- Database connection successful
-- Migrations run successfully
-- Query builder tests pass
-- Pagination utilities validated
+**Status**: Completed (2025-11-25)
 
-#### Session 1c: Providers System
+**Implemented**:
+- Lifecycle coordinator system (internal/lifecycle) for startup/shutdown orchestration
+- Database system with connection pool and lifecycle integration
+- Migration CLI tool (cmd/migrate) with embedded migrations
+- Query builder infrastructure (pkg/query) - ProjectionMap and Builder
+- Pagination utilities (pkg/pagination) - Config, PageRequest, PageResult
+- Readiness endpoint (`/readyz`) reflecting subsystem operational state
+- Comprehensive testing (100% coverage for new packages)
+- Complete godoc documentation
+
+**Validation**: ✅ Database connects, migrations run, `/readyz` reflects readiness state, graceful shutdown works
+
+**Architectural Additions**:
+- Lifecycle Coordinator pattern: Centralizes startup/shutdown orchestration
+- ReadinessChecker interface: Decouples readiness from concrete coordinator
+- OnStartup/OnShutdown hooks: Subsystems register lifecycle behaviors
+- One-time readiness gate: Ready() becomes true after WaitForStartup()
+
+#### Session 1c: Runtime/Domain System Separation + Providers System
+- Runtime/Domain system separation pattern
+  - Runtime struct: Lifecycle, Logger, Database, Pagination (application-scoped)
+  - Domain struct: Providers system (request-scoped behavior)
+  - Service struct: runtime, domain, server
 - Database schema: `providers` table
-- Providers system (repository pattern with config interface)
-- Routes system with smart route grouping
-- Middleware system (CORS, logging, recovery)
-- Provider CRUD + Search endpoints
+- Providers domain system (repository pattern)
+- Provider CRUD + Search endpoints with go-agents config validation
 
-**Validation**: Create/Read/Update/Delete/Search providers via API
+**Validation**: Service starts with Runtime/Domain pattern, Provider CRUD via API, existing endpoints work
 
 #### Session 1d: Agents System
 - Database schema: `agents` table
@@ -392,20 +404,27 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Cold/Hot start lifecycle with graceful shutdown
   - 100% test coverage with comprehensive black-box testing
   - Full documentation (godoc, README, ARCHITECTURE, session summary)
+- **Session 01b: Database & Query Infrastructure** ✅
+  - Lifecycle coordinator pattern for startup/shutdown orchestration
+  - Database system with connection pool and lifecycle integration
+  - Migration CLI and infrastructure
+  - Query builder (ProjectionMap, Builder) and pagination utilities
+  - Readiness endpoint (`/readyz`)
+  - 100% test coverage for new packages
 
 **In Progress**:
 - Milestone 1: Foundation & Infrastructure
   - Session 01a: ✅ Completed
-  - Session 01b: Database & Query Infrastructure (next)
-  - Session 01c: Providers System (planned)
+  - Session 01b: ✅ Completed
+  - Session 01c: Providers System (next)
   - Session 01d: Agents System (planned)
 
 **Next Steps**:
-- Session 01b: Database & Query Infrastructure
-  - Database system enhancement (Start/Stop/Health methods)
-  - Database migrations setup
-  - Query builder infrastructure (pkg/query)
-  - Pagination utilities (pkg/pagination)
+- Session 01c: Providers System
+  - Database schema: `providers` table migration
+  - Providers system (repository pattern using query/pagination infrastructure)
+  - Provider CRUD + Search endpoints
+  - Integration with lifecycle coordinator
 
 ## Future Phases (Beyond Milestone 8)
 

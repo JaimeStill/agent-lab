@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/JaimeStill/agent-lab/pkg/pagination"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -26,11 +27,12 @@ const (
 
 // Config represents the root service configuration.
 type Config struct {
-	Server          ServerConfig   `toml:"server"`
-	Database        DatabaseConfig `toml:"database"`
-	Logging         LoggingConfig  `toml:"logging"`
-	CORS            CORSConfig     `toml:"cors"`
-	ShutdownTimeout string         `toml:"shutdown_timeout"`
+	Server          ServerConfig      `toml:"server"`
+	Database        DatabaseConfig    `toml:"database"`
+	Logging         LoggingConfig     `toml:"logging"`
+	CORS            CORSConfig        `toml:"cors"`
+	Pagination      pagination.Config `toml:"pagination"`
+	ShutdownTimeout string            `toml:"shutdown_timeout"`
 }
 
 // ShutdownTimeoutDuration parses and returns the shutdown timeout as a time.Duration.
@@ -76,6 +78,9 @@ func (c *Config) Finalize() error {
 	if err := c.CORS.Finalize(); err != nil {
 		return fmt.Errorf("cors: %w", err)
 	}
+	if err := c.Pagination.Finalize(); err != nil {
+		return fmt.Errorf("pagination: %w", err)
+	}
 	return nil
 }
 
@@ -88,6 +93,7 @@ func (c *Config) Merge(overlay *Config) {
 	c.Database.Merge(&overlay.Database)
 	c.Logging.Merge(&overlay.Logging)
 	c.CORS.Merge(&overlay.CORS)
+	c.Pagination.Merge(&overlay.Pagination)
 }
 
 func (c *Config) loadDefaults() {
