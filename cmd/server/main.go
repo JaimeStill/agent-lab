@@ -15,16 +15,12 @@ func main() {
 		log.Fatal("config load failed:", err)
 	}
 
-	if err := cfg.Finalize(); err != nil {
-		log.Fatal("config finalize failed:", err)
-	}
-
-	svc, err := NewService(cfg)
+	srv, err := NewServer(cfg)
 	if err != nil {
 		log.Fatal("service init failed:", err)
 	}
 
-	if err := svc.Start(); err != nil {
+	if err := srv.Start(); err != nil {
 		log.Fatal("service start failed:", err)
 	}
 
@@ -33,7 +29,7 @@ func main() {
 
 	<-sigChan
 
-	if err := svc.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
+	if err := srv.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
 		log.Fatal("shutdown failed:", err)
 	}
 

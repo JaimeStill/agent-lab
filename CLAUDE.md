@@ -131,6 +131,42 @@ Session closeout ensures documentation stays aligned with the codebase and captu
 - User handles git commit after closeout is complete
 - AI prepares commit message summary if requested
 
+### Post Session Milestone Review
+
+After completing a development session (especially mid-milestone), conduct a **Post Session Milestone Review** to ensure the roadmap stays aligned with lessons learned:
+
+**When to Trigger:**
+- After any session where friction points or improvement opportunities were identified
+- When architectural patterns evolved during implementation
+- When scope adjustments are needed for remaining sessions
+
+**Workflow:**
+
+1. **Reflect on Current State**
+   - What was implemented vs. what was planned?
+   - What patterns emerged or were validated?
+   - What technical debt was introduced (if any)?
+
+2. **Identify Improvement Areas**
+   - Call out friction points encountered during implementation
+   - Note patterns that could be better abstracted
+   - Identify missing infrastructure or utilities
+
+3. **Determine Approach**
+   - Decide: address now vs. defer to future session
+   - If deferring: which session should handle it?
+   - If addressing now: does it warrant a dedicated session?
+
+4. **Update Roadmap**
+   - Adjust remaining session scopes in PROJECT.md
+   - Add new sessions if needed
+   - Reorder sessions if dependencies changed
+   - Document rationale for changes
+
+**Output:** Updated PROJECT.md roadmap with adjustments documented.
+
+**Note:** This is a planning-only activity. No code changes - only roadmap updates.
+
 ### Milestone Review
 
 After completing all sessions in a milestone:

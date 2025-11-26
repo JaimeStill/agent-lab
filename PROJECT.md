@@ -222,22 +222,56 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - OnStartup/OnShutdown hooks: Subsystems register lifecycle behaviors
 - One-time readiness gate: Ready() becomes true after WaitForStartup()
 
-#### Session 1c: Runtime/Domain System Separation + Providers System
+#### Session 1c: Runtime/Domain System Separation + Providers System ✅
+
+**Status**: Completed (2025-11-26)
+
+**Implemented**:
 - Runtime/Domain system separation pattern
   - Runtime struct: Lifecycle, Logger, Database, Pagination (application-scoped)
   - Domain struct: Providers system (request-scoped behavior)
-  - Service struct: runtime, domain, server
-- Database schema: `providers` table
-- Providers domain system (repository pattern)
+  - Server struct: runtime, domain, http
+- Database schema: `providers` table with migration
+- Providers domain system (repository pattern with query builder)
 - Provider CRUD + Search endpoints with go-agents config validation
+- Domain error pattern with HTTP status code mapping
+- Logger simplified to `*slog.Logger` (not a System interface)
+- Config Load() consolidation (includes finalization internally)
 
-**Validation**: Service starts with Runtime/Domain pattern, Provider CRUD via API, existing endpoints work
+**Validation**: ✅ All provider endpoints working (Create/Read/Update/Delete/Search), error handling verified, graceful shutdown works
 
-#### Session 1d: Agents System
-- Database schema: `agents` table
-- Agents system (repository pattern with config interface)
-- Agent CRUD + Search endpoints
-- Validation using go-agents structures
+**Architectural Additions**:
+- Runtime vs Domain: Clear separation of lifecycle-managed infrastructure from stateless business logic
+- Domain systems pre-initialized at startup, stored in Server struct
+- Logger as functional infrastructure (not a System)
+- Domain errors defined in `errors.go` with handler mapping to HTTP status codes
+
+#### Session 1d: Domain Infrastructure Patterns
+
+**Scope:**
+- `pkg/repository` package with transaction and query helpers
+- `pkg/handlers` package with stateless utility functions
+- `pkg/query` enhancements for layered sorting
+- Handler struct pattern with consolidated routes per domain
+- GET-based search with filters and multi-column sorting
+- Refactor providers system to use new infrastructure
+
+**Deliverables:**
+- Repository helpers: `WithTx`, `QueryOne`, `QueryMany`, `ExecExpectOne`, `MapError`
+- Handler utilities: `RespondJSON`, `RespondError` stateless functions
+- Query enhancements: `SortField`, `OrderByFields`, `DefaultSort`, `ParseSortFields`
+- Pagination: `PageRequestFromQuery`, updated `PageRequest` with `Sort []SortField`
+- Domain filter pattern: `Filters` struct, `FiltersFromQuery`, `Apply(*query.Builder)`
+- Providers refactored with handler struct and GET endpoint
+
+**Validation**: Providers uses new infrastructure, GET endpoint supports filters + multi-column sort
+
+#### Session 1e: Agents System
+
+- Database schema: `agents` table with foreign key to providers
+- Agents domain system following refined patterns from 1d
+- Agent CRUD + Search endpoints with GET and POST variants
+- Provider reference validation
 
 **Validation**: Create/Read/Update/Delete/Search agents via API
 
@@ -411,20 +445,28 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Query builder (ProjectionMap, Builder) and pagination utilities
   - Readiness endpoint (`/readyz`)
   - 100% test coverage for new packages
+- **Session 01c: Runtime/Domain System Separation + Providers System** ✅
+  - Runtime/Domain system separation pattern
+  - Providers domain system with CRUD + Search endpoints
+  - Domain errors with HTTP status code mapping
+  - go-agents provider config validation
+  - Logger simplified to functional infrastructure
 
 **In Progress**:
 - Milestone 1: Foundation & Infrastructure
   - Session 01a: ✅ Completed
   - Session 01b: ✅ Completed
-  - Session 01c: Providers System (next)
-  - Session 01d: Agents System (planned)
+  - Session 01c: ✅ Completed
+  - Session 01d: Domain Infrastructure Patterns (next)
+  - Session 01e: Agents System (planned)
 
 **Next Steps**:
-- Session 01c: Providers System
-  - Database schema: `providers` table migration
-  - Providers system (repository pattern using query/pagination infrastructure)
-  - Provider CRUD + Search endpoints
-  - Integration with lifecycle coordinator
+- Session 01d: Domain Infrastructure Patterns
+  - `pkg/repository` with transaction and query helpers
+  - `pkg/handlers` with stateless utility functions
+  - `pkg/query` enhancements for layered sorting
+  - Domain filter pattern and GET-based search
+  - Refactor providers to use new infrastructure
 
 ## Future Phases (Beyond Milestone 8)
 

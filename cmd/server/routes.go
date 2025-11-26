@@ -4,11 +4,14 @@ import (
 	"net/http"
 
 	"github.com/JaimeStill/agent-lab/internal/lifecycle"
+	"github.com/JaimeStill/agent-lab/internal/providers"
 	"github.com/JaimeStill/agent-lab/internal/routes"
 )
 
 // registerRoutes configures all HTTP routes for the service.
-func registerRoutes(r routes.System, ready lifecycle.ReadinessChecker) {
+func registerRoutes(r routes.System, runtime *Runtime, domain *Domain) {
+	r.RegisterGroup(providers.Routes(domain.Providers, runtime.Logger))
+
 	r.RegisterRoute(routes.Route{
 		Method:  "GET",
 		Pattern: "/healthz",
@@ -19,7 +22,7 @@ func registerRoutes(r routes.System, ready lifecycle.ReadinessChecker) {
 		Method:  "GET",
 		Pattern: "/readyz",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
-			handleReadinessCheck(w, ready)
+			handleReadinessCheck(w, runtime.Lifecycle)
 		},
 	})
 }

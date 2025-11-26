@@ -55,11 +55,16 @@ func Load() (*Config, error) {
 		}
 		cfg.Merge(overlay)
 	}
+
+	if err := cfg.finalize(); err != nil {
+		return nil, fmt.Errorf("finalize config: %w", err)
+	}
+
 	return cfg, nil
 }
 
 // Finalize applies defaults, loads environment overrides, and validates the configuration.
-func (c *Config) Finalize() error {
+func (c *Config) finalize() error {
 	c.loadDefaults()
 	c.loadEnv()
 

@@ -40,7 +40,7 @@ func HandleCreate(w http.ResponseWriter, r *http.Request, system providers.Syste
 - **Interface**: Contract between systems
 
 **Package Organization**:
-- **cmd/service**: The process (composition root, entry point)
+- **cmd/server**: The process (composition root, entry point)
 - **pkg/**: Public API (shared infrastructure, reusable toolkit)
 - **internal/**: Private API (domain systems, business logic)
 
@@ -105,8 +105,8 @@ OnError() <-chan error
 
 **Stateful Systems vs Functional Infrastructure**:
 
-- **Stateful Systems**: Use concrete config structs with simplified finalize pattern (Service, Database, Logger)
-- **Functional Infrastructure**: Use simple function signatures (handlers, middleware, routing)
+- **Stateful Systems**: Use concrete config structs with simplified finalize pattern (Service, Database)
+- **Functional Infrastructure**: Use simple function signatures (handlers, middleware, routing, logging)
 
 **Stateful System Pattern**:
 
@@ -163,11 +163,15 @@ func NewService(cfg *Config) (*Service, error) {
 
 ```
 cmd/
-├── service/              # Service entry point
-│   ├── main.go               # Entry point
-│   ├── service.go            # Service system (composition root)
-│   ├── middleware.go         # Middleware configuration
-│   └── routes.go             # Route registration
+├── server/               # HTTP server entry point
+│   ├── main.go               # Entry point, signal handling
+│   ├── server.go             # Server struct (composition root)
+│   ├── runtime.go            # Runtime struct (lifecycle, database, pagination)
+│   ├── domain.go             # Domain struct (providers, agents)
+│   ├── http.go               # HTTP server lifecycle
+│   ├── logging.go            # Logger initialization helper
+│   ├── routes.go             # Route registration
+│   └── middleware.go         # Middleware composition
 │
 └── migrate/              # Migration CLI
     ├── main.go               # Migration entry point
@@ -189,9 +193,6 @@ internal/                 # Private API: Domain systems
 │   ├── database.go           # Database system
 │   └── errors.go             # Package errors
 │
-├── logger/
-│   └── logger.go             # Logger system
-│
 ├── routes/
 │   ├── routes.go             # Route system
 │   └── group.go              # Route group definition
@@ -201,8 +202,14 @@ internal/                 # Private API: Domain systems
 │   ├── logger.go             # Logger middleware
 │   └── cors.go               # CORS middleware
 │
-└── server/
-    └── server.go             # HTTP server system
+└── providers/            # Providers domain system
+    ├── provider.go           # State structures
+    ├── errors.go             # Domain errors
+    ├── projection.go         # Query projection map
+    ├── system.go             # System interface
+    ├── repository.go         # Repository implementation
+    ├── handlers.go           # HTTP handlers
+    └── routes.go             # Route group
 
 pkg/                      # Public API: Shared infrastructure
 ├── pagination/
@@ -216,13 +223,11 @@ pkg/                      # Public API: Shared infrastructure
 tests/                    # Black-box tests
 ├── internal_config/
 ├── internal_lifecycle/
-├── internal_logger/
 ├── internal_routes/
 ├── internal_middleware/
-├── internal_server/
 ├── pkg_pagination/
 ├── pkg_query/
-└── cmd_service/
+└── cmd_server/
 ```
 
 ### Component Flow
@@ -282,84 +287,138 @@ func (c *Coordinator) Shutdown(timeout time.Duration) error
 - Database: Uses OnStartup (ping) and OnShutdown (close)
 - Server: Uses OnShutdown only (ListenAndServe is long-running)
 
-## Service System (cmd/service)
+## Runtime/Domain System Separation (cmd/server)
 
-The Service system is the composition root that owns all subsystems and delegates lifecycle to the Coordinator.
+The server uses a two-tier system separation pattern that clearly distinguishes between infrastructure (Runtime) and business logic (Domain).
 
-### Service Structure
+### System Categories
+
+| Category | Characteristics | Examples |
+|----------|----------------|----------|
+| **Runtime Systems** | Long-running, lifecycle-managed, application-scoped | Database |
+| **Domain Systems** | Stateless, request-scoped behavior, no lifecycle | Providers, Agents |
+
+### Runtime Structure
+
+Runtime holds infrastructure systems that have lifecycle management:
 
 ```go
-type Service struct {
-    lifecycle *lifecycle.Coordinator
-    logger    logger.System
-    database  database.System
-    server    server.System
+type Runtime struct {
+    Lifecycle  *lifecycle.Coordinator
+    Logger     *slog.Logger
+    Database   database.System
+    Pagination pagination.Config
 }
-```
 
-**Note**: Service delegates lifecycle management to the Coordinator. Configuration is ephemeral and not stored.
-
-### Cold Start Pattern
-
-```go
-func NewService(cfg *Config) (*Service, error) {
+func NewRuntime(cfg *config.Config) (*Runtime, error) {
     lc := lifecycle.New()
-    loggerSys := logger.New(&cfg.Logging)
-    routeSys := routes.New(loggerSys.Logger())
+    logger := newLogger(&cfg.Logging)
 
-    dbSys, err := database.New(&cfg.Database, loggerSys.Logger())
+    dbSys, err := database.New(&cfg.Database, logger)
     if err != nil {
         return nil, fmt.Errorf("database init failed: %w", err)
     }
 
-    middlewareSys := buildMiddleware(loggerSys, cfg)
-    registerRoutes(routeSys, lc)
-    handler := middlewareSys.Apply(routeSys.Build())
-
-    serverSys := server.New(&cfg.Server, handler, loggerSys.Logger())
-
-    return &Service{
-        lifecycle: lc,
-        logger:    loggerSys,
-        database:  dbSys,
-        server:    serverSys,
+    return &Runtime{
+        Lifecycle:  lc,
+        Logger:     logger,
+        Database:   dbSys,
+        Pagination: cfg.Pagination,
     }, nil
 }
-```
 
-**Key Points**:
-- Lifecycle coordinator created first
-- ReadinessChecker (lc) passed to routes for `/readyz` endpoint
-- Config is ephemeral - used only during initialization, then discarded
-
-### Hot Start Pattern
-
-```go
-func (s *Service) Start() error {
-    s.logger.Logger().Info("starting service")
-
-    if err := s.database.Start(s.lifecycle); err != nil {
+func (r *Runtime) Start() error {
+    if err := r.Database.Start(r.Lifecycle); err != nil {
         return fmt.Errorf("database start failed: %w", err)
     }
-
-    if err := s.server.Start(s.lifecycle); err != nil {
-        return fmt.Errorf("server start failed: %w", err)
-    }
-
-    go func() {
-        s.lifecycle.WaitForStartup()
-        s.logger.Logger().Info("all subsystems ready")
-    }()
-
-    s.logger.Logger().Info("service started")
     return nil
 }
 ```
 
-**Subsystem Start Pattern**:
-- Each subsystem receives the lifecycle coordinator
-- Subsystems register their OnStartup/OnShutdown hooks
-- WaitForStartup blocks until all startup hooks complete
+**Note**: Logger is `*slog.Logger` directly, not a System interface. Logging is functional infrastructure (no lifecycle, no commands, no events).
+
+### Domain Structure
+
+Domain holds stateless business logic systems:
+
+```go
+type Domain struct {
+    Providers providers.System
+}
+
+func NewDomain(runtime *Runtime) *Domain {
+    return &Domain{
+        Providers: providers.New(
+            runtime.Database.Connection(),
+            runtime.Logger,
+            runtime.Pagination,
+        ),
+    }
+}
+```
+
+**Key Principles**:
+1. **Runtime holds System interfaces** - Domain systems call methods like `runtime.Database.Connection()` to get what they need
+2. **Domain systems are independent** - They only depend on Runtime systems, not on each other
+3. **Domain systems pre-initialized** - Created at startup in `NewDomain()`, stored in Server struct
+
+### Server Structure
+
+Server ties Runtime and Domain together:
+
+```go
+type Server struct {
+    runtime *Runtime
+    domain  *Domain
+    http    *httpServer
+}
+
+func NewServer(cfg *config.Config) (*Server, error) {
+    runtime, err := NewRuntime(cfg)
+    if err != nil {
+        return nil, err
+    }
+
+    domain := NewDomain(runtime)
+
+    routeSys := routes.New(runtime.Logger)
+    middlewareSys := buildMiddleware(runtime, cfg)
+
+    registerRoutes(routeSys, runtime, domain)
+    handler := middlewareSys.Apply(routeSys.Build())
+
+    httpSrv := newHTTPServer(&cfg.Server, handler, runtime.Logger)
+
+    return &Server{
+        runtime: runtime,
+        domain:  domain,
+        http:    httpSrv,
+    }, nil
+}
+```
+
+### Hot Start Pattern
+
+```go
+func (s *Server) Start() error {
+    s.runtime.Logger.Info("starting server")
+
+    if err := s.runtime.Start(); err != nil {
+        return err
+    }
+
+    if err := s.http.Start(s.runtime.Lifecycle); err != nil {
+        return fmt.Errorf("http server start failed: %w", err)
+    }
+
+    go func() {
+        s.runtime.Lifecycle.WaitForStartup()
+        s.runtime.Logger.Info("all subsystems ready")
+    }()
+
+    return nil
+}
+```
 
 ### Main Entry Point
 
@@ -370,17 +429,13 @@ func main() {
         log.Fatal("config load failed:", err)
     }
 
-    if err := cfg.Finalize(); err != nil {
-        log.Fatal("config finalize failed:", err)
-    }
-
-    svc, err := NewService(cfg)
+    srv, err := NewServer(cfg)
     if err != nil {
-        log.Fatal("service init failed:", err)
+        log.Fatal("server init failed:", err)
     }
 
-    if err := svc.Start(); err != nil {
-        log.Fatal("service start failed:", err)
+    if err := srv.Start(); err != nil {
+        log.Fatal("server start failed:", err)
     }
 
     sigChan := make(chan os.Signal, 1)
@@ -388,29 +443,22 @@ func main() {
 
     <-sigChan
 
-    if err := svc.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
+    if err := srv.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
         log.Fatal("shutdown failed:", err)
     }
 
-    log.Println("service stopped gracefully")
+    log.Println("server stopped gracefully")
 }
 ```
 
+**Note**: `config.Load()` now includes finalization internally - no separate `Finalize()` call needed.
+
 ### Graceful Shutdown
 
-The service implements graceful shutdown through the lifecycle coordinator.
-
-**Service Shutdown**:
 ```go
-func (s *Service) Shutdown(timeout time.Duration) error {
-    s.logger.Logger().Info("initiating shutdown")
-
-    if err := s.lifecycle.Shutdown(timeout); err != nil {
-        return err
-    }
-
-    s.logger.Logger().Info("all subsystems shut down successfully")
-    return nil
+func (s *Server) Shutdown(timeout time.Duration) error {
+    s.runtime.Logger.Info("initiating shutdown")
+    return s.runtime.Lifecycle.Shutdown(timeout)
 }
 ```
 
@@ -447,41 +495,33 @@ func (c *Coordinator) Shutdown(timeout time.Duration) error {
 - Timeout prevents indefinite hangs
 - No data loss - in-flight requests complete before shutdown
 
-## Server System (internal/server)
+## HTTP Server (cmd/server/http.go)
 
-The Server system encapsulates the HTTP server and manages its lifecycle through the coordinator.
-
-### System Interface
-
-```go
-type System interface {
-    Start(lc *lifecycle.Coordinator) error
-}
-```
+The HTTP server is implemented directly in the cmd/server package (not a separate internal package) since it's only used by the server entry point.
 
 ### Implementation
 
 ```go
-type server struct {
+type httpServer struct {
     http            *http.Server
     logger          *slog.Logger
     shutdownTimeout time.Duration
 }
 
-func New(cfg *config.ServerConfig, handler http.Handler, logger *slog.Logger) System {
-    return &server{
+func newHTTPServer(cfg *config.ServerConfig, handler http.Handler, logger *slog.Logger) *httpServer {
+    return &httpServer{
         http: &http.Server{
             Addr:         cfg.Addr(),
             Handler:      handler,
             ReadTimeout:  cfg.ReadTimeoutDuration(),
             WriteTimeout: cfg.WriteTimeoutDuration(),
         },
-        logger:          logger,
+        logger:          logger.With("system", "http"),
         shutdownTimeout: cfg.ShutdownTimeoutDuration(),
     }
 }
 
-func (s *server) Start(lc *lifecycle.Coordinator) error {
+func (s *httpServer) Start(lc *lifecycle.Coordinator) error {
     go func() {
         s.logger.Info("server listening", "addr", s.http.Addr)
         if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -507,7 +547,7 @@ func (s *server) Start(lc *lifecycle.Coordinator) error {
 }
 ```
 
-**Note**: Server uses OnShutdown only (not OnStartup) because ListenAndServe is a long-running process started in a goroutine.
+**Note**: HTTP server uses OnShutdown only (not OnStartup) because ListenAndServe is a long-running process started in a goroutine.
 
 ## Database System (internal/database)
 
@@ -768,9 +808,9 @@ func CORS(cfg *config.CORSConfig) func(http.Handler) http.Handler {
 ### Usage Example
 
 ```go
-func buildMiddleware(loggerSys logger.System, cfg *config.Config) middleware.System {
+func buildMiddleware(runtime *Runtime, cfg *config.Config) middleware.System {
     middlewareSys := middleware.New()
-    middlewareSys.Use(middleware.Logger(loggerSys.Logger()))
+    middlewareSys.Use(middleware.Logger(runtime.Logger))
     middlewareSys.Use(middleware.CORS(&cfg.CORS))
     return middlewareSys
 }
@@ -778,59 +818,27 @@ func buildMiddleware(loggerSys logger.System, cfg *config.Config) middleware.Sys
 
 **Why Simple Constructor**: Middleware has minimal state and is functional infrastructure. No complex initialization or owned subsystems, so config interface would be overkill.
 
-## Logger System (internal/logger)
+## Logger Helper (cmd/server/logging.go)
 
-### System Interface
-
-```go
-type System interface {
-    Logger() *slog.Logger
-}
-```
-
-### Implementation
+Logger initialization is a simple helper function, not a System. The `*slog.Logger` is used directly since:
+- No lifecycle management needed (no Start/Shutdown)
+- No commands or events
+- slog.Handler provides the extension point if needed
 
 ```go
-type logger struct {
-    logger *slog.Logger
-}
-
-func New(cfg *config.LoggingConfig) System {
-    var handler slog.Handler
-
+func newLogger(cfg *config.LoggingConfig) *slog.Logger {
     opts := &slog.HandlerOptions{
-        Level: parseLevel(cfg.Level),
+        Level: cfg.Level.ToSlogLevel(),
     }
 
-    switch cfg.Format {
-    case "json":
+    var handler slog.Handler
+    if cfg.Format == config.LogFormatJSON {
         handler = slog.NewJSONHandler(os.Stdout, opts)
-    default:
+    } else {
         handler = slog.NewTextHandler(os.Stdout, opts)
     }
 
-    return &logger{
-        logger: slog.New(handler),
-    }
-}
-
-func (l *logger) Logger() *slog.Logger {
-    return l.logger
-}
-
-func parseLevel(level string) slog.Level {
-    switch level {
-    case "debug":
-        return slog.LevelDebug
-    case "info":
-        return slog.LevelInfo
-    case "warn":
-        return slog.LevelWarn
-    case "error":
-        return slog.LevelError
-    default:
-        return slog.LevelInfo
-    }
+    return slog.New(handler)
 }
 ```
 
@@ -1415,29 +1423,26 @@ func TestLoad(t *testing.T) {
 ### Table-Driven Tests
 
 ```go
-func TestServerConfig_Validate(t *testing.T) {
+func TestLoad_Scenarios(t *testing.T) {
     tests := []struct {
         name      string
-        cfg       config.ServerConfig
+        setup     func()
+        cleanup   func()
         expectErr bool
     }{
         {
-            name: "valid config",
-            cfg: config.ServerConfig{
-                Host:         "localhost",
-                Port:         8080,
-                ReadTimeout:  "30s",
-                WriteTimeout: "30s",
-            },
+            name:      "loads base config",
+            setup:     func() {},
+            cleanup:   func() {},
             expectErr: false,
         },
         {
-            name: "invalid port",
-            cfg: config.ServerConfig{
-                Host:         "localhost",
-                Port:         99999,
-                ReadTimeout:  "30s",
-                WriteTimeout: "30s",
+            name: "invalid duration returns error",
+            setup: func() {
+                os.Setenv("SERVER_READ_TIMEOUT", "invalid")
+            },
+            cleanup: func() {
+                os.Unsetenv("SERVER_READ_TIMEOUT")
             },
             expectErr: true,
         },
@@ -1445,8 +1450,10 @@ func TestServerConfig_Validate(t *testing.T) {
 
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            tt.cfg.loadDefaults()
-            err := tt.cfg.validate()
+            tt.setup()
+            defer tt.cleanup()
+
+            _, err := config.Load()
             if tt.expectErr && err == nil {
                 t.Error("expected error but got nil")
             }
@@ -1464,13 +1471,11 @@ func TestServerConfig_Validate(t *testing.T) {
 tests/
 ├── internal_config/      # Config package tests
 ├── internal_lifecycle/   # Lifecycle coordinator tests
-├── internal_logger/      # Logger package tests
 ├── internal_routes/      # Routes package tests
 ├── internal_middleware/  # Middleware package tests
-├── internal_server/      # Server package tests
 ├── pkg_pagination/       # Pagination package tests
 ├── pkg_query/            # Query builder tests
-└── cmd_service/          # Service integration tests
+└── cmd_server/           # Server integration tests
 ```
 
 ## Pattern Decision Guide
@@ -1501,15 +1506,15 @@ func (c *Config) validate() error { /* cascade to sections */ }
 
 ### System Constructor Pattern
 
-**Stateful Systems** (Service, Server, Logger):
+**Stateful Systems** (Server, Database):
 ```go
-func NewService(cfg *Config) (*Service, error) {
+func NewServer(cfg *Config) (*Server, error) {
     // Config is already finalized (validated)
     // Build system from config values
 }
 ```
 
-**Functional Infrastructure** (Handlers, middleware, routing):
+**Functional Infrastructure** (Handlers, middleware, routing, logging):
 ```go
 func HandleCreate(w http.ResponseWriter, r *http.Request, system System, logger *slog.Logger)
 func New(logger *slog.Logger) System

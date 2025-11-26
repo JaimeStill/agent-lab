@@ -11,53 +11,454 @@ This session introduces the Runtime/Domain system separation pattern and impleme
 
 | Category | Characteristics | Examples |
 |----------|----------------|----------|
-| **Runtime Systems** | Long-running, lifecycle-managed, application-scoped | Database, Server, Logger |
+| **Runtime Systems** | Long-running, lifecycle-managed, application-scoped | Database |
 | **Domain Systems** | Stateless, request-scoped behavior, no lifecycle | Providers, Agents |
 
 ### Key Principles
 
 1. **Runtime holds System interfaces** - Domain systems call methods like `runtime.Database.Connection()` to get what they need
 2. **Domain systems are independent** - They only depend on Runtime systems, not on each other
-3. **Domain systems pre-initialized** - Created at startup in `NewDomain()`, stored in Service struct
+3. **Domain systems pre-initialized** - Created at startup in `NewDomain()`, stored in Server struct
+
+### Configuration Ownership
+
+| Prefix | Owner | Examples |
+|--------|-------|----------|
+| `SERVICE_` | `main()` process-level | `SERVICE_SHUTDOWN_TIMEOUT` |
+| `SERVER_` | HTTP server (`cmd/server/`) | `SERVER_HOST`, `SERVER_PORT` |
 
 ---
 
-## Phase 1: Runtime/Domain Refactoring
+## Phase 0: Structural Refactor
 
-### 1.1 Create `cmd/service/runtime.go` (NEW)
+This phase:
+- Simplifies config API (`Load()` includes finalization)
+- Renames `cmd/service/` to `cmd/server/`
+- Absorbs `internal/server/` into `cmd/server/http.go`
+- Removes `internal/logger/` (logger is not a System - use `*slog.Logger` directly)
+
+### 0.1 Simplify `internal/config/config.go`
+
+Consolidate `Load()` and `Finalize()` - config should always be valid after loading:
+
+```go
+package config
+
+import (
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/JaimeStill/agent-lab/pkg/pagination"
+	"github.com/pelletier/go-toml/v2"
+)
+
+const (
+	BaseConfigFile            = "config.toml"
+	OverlayConfigPattern      = "config.%s.toml"
+	EnvServiceEnv             = "SERVICE_ENV"
+	EnvServiceShutdownTimeout = "SERVICE_SHUTDOWN_TIMEOUT"
+)
+
+type Config struct {
+	Server          ServerConfig      `toml:"server"`
+	Database        DatabaseConfig    `toml:"database"`
+	Logging         LoggingConfig     `toml:"logging"`
+	CORS            CORSConfig        `toml:"cors"`
+	Pagination      pagination.Config `toml:"pagination"`
+	ShutdownTimeout string            `toml:"shutdown_timeout"`
+}
+
+func (c *Config) ShutdownTimeoutDuration() time.Duration {
+	d, _ := time.ParseDuration(c.ShutdownTimeout)
+	return d
+}
+
+func Load() (*Config, error) {
+	cfg, err := load(BaseConfigFile)
+	if err != nil {
+		return nil, err
+	}
+
+	if path := overlayPath(); path != "" {
+		overlay, err := load(path)
+		if err != nil {
+			return nil, fmt.Errorf("load overlay %s: %w", path, err)
+		}
+		cfg.Merge(overlay)
+	}
+
+	if err := cfg.finalize(); err != nil {
+		return nil, fmt.Errorf("finalize config: %w", err)
+	}
+
+	return cfg, nil
+}
+
+func (c *Config) Merge(overlay *Config) {
+	if overlay.ShutdownTimeout != "" {
+		c.ShutdownTimeout = overlay.ShutdownTimeout
+	}
+	c.Server.Merge(&overlay.Server)
+	c.Database.Merge(&overlay.Database)
+	c.Logging.Merge(&overlay.Logging)
+	c.CORS.Merge(&overlay.CORS)
+	c.Pagination.Merge(&overlay.Pagination)
+}
+
+func (c *Config) finalize() error {
+	c.loadDefaults()
+	c.loadEnv()
+
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if err := c.Server.Finalize(); err != nil {
+		return fmt.Errorf("server: %w", err)
+	}
+	if err := c.Database.Finalize(); err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+	if err := c.Logging.Finalize(); err != nil {
+		return fmt.Errorf("logging: %w", err)
+	}
+	if err := c.CORS.Finalize(); err != nil {
+		return fmt.Errorf("cors: %w", err)
+	}
+	if err := c.Pagination.Finalize(); err != nil {
+		return fmt.Errorf("pagination: %w", err)
+	}
+	return nil
+}
+
+func (c *Config) loadDefaults() {
+	if c.ShutdownTimeout == "" {
+		c.ShutdownTimeout = "30s"
+	}
+}
+
+func (c *Config) loadEnv() {
+	if v := os.Getenv(EnvServiceShutdownTimeout); v != "" {
+		c.ShutdownTimeout = v
+	}
+}
+
+func (c *Config) validate() error {
+	if _, err := time.ParseDuration(c.ShutdownTimeout); err != nil {
+		return fmt.Errorf("invalid shutdown_timeout: %w", err)
+	}
+	return nil
+}
+
+func load(path string) (*Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read config: %w", err)
+	}
+
+	var cfg Config
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
+
+	return &cfg, nil
+}
+
+func overlayPath() string {
+	if env := os.Getenv(EnvServiceEnv); env != "" {
+		overlayPath := fmt.Sprintf(OverlayConfigPattern, env)
+		if _, err := os.Stat(overlayPath); err == nil {
+			return overlayPath
+		}
+	}
+	return ""
+}
+```
+
+### 0.2 Rename Directory
+
+```bash
+mv cmd/service cmd/server
+```
+
+### 0.3 Create `cmd/server/http.go` (NEW)
+
+Move HTTP server logic from `internal/server/server.go`:
+
+```go
+package main
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/JaimeStill/agent-lab/internal/config"
+	"github.com/JaimeStill/agent-lab/internal/lifecycle"
+)
+
+type httpServer struct {
+	http            *http.Server
+	logger          *slog.Logger
+	shutdownTimeout time.Duration
+}
+
+func newHTTPServer(cfg *config.ServerConfig, handler http.Handler, logger *slog.Logger) *httpServer {
+	return &httpServer{
+		http: &http.Server{
+			Addr:         cfg.Addr(),
+			Handler:      handler,
+			ReadTimeout:  cfg.ReadTimeoutDuration(),
+			WriteTimeout: cfg.WriteTimeoutDuration(),
+		},
+		logger:          logger.With("system", "http"),
+		shutdownTimeout: cfg.ShutdownTimeoutDuration(),
+	}
+}
+
+func (s *httpServer) Start(lc *lifecycle.Coordinator) error {
+	go func() {
+		s.logger.Info("server listening", "addr", s.http.Addr)
+		if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Error("server error", "error", err)
+		}
+	}()
+
+	lc.OnShutdown(func() {
+		<-lc.Context().Done()
+		s.logger.Info("shutting down server")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
+		defer cancel()
+
+		if err := s.http.Shutdown(shutdownCtx); err != nil {
+			s.logger.Error("server shutdown error", "error", err)
+		} else {
+			s.logger.Info("server shutdown complete")
+		}
+	})
+
+	return nil
+}
+```
+
+### 0.4 Delete `internal/server/` and `internal/logger/`
+
+```bash
+rm -rf internal/server
+rm -rf internal/logger
+```
+
+### 0.5 Create `cmd/server/logging.go` (NEW)
+
+Move logger initialization logic from `internal/logger/`:
+
+```go
+package main
+
+import (
+	"log/slog"
+	"os"
+
+	"github.com/JaimeStill/agent-lab/internal/config"
+)
+
+func newLogger(cfg *config.LoggingConfig) *slog.Logger {
+	opts := &slog.HandlerOptions{
+		Level: cfg.Level.ToSlogLevel(),
+	}
+
+	var handler slog.Handler
+	if cfg.Format == config.LogFormatJSON {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	}
+
+	return slog.New(handler)
+}
+```
+
+### 0.6 Update `cmd/server/service.go`
+
+Remove `internal/server` and `internal/logger` imports, use local helpers:
 
 ```go
 package main
 
 import (
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/JaimeStill/agent-lab/internal/config"
 	"github.com/JaimeStill/agent-lab/internal/database"
 	"github.com/JaimeStill/agent-lab/internal/lifecycle"
-	"github.com/JaimeStill/agent-lab/internal/logger"
+	"github.com/JaimeStill/agent-lab/internal/routes"
+)
+
+type Service struct {
+	lifecycle *lifecycle.Coordinator
+	logger    *slog.Logger
+	database  database.System
+	server    *httpServer
+}
+
+func NewService(cfg *config.Config) (*Service, error) {
+	lc := lifecycle.New()
+	logger := newLogger(&cfg.Logging)
+	routeSys := routes.New(logger)
+
+	dbSys, err := database.New(&cfg.Database, logger)
+	if err != nil {
+		return nil, fmt.Errorf("database init failed: %w", err)
+	}
+
+	middlewareSys := buildMiddleware(logger, cfg)
+	registerRoutes(routeSys, lc)
+	handler := middlewareSys.Apply(routeSys.Build())
+
+	serverSys := newHTTPServer(&cfg.Server, handler, logger)
+
+	return &Service{
+		lifecycle: lc,
+		logger:    logger,
+		database:  dbSys,
+		server:    serverSys,
+	}, nil
+}
+
+func (s *Service) Start() error {
+	s.logger.Info("starting service")
+
+	if err := s.database.Start(s.lifecycle); err != nil {
+		return fmt.Errorf("database start failed: %w", err)
+	}
+
+	if err := s.server.Start(s.lifecycle); err != nil {
+		return fmt.Errorf("server start failed: %w", err)
+	}
+
+	go func() {
+		s.lifecycle.WaitForStartup()
+		s.logger.Info("all subsystems ready")
+	}()
+
+	s.logger.Info("service started")
+	return nil
+}
+
+func (s *Service) Shutdown(timeout time.Duration) error {
+	s.logger.Info("initiating shutdown")
+
+	if err := s.lifecycle.Shutdown(timeout); err != nil {
+		return err
+	}
+
+	s.logger.Info("all subsystems shut down successfully")
+	return nil
+}
+```
+
+### 0.7 Update `cmd/server/main.go`
+
+Simplify to use consolidated `Load()`:
+
+```go
+package main
+
+import (
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/JaimeStill/agent-lab/internal/config"
+)
+
+func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal("config load failed:", err)
+	}
+
+	svc, err := NewService(cfg)
+	if err != nil {
+		log.Fatal("service init failed:", err)
+	}
+
+	if err := svc.Start(); err != nil {
+		log.Fatal("service start failed:", err)
+	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	<-sigChan
+
+	if err := svc.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
+		log.Fatal("shutdown failed:", err)
+	}
+
+	log.Println("service stopped gracefully")
+}
+```
+
+### 0.8 Update Test Directory
+
+```bash
+mv tests/cmd_service tests/cmd_server
+```
+
+Update test file package declaration if needed.
+
+### 0.9 Verify Phase 0
+
+```bash
+go build ./...
+go test ./tests/cmd_server/...
+```
+
+---
+
+## Phase 1: Runtime/Domain Refactoring
+
+### 1.1 Create `cmd/server/runtime.go` (NEW)
+
+```go
+package main
+
+import (
+	"fmt"
+	"log/slog"
+
+	"github.com/JaimeStill/agent-lab/internal/config"
+	"github.com/JaimeStill/agent-lab/internal/database"
+	"github.com/JaimeStill/agent-lab/internal/lifecycle"
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 )
 
 type Runtime struct {
 	Lifecycle  *lifecycle.Coordinator
-	Logger     logger.System
+	Logger     *slog.Logger
 	Database   database.System
 	Pagination pagination.Config
 }
 
 func NewRuntime(cfg *config.Config) (*Runtime, error) {
 	lc := lifecycle.New()
-	loggerSys := logger.New(&cfg.Logging)
+	logger := newLogger(&cfg.Logging)
 
-	dbSys, err := database.New(&cfg.Database, loggerSys.Logger())
+	dbSys, err := database.New(&cfg.Database, logger)
 	if err != nil {
 		return nil, fmt.Errorf("database init failed: %w", err)
 	}
 
 	return &Runtime{
 		Lifecycle:  lc,
-		Logger:     loggerSys,
+		Logger:     logger,
 		Database:   dbSys,
 		Pagination: cfg.Pagination,
 	}, nil
@@ -71,7 +472,7 @@ func (r *Runtime) Start() error {
 }
 ```
 
-### 1.2 Create `cmd/service/domain.go` (NEW)
+### 1.2 Create `cmd/server/domain.go` (NEW)
 
 Initially empty - will be populated in Phase 4 after Providers system is created.
 
@@ -86,7 +487,11 @@ func NewDomain(runtime *Runtime) *Domain {
 }
 ```
 
-### 1.3 Update `cmd/service/service.go`
+### 1.3 Rename and Update `cmd/server/service.go` → `cmd/server/server.go`
+
+```bash
+mv cmd/server/service.go cmd/server/server.go
+```
 
 Replace the entire file:
 
@@ -99,16 +504,15 @@ import (
 
 	"github.com/JaimeStill/agent-lab/internal/config"
 	"github.com/JaimeStill/agent-lab/internal/routes"
-	"github.com/JaimeStill/agent-lab/internal/server"
 )
 
-type Service struct {
+type Server struct {
 	runtime *Runtime
 	domain  *Domain
-	server  server.System
+	http    *httpServer
 }
 
-func NewService(cfg *config.Config) (*Service, error) {
+func NewServer(cfg *config.Config) (*Server, error) {
 	runtime, err := NewRuntime(cfg)
 	if err != nil {
 		return nil, err
@@ -116,47 +520,91 @@ func NewService(cfg *config.Config) (*Service, error) {
 
 	domain := NewDomain(runtime)
 
-	routeSys := routes.New(runtime.Logger.Logger())
+	routeSys := routes.New(runtime.Logger)
 	middlewareSys := buildMiddleware(runtime, cfg)
 
 	registerRoutes(routeSys, runtime, domain)
 	handler := middlewareSys.Apply(routeSys.Build())
 
-	serverSys := server.New(&cfg.Server, handler, runtime.Logger.Logger())
+	httpSrv := newHTTPServer(&cfg.Server, handler, runtime.Logger)
 
-	return &Service{
+	return &Server{
 		runtime: runtime,
 		domain:  domain,
-		server:  serverSys,
+		http:    httpSrv,
 	}, nil
 }
 
-func (s *Service) Start() error {
-	s.runtime.Logger.Logger().Info("starting service")
+func (s *Server) Start() error {
+	s.runtime.Logger.Info("starting server")
 
 	if err := s.runtime.Start(); err != nil {
 		return err
 	}
 
-	if err := s.server.Start(s.runtime.Lifecycle); err != nil {
-		return fmt.Errorf("server start failed: %w", err)
+	if err := s.http.Start(s.runtime.Lifecycle); err != nil {
+		return fmt.Errorf("http server start failed: %w", err)
 	}
 
 	go func() {
 		s.runtime.Lifecycle.WaitForStartup()
-		s.runtime.Logger.Logger().Info("all subsystems ready")
+		s.runtime.Logger.Info("all subsystems ready")
 	}()
 
 	return nil
 }
 
-func (s *Service) Shutdown(timeout time.Duration) error {
-	s.runtime.Logger.Logger().Info("initiating shutdown")
+func (s *Server) Shutdown(timeout time.Duration) error {
+	s.runtime.Logger.Info("initiating shutdown")
 	return s.runtime.Lifecycle.Shutdown(timeout)
 }
 ```
 
-### 1.4 Update `cmd/service/routes.go`
+### 1.4 Update `cmd/server/main.go`
+
+Update to use `Server` instead of `Service`:
+
+```go
+package main
+
+import (
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/JaimeStill/agent-lab/internal/config"
+)
+
+func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal("config load failed:", err)
+	}
+
+	srv, err := NewServer(cfg)
+	if err != nil {
+		log.Fatal("server init failed:", err)
+	}
+
+	if err := srv.Start(); err != nil {
+		log.Fatal("server start failed:", err)
+	}
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	<-sigChan
+
+	if err := srv.Shutdown(cfg.ShutdownTimeoutDuration()); err != nil {
+		log.Fatal("shutdown failed:", err)
+	}
+
+	log.Println("server stopped gracefully")
+}
+```
+
+### 1.5 Update `cmd/server/routes.go`
 
 Update function signature to receive Runtime and Domain:
 
@@ -202,7 +650,7 @@ func handleReadinessCheck(w http.ResponseWriter, ready interface{ Ready() bool }
 }
 ```
 
-### 1.5 Update `cmd/service/middleware.go`
+### 1.6 Update `cmd/server/middleware.go`
 
 Update to receive Runtime instead of individual dependencies:
 
@@ -216,7 +664,7 @@ import (
 
 func buildMiddleware(runtime *Runtime, cfg *config.Config) middleware.System {
 	middlewareSys := middleware.New()
-	middlewareSys.Use(middleware.Logger(runtime.Logger.Logger()))
+	middlewareSys.Use(middleware.Logger(runtime.Logger))
 	middlewareSys.Use(middleware.CORS(&cfg.CORS))
 	return middlewareSys
 }
@@ -378,13 +826,13 @@ func (r *repository) Create(ctx context.Context, cmd CreateCommand) (*Provider, 
 	}
 	defer tx.Rollback()
 
-	query := `
+	q := `
 		INSERT INTO providers (name, config)
 		VALUES ($1, $2)
 		RETURNING id, name, config, created_at, updated_at`
 
 	var p Provider
-	err = tx.QueryRowContext(ctx, query, cmd.Name, cmd.Config).Scan(
+	err = tx.QueryRowContext(ctx, q, cmd.Name, cmd.Config).Scan(
 		&p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if isDuplicateError(err) {
@@ -412,14 +860,14 @@ func (r *repository) Update(ctx context.Context, id uuid.UUID, cmd UpdateCommand
 	}
 	defer tx.Rollback()
 
-	query := `
+	q := `
 		UPDATE providers
 		SET name = $1, config = $2, updated_at = NOW()
 		WHERE id = $3
 		RETURNING id, name, config, created_at, updated_at`
 
 	var p Provider
-	err = tx.QueryRowContext(ctx, query, cmd.Name, cmd.Config, id).Scan(
+	err = tx.QueryRowContext(ctx, q, cmd.Name, cmd.Config, id).Scan(
 		&p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -468,10 +916,10 @@ func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *repository) FindByID(ctx context.Context, id uuid.UUID) (*Provider, error) {
-	sql, args := query.NewBuilder(projection, "Name").BuildSingle("Id", id)
+	q, args := query.NewBuilder(projection, "Name").BuildSingle("Id", id)
 
 	var p Provider
-	err := r.db.QueryRowContext(ctx, sql, args...).Scan(
+	err := r.db.QueryRowContext(ctx, q, args...).Scan(
 		&p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -735,7 +1183,7 @@ func Routes(sys System, logger *slog.Logger) routes.Group {
 
 ## Phase 4: Integration
 
-### 4.1 Update `cmd/service/domain.go`
+### 4.1 Update `cmd/server/domain.go`
 
 Replace with full implementation:
 
@@ -754,14 +1202,14 @@ func NewDomain(runtime *Runtime) *Domain {
 	return &Domain{
 		Providers: providers.New(
 			runtime.Database.Connection(),
-			runtime.Logger.Logger(),
+			runtime.Logger,
 			runtime.Pagination,
 		),
 	}
 }
 ```
 
-### 4.2 Update `cmd/service/routes.go`
+### 4.2 Update `cmd/server/routes.go`
 
 Add providers routes registration:
 
@@ -776,7 +1224,7 @@ import (
 )
 
 func registerRoutes(r routes.System, runtime *Runtime, domain *Domain) {
-	r.RegisterGroup(providers.Routes(domain.Providers, runtime.Logger.Logger()))
+	r.RegisterGroup(providers.Routes(domain.Providers, runtime.Logger))
 
 	r.RegisterRoute(routes.Route{
 		Method:  "GET",
@@ -828,12 +1276,48 @@ go mod tidy
 
 ---
 
+## Final Directory Structure
+
+```
+cmd/
+├── server/               # HTTP server entry point
+│   ├── main.go               # Entry point, signal handling
+│   ├── server.go             # Server struct (composition root)
+│   ├── runtime.go            # Runtime struct (lifecycle, database, pagination)
+│   ├── domain.go             # Domain struct (providers, agents)
+│   ├── http.go               # HTTP server lifecycle
+│   ├── logging.go            # Logger initialization helper
+│   ├── routes.go             # Route registration
+│   └── middleware.go         # Middleware composition
+│
+└── migrate/              # Migration CLI
+    ├── main.go
+    └── migrations/
+
+internal/
+├── config/
+├── database/
+├── lifecycle/
+├── middleware/
+├── routes/
+└── providers/            # NEW - Providers domain system
+    ├── provider.go
+    ├── errors.go
+    ├── projection.go
+    ├── system.go
+    ├── repository.go
+    ├── handlers.go
+    └── routes.go
+```
+
+---
+
 ## Validation Checklist
 
 After implementation, verify:
 
 - [ ] `go build ./...` succeeds
-- [ ] Service starts with Runtime/Domain pattern
+- [ ] Server starts with Runtime/Domain pattern
 - [ ] Existing endpoints work (`/healthz`, `/readyz`)
 - [ ] Run migrations: `go run ./cmd/migrate -dsn "..." -up`
 - [ ] Provider CRUD operations via API work
