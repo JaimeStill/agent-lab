@@ -11,7 +11,7 @@ You are authorized to create and modify documentation files, but implementation 
 ## Project Overview
 
 agent-lab is a containerized Go web service for building and orchestrating agentic workflows. It builds on:
-- **go-agents** (v0.2.1): LLM integration core
+- **go-agents** (v0.3.0): LLM integration core
 - **go-agents-orchestration** (v0.1.0+): Workflow orchestration patterns
 - **document-context** (v0.1.0+): Document processing with LCA architecture
 

@@ -9,13 +9,13 @@ import (
 
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 	"github.com/JaimeStill/agent-lab/pkg/query"
+	"github.com/JaimeStill/agent-lab/pkg/repository"
 	agtconfig "github.com/JaimeStill/go-agents/pkg/config"
 	agtproviders "github.com/JaimeStill/go-agents/pkg/providers"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type repository struct {
+type repo struct {
 	db         *sql.DB
 	logger     *slog.Logger
 	pagination pagination.Config
@@ -23,60 +23,39 @@ type repository struct {
 
 // New creates a new providers repository with the given dependencies.
 func New(db *sql.DB, logger *slog.Logger, pagination pagination.Config) System {
-	return &repository{
+	return &repo{
 		db:         db,
 		logger:     logger.With("system", "provider"),
 		pagination: pagination,
 	}
 }
 
-func (r *repository) Create(ctx context.Context, cmd CreateCommand) (*Provider, error) {
+func (r *repo) Create(ctx context.Context, cmd CreateCommand) (*Provider, error) {
 	if err := r.validateConfig(cmd.Config); err != nil {
 		return nil, err
 	}
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("begin transaction: %w", err)
-	}
-	defer tx.Rollback()
 
 	q := `
 		INSERT INTO providers (name, config)
 		VALUES ($1, $2)
 		RETURNING id, name, config, created_at, updated_at`
 
-	var p Provider
-	err = tx.
-		QueryRowContext(ctx, q, cmd.Name, cmd.Config).
-		Scan(
-			&p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt,
-		)
-	if err != nil {
-		if isDuplicateError(err) {
-			return nil, ErrDuplicate
-		}
-		return nil, fmt.Errorf("insert provider: %w", err)
-	}
+	p, err := repository.WithTx(ctx, r.db, func(tx *sql.Tx) (Provider, error) {
+		return repository.QueryOne(ctx, tx, q, []any{cmd.Name, cmd.Config}, scanProvider)
+	})
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit transaction: %w", err)
+	if err != nil {
+		return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
 	}
 
 	r.logger.Info("provider created", "id", p.ID, "name", p.Name)
 	return &p, nil
 }
 
-func (r *repository) Update(ctx context.Context, id uuid.UUID, cmd UpdateCommand) (*Provider, error) {
+func (r *repo) Update(ctx context.Context, id uuid.UUID, cmd UpdateCommand) (*Provider, error) {
 	if err := r.validateConfig(cmd.Config); err != nil {
 		return nil, err
 	}
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("begin transaction: %w", err)
-	}
-	defer tx.Rollback()
 
 	q := `
 		UPDATE providers
@@ -84,80 +63,54 @@ func (r *repository) Update(ctx context.Context, id uuid.UUID, cmd UpdateCommand
 		WHERE id = $3
 		RETURNING id, name, config, created_at, updated_at`
 
-	var p Provider
-	err = tx.
-		QueryRowContext(ctx, q, cmd.Name, cmd.Config, id).
-		Scan(
-			&p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt,
-		)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrNotFound
-		}
-		if isDuplicateError(err) {
-			return nil, ErrDuplicate
-		}
-		return nil, fmt.Errorf("update provider: %w", err)
-	}
+	p, err := repository.WithTx(ctx, r.db, func(tx *sql.Tx) (Provider, error) {
+		return repository.QueryOne(ctx, tx, q, []any{cmd.Name, cmd.Config, id}, scanProvider)
+	})
 
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit transaction: %w", err)
+	if err != nil {
+		return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
 	}
 
 	r.logger.Info("provider updated", "id", p.ID, "name", p.Name)
 	return &p, nil
 }
 
-func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
-	}
-	defer tx.Rollback()
+func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := repository.WithTx(ctx, r.db, func(tx *sql.Tx) (struct{}, error) {
+		err := repository.ExecExpectOne(ctx, tx, "DELETE FROM providers WHERE id = $1", id)
+		return struct{}{}, err
+	})
 
-	result, err := tx.ExecContext(ctx, "DELETE FROM providers WHERE id = $1", id)
 	if err != nil {
-		return fmt.Errorf("delete provider: %w", err)
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	}
-	if rows == 0 {
-		return ErrNotFound
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
+		return repository.MapError(err, ErrNotFound, ErrDuplicate)
 	}
 
 	r.logger.Info("provider deleted", "id", id)
 	return nil
 }
 
-func (r *repository) FindByID(ctx context.Context, id uuid.UUID) (*Provider, error) {
-	q, args := query.NewBuilder(projection, "Name").BuildSingle("Id", id)
+func (r *repo) GetByID(ctx context.Context, id uuid.UUID) (*Provider, error) {
+	q, args := query.NewBuilder(projection).BuildSingle("Id", id)
 
-	var p Provider
-	err := r.db.QueryRowContext(ctx, q, args...).Scan(
-		&p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt,
-	)
+	p, err := repository.QueryOne(ctx, r.db, q, args, scanProvider)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrNotFound
-		}
-		return nil, fmt.Errorf("query provider: %w", err)
+		return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
 	}
+
 	return &p, nil
 }
 
-func (r *repository) Search(ctx context.Context, page pagination.PageRequest) (*pagination.PageResult[Provider], error) {
+func (r *repo) Search(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Provider], error) {
 	page.Normalize(r.pagination)
 
-	qb := query.NewBuilder(projection, "Name").
-		WhereSearch(page.Search, "Name").
-		OrderBy(page.SortBy, page.Descending)
+	qb := query.NewBuilder(projection, query.SortField{Field: "Name"}).
+		WhereSearch(page.Search, "Name")
+
+	filters.Apply(qb)
+
+	if len(page.Sort) > 0 {
+		qb.OrderByFields(page.Sort)
+	}
 
 	countSql, countArgs := qb.BuildCount()
 	var total int
@@ -166,30 +119,16 @@ func (r *repository) Search(ctx context.Context, page pagination.PageRequest) (*
 	}
 
 	pageSQL, pageArgs := qb.BuildPage(page.Page, page.PageSize)
-	rows, err := r.db.QueryContext(ctx, pageSQL, pageArgs...)
+	providers, err := repository.QueryMany(ctx, r.db, pageSQL, pageArgs, scanProvider)
 	if err != nil {
 		return nil, fmt.Errorf("query providers: %w", err)
-	}
-	defer rows.Close()
-
-	providers := make([]Provider, 0)
-	for rows.Next() {
-		var p Provider
-		if err := rows.Scan(&p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan provider: %w", err)
-		}
-		providers = append(providers, p)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
 	}
 
 	result := pagination.NewPageResult(providers, total, page.Page, page.PageSize)
 	return &result, nil
 }
 
-func (r *repository) validateConfig(config json.RawMessage) error {
+func (r *repo) validateConfig(config json.RawMessage) error {
 	var cfg agtconfig.ProviderConfig
 	if err := json.Unmarshal(config, &cfg); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
@@ -199,11 +138,4 @@ func (r *repository) validateConfig(config json.RawMessage) error {
 		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 	}
 	return nil
-}
-
-func isDuplicateError(err error) bool {
-	if pgErr, ok := err.(*pgconn.PgError); ok {
-		return pgErr.Code == "23505"
-	}
-	return false
 }

@@ -10,22 +10,64 @@ type condition struct {
 	args   []any
 }
 
-// Builder constructs SQL queries using a fluent API with automatic parameter numbering.
-type Builder struct {
-	projection  *ProjectionMap
-	conditions  []condition
-	orderBy     string
-	descending  bool
-	defaultSort string
+// SortField represents a single column in an ORDER BY clause.
+// Field is the logical field name (mapped via ProjectionMap).
+// Descending controls sort direction (false = ASC, true = DESC).
+type SortField struct {
+	Field      string
+	Descending bool
 }
 
-// NewBuilder creates a Builder for the given projection with a default sort field.
-func NewBuilder(projection *ProjectionMap, defaultSort string) *Builder {
+// Builder constructs SQL queries using a fluent API with automatic parameter numbering.
+type Builder struct {
+	projection        *ProjectionMap
+	conditions        []condition
+	orderByFields     []SortField
+	defaultSortFields []SortField
+}
+
+// NewBuilder creates a Builder for the given projection with optional default sort fields.
+// Default sort fields are used when no explicit OrderByFields is set.
+func NewBuilder(projection *ProjectionMap, defaultSort ...SortField) *Builder {
 	return &Builder{
-		projection:  projection,
-		conditions:  make([]condition, 0),
-		defaultSort: defaultSort,
+		projection:        projection,
+		conditions:        make([]condition, 0),
+		defaultSortFields: defaultSort,
 	}
+}
+
+// ParseSortFields parses a comma-separated sort string into SortField slice.
+// Fields prefixed with "-" are descending. Example: "name,-createdAt" parses to
+// [{Field: "name", Descending: false}, {Field: "createdAt", Descending: true}].
+// Returns nil for empty input.
+func ParseSortFields(s string) []SortField {
+	if s == "" {
+		return nil
+	}
+
+	parts := strings.Split(s, ",")
+	fields := make([]SortField, 0, len(parts))
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		if strings.HasPrefix(part, "-") {
+			fields = append(fields, SortField{
+				Field:      strings.TrimPrefix(part, "-"),
+				Descending: true,
+			})
+		} else {
+			fields = append(fields, SortField{
+				Field:      part,
+				Descending: false,
+			})
+		}
+	}
+
+	return fields
 }
 
 // BuildCount returns a COUNT(*) query with the current conditions.
@@ -66,12 +108,10 @@ func (b *Builder) BuildSingle(idField string, id any) (string, []any) {
 	return sql, []any{id}
 }
 
-// OrderBy sets the sort field and direction. Empty field uses the default sort.
-func (b *Builder) OrderBy(field string, descending bool) *Builder {
-	if field != "" {
-		b.orderBy = b.projection.Column(field)
-	}
-	b.descending = descending
+// OrderByFields sets the sort order for paginated queries.
+// Overrides default sort fields set in NewBuilder. Nil or empty clears explicit sorting.
+func (b *Builder) OrderByFields(fields []SortField) *Builder {
+	b.orderByFields = fields
 	return b
 }
 
@@ -142,17 +182,26 @@ func (b *Builder) WhereSearch(search *string, fields ...string) *Builder {
 }
 
 func (b *Builder) buildOrderBy() string {
-	orderCol := b.orderBy
-	if orderCol == "" {
-		orderCol = b.projection.Column(b.defaultSort)
+	fields := b.orderByFields
+	if len(fields) == 0 {
+		fields = b.defaultSortFields
 	}
 
-	dir := "ASC"
-	if b.descending {
-		dir = "DESC"
+	if len(fields) == 0 {
+		return ""
 	}
 
-	return fmt.Sprintf(" ORDER BY %s %s", orderCol, dir)
+	parts := make([]string, len(fields))
+	for i, f := range fields {
+		col := b.projection.Column(f.Field)
+		dir := "ASC"
+		if f.Descending {
+			dir = "DESC"
+		}
+		parts[i] = fmt.Sprintf("%s %s", col, dir)
+	}
+
+	return " ORDER BY " + strings.Join(parts, ", ")
 }
 
 func (b *Builder) buildWhere(startParam int) (string, []any, int) {

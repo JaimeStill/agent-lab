@@ -43,9 +43,9 @@ docker compose -f compose/postgres.yml up -d
 # Run database migrations
 go run ./cmd/migrate -dsn "postgres://agent_lab:agent_lab@localhost:5432/agent_lab?sslmode=disable" -up
 
-# Build and run service
-go build -o bin/service ./cmd/service
-./bin/service
+# Build and run server
+go build -o bin/server ./cmd/server
+./bin/server
 
 # Health check (liveness)
 curl http://localhost:8080/healthz

@@ -1,9 +1,11 @@
 package pkg_pagination_test
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
+	"github.com/JaimeStill/agent-lab/pkg/query"
 )
 
 func TestPageRequest_Normalize(t *testing.T) {
@@ -176,4 +178,145 @@ func TestNewPageResult_NilDataBecomesEmptySlice(t *testing.T) {
 	if len(result.Data) != 0 {
 		t.Errorf("len(Data) = %d, want 0", len(result.Data))
 	}
+}
+
+func TestPageRequestFromQuery(t *testing.T) {
+	cfg := pagination.Config{
+		DefaultPageSize: 20,
+		MaxPageSize:     100,
+	}
+
+	tests := []struct {
+		name         string
+		query        string
+		wantPage     int
+		wantPageSize int
+		wantSearch   *string
+		wantSort     []query.SortField
+	}{
+		{
+			name:         "empty query uses defaults",
+			query:        "",
+			wantPage:     1,
+			wantPageSize: 20,
+			wantSearch:   nil,
+			wantSort:     nil,
+		},
+		{
+			name:         "page and page_size parsed",
+			query:        "page=2&page_size=50",
+			wantPage:     2,
+			wantPageSize: 50,
+			wantSearch:   nil,
+			wantSort:     nil,
+		},
+		{
+			name:         "search parsed",
+			query:        "search=test",
+			wantPage:     1,
+			wantPageSize: 20,
+			wantSearch:   strPtr("test"),
+			wantSort:     nil,
+		},
+		{
+			name:         "sort parsed ascending",
+			query:        "sort=name",
+			wantPage:     1,
+			wantPageSize: 20,
+			wantSearch:   nil,
+			wantSort:     []query.SortField{{Field: "name", Descending: false}},
+		},
+		{
+			name:         "sort parsed descending",
+			query:        "sort=-createdAt",
+			wantPage:     1,
+			wantPageSize: 20,
+			wantSearch:   nil,
+			wantSort:     []query.SortField{{Field: "createdAt", Descending: true}},
+		},
+		{
+			name:         "multi-column sort",
+			query:        "sort=name,-createdAt",
+			wantPage:     1,
+			wantPageSize: 20,
+			wantSearch:   nil,
+			wantSort: []query.SortField{
+				{Field: "name", Descending: false},
+				{Field: "createdAt", Descending: true},
+			},
+		},
+		{
+			name:         "all params combined",
+			query:        "page=3&page_size=25&search=foo&sort=-name",
+			wantPage:     3,
+			wantPageSize: 25,
+			wantSearch:   strPtr("foo"),
+			wantSort:     []query.SortField{{Field: "name", Descending: true}},
+		},
+		{
+			name:         "invalid page defaults to 1",
+			query:        "page=invalid",
+			wantPage:     1,
+			wantPageSize: 20,
+			wantSearch:   nil,
+			wantSort:     nil,
+		},
+		{
+			name:         "page_size exceeding max gets capped",
+			query:        "page_size=500",
+			wantPage:     1,
+			wantPageSize: 100,
+			wantSearch:   nil,
+			wantSort:     nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values, _ := url.ParseQuery(tt.query)
+			req := pagination.PageRequestFromQuery(values, cfg)
+
+			if req.Page != tt.wantPage {
+				t.Errorf("Page = %d, want %d", req.Page, tt.wantPage)
+			}
+
+			if req.PageSize != tt.wantPageSize {
+				t.Errorf("PageSize = %d, want %d", req.PageSize, tt.wantPageSize)
+			}
+
+			if tt.wantSearch == nil {
+				if req.Search != nil {
+					t.Errorf("Search = %v, want nil", *req.Search)
+				}
+			} else {
+				if req.Search == nil {
+					t.Errorf("Search = nil, want %v", *tt.wantSearch)
+				} else if *req.Search != *tt.wantSearch {
+					t.Errorf("Search = %v, want %v", *req.Search, *tt.wantSearch)
+				}
+			}
+
+			if tt.wantSort == nil {
+				if req.Sort != nil {
+					t.Errorf("Sort = %v, want nil", req.Sort)
+				}
+			} else {
+				if len(req.Sort) != len(tt.wantSort) {
+					t.Fatalf("len(Sort) = %d, want %d", len(req.Sort), len(tt.wantSort))
+				}
+				for i, want := range tt.wantSort {
+					if req.Sort[i].Field != want.Field {
+						t.Errorf("Sort[%d].Field = %q, want %q", i, req.Sort[i].Field, want.Field)
+					}
+					if req.Sort[i].Descending != want.Descending {
+						t.Errorf("Sort[%d].Descending = %v, want %v", i, req.Sort[i].Descending, want.Descending)
+					}
+				}
+			}
+		})
+	}
+}
+
+func strPtr(s string) *string {
+	return &s
 }

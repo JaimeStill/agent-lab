@@ -1,7 +1,7 @@
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 h1:L/gRVlceqvL25UVaW/CKtUDjefjrs0SPonmDGUVOYP0=
 github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
-github.com/JaimeStill/go-agents v0.2.1 h1:LRdYgdl/oBmsMpitUfdwZuqtMuNwBiKzmxnCIJxpCPw=
-github.com/JaimeStill/go-agents v0.2.1/go.mod h1:Ui+Ea0YrnI37MbWXP7VxqX3IcIppkQRSO4/DEl4/4B4=
+github.com/JaimeStill/go-agents v0.3.0 h1:MBPbuIipP3Rue1JpinuTcTrkRkl2p1TSAvh95WbE514=
+github.com/JaimeStill/go-agents v0.3.0/go.mod h1:Ui+Ea0YrnI37MbWXP7VxqX3IcIppkQRSO4/DEl4/4B4=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
 github.com/containerd/errdefs v1.0.0 h1:tg5yIfIlQIrxYtu9ajqY42W3lpS19XqdxRQeEwYG8PI=

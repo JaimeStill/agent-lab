@@ -126,7 +126,7 @@ Configs validated using go-agents:
 
 ### Test Updates
 - `tests/internal_config/config_test.go` - Restructured for Load() pattern
-- Renamed: `tests/cmd_service/` → `tests/cmd_server/`
+- Renamed: `tests/cmd_server/` → `tests/cmd_server/`
 
 ## Session Review Notes
 

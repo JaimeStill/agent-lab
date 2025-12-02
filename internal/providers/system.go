@@ -28,10 +28,10 @@ type System interface {
 	// Returns ErrNotFound if the provider does not exist.
 	Delete(ctx context.Context, id uuid.UUID) error
 
-	// FindByID retrieves a provider configuration by ID.
+	// GetByID retrieves a provider configuration by ID.
 	// Returns ErrNotFound if the provider does not exist.
-	FindByID(ctx context.Context, id uuid.UUID) (*Provider, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*Provider, error)
 
 	// Search returns a paginated list of providers matching the search criteria.
-	Search(ctx context.Context, page pagination.PageRequest) (*pagination.PageResult[Provider], error)
+	Search(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Provider], error)
 }

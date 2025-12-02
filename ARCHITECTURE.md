@@ -204,30 +204,40 @@ internal/                 # Private API: Domain systems
 │
 └── providers/            # Providers domain system
     ├── provider.go           # State structures
-    ├── errors.go             # Domain errors
+    ├── errors.go             # Domain errors + HTTP status mapping
     ├── projection.go         # Query projection map
     ├── system.go             # System interface
     ├── repository.go         # Repository implementation
-    ├── handlers.go           # HTTP handlers
-    └── routes.go             # Route group
+    ├── handler.go            # Handler struct with route methods
+    ├── scanner.go            # Row scanner function
+    └── filters.go            # Domain-specific filters
 
 pkg/                      # Public API: Shared infrastructure
+├── handlers/
+│   └── handlers.go           # HTTP response utilities
+│
 ├── pagination/
 │   ├── config.go             # Pagination configuration
 │   └── pagination.go         # PageRequest/PageResult types
 │
-└── query/
-    ├── projection.go         # ProjectionMap for column mapping
-    └── builder.go            # Fluent query builder
+├── query/
+│   ├── projection.go         # ProjectionMap for column mapping
+│   └── builder.go            # Fluent query builder
+│
+└── repository/
+    ├── repository.go         # Transaction and query helpers
+    └── errors.go             # Domain-agnostic error mapping
 
 tests/                    # Black-box tests
+├── cmd_server/
 ├── internal_config/
 ├── internal_lifecycle/
-├── internal_routes/
 ├── internal_middleware/
+├── internal_routes/
+├── pkg_handlers/
 ├── pkg_pagination/
 ├── pkg_query/
-└── cmd_server/
+└── pkg_repository/
 ```
 
 ### Component Flow
@@ -862,15 +872,18 @@ func (c *Config) Merge(overlay *Config)
 
 ```go
 type PageRequest struct {
-    Page       int     `json:"page"`
-    PageSize   int     `json:"page_size"`
-    Search     *string `json:"search,omitempty"`
-    SortBy     string  `json:"sort_by,omitempty"`
-    Descending bool    `json:"descending,omitempty"`
+    Page     int               `json:"page"`
+    PageSize int               `json:"page_size"`
+    Search   *string           `json:"search,omitempty"`
+    Sort     []query.SortField `json:"sort,omitempty"`
 }
 
 func (r *PageRequest) Normalize(cfg Config)  // Clamps to valid ranges
 func (r *PageRequest) Offset() int           // Calculates SQL OFFSET
+
+// PageRequestFromQuery parses pagination from URL query parameters
+// Supports: page, page_size, search, sort (comma-separated, "-" prefix for desc)
+func PageRequestFromQuery(values url.Values, cfg Config) PageRequest
 
 type PageResult[T any] struct {
     Data       []T `json:"data"`
@@ -920,22 +933,30 @@ var providerProjection = query.NewProjectionMap("public", "providers", "p").
 Fluent builder for filters, sorting, pagination:
 
 ```go
-type Builder struct {
-    projection  *ProjectionMap
-    conditions  []condition
-    orderBy     string
-    descending  bool
-    defaultSort string
+// SortField represents a column in ORDER BY clause
+type SortField struct {
+    Field      string
+    Descending bool
 }
 
-func NewBuilder(projection *ProjectionMap, defaultSort string) *Builder
+// ParseSortFields parses "name,-createdAt" into []SortField
+func ParseSortFields(s string) []SortField
+
+type Builder struct {
+    projection        *ProjectionMap
+    conditions        []condition
+    orderByFields     []SortField
+    defaultSortFields []SortField
+}
+
+func NewBuilder(projection *ProjectionMap, defaultSort ...SortField) *Builder
 
 // Filter methods (nil/empty values are ignored)
 func (b *Builder) WhereEquals(field string, value any) *Builder
 func (b *Builder) WhereContains(field string, value *string) *Builder
 func (b *Builder) WhereIn(field string, values []any) *Builder
 func (b *Builder) WhereSearch(search *string, fields ...string) *Builder
-func (b *Builder) OrderBy(field string, descending bool) *Builder
+func (b *Builder) OrderByFields(fields []SortField) *Builder
 
 // SQL generation
 func (b *Builder) BuildCount() (sql string, args []any)
@@ -945,10 +966,13 @@ func (b *Builder) BuildSingle(idField string, id any) (sql string, args []any)
 
 **Usage**:
 ```go
-qb := query.NewBuilder(providerProjection, "Name").
+qb := query.NewBuilder(providerProjection, query.SortField{Field: "Name"}).
     WhereContains("Name", req.Name).
-    WhereSearch(req.Search, "Name", "Config").
-    OrderBy(req.SortBy, req.Descending)
+    WhereSearch(req.Search, "Name", "Config")
+
+if len(req.Sort) > 0 {
+    qb.OrderByFields(req.Sort)
+}
 
 countSQL, countArgs := qb.BuildCount()
 pageSQL, pageArgs := qb.BuildPage(req.Page, req.PageSize)
@@ -965,6 +989,110 @@ err := db.QueryRowContext(ctx, countSQL, countArgs...).Scan(&total)
 
 // Page query
 rows, err := db.QueryContext(ctx, pageSQL, pageArgs...)
+```
+
+## Repository Package (pkg/repository)
+
+Generic database helpers that reduce boilerplate while keeping domain logic in calling code.
+
+### Interfaces
+
+```go
+// Querier is implemented by *sql.DB, *sql.Tx, and *sql.Conn
+type Querier interface {
+    QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+    QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
+// Executor is implemented by *sql.DB, *sql.Tx, and *sql.Conn
+type Executor interface {
+    ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+// Scanner abstracts row scanning (implemented by *sql.Row and *sql.Rows)
+type Scanner interface {
+    Scan(dest ...any) error
+}
+
+// ScanFunc converts a Scanner into a typed value (defined per domain)
+type ScanFunc[T any] func(Scanner) (T, error)
+```
+
+### Transaction Helper
+
+```go
+// WithTx executes fn within a transaction, handling Begin/Commit/Rollback
+func WithTx[T any](ctx context.Context, db *sql.DB, fn func(tx *sql.Tx) (T, error)) (T, error)
+```
+
+### Query Helpers
+
+```go
+// QueryOne executes a query expecting a single row
+func QueryOne[T any](ctx context.Context, q Querier, query string, args []any, scan ScanFunc[T]) (T, error)
+
+// QueryMany executes a query expecting multiple rows
+func QueryMany[T any](ctx context.Context, q Querier, query string, args []any, scan ScanFunc[T]) ([]T, error)
+
+// ExecExpectOne executes a statement expecting exactly one affected row
+func ExecExpectOne(ctx context.Context, e Executor, query string, args ...any) error
+```
+
+### Error Mapping
+
+```go
+// MapError translates database errors to domain errors
+// sql.ErrNoRows → notFoundErr, pg 23505 → duplicateErr
+func MapError(err error, notFoundErr, duplicateErr error) error
+```
+
+**Usage**:
+```go
+func (r *repo) Create(ctx context.Context, cmd CreateCommand) (*Provider, error) {
+    q := `INSERT INTO providers (name, config) VALUES ($1, $2)
+          RETURNING id, name, config, created_at, updated_at`
+
+    p, err := repository.WithTx(ctx, r.db, func(tx *sql.Tx) (Provider, error) {
+        return repository.QueryOne(ctx, tx, q, []any{cmd.Name, cmd.Config}, scanProvider)
+    })
+
+    if err != nil {
+        return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
+    }
+
+    return &p, nil
+}
+```
+
+## Handlers Package (pkg/handlers)
+
+Stateless HTTP response utilities for JSON APIs.
+
+```go
+// RespondJSON writes a JSON response with status code
+func RespondJSON(w http.ResponseWriter, status int, data any)
+
+// RespondError logs the error and writes a JSON error response
+func RespondError(w http.ResponseWriter, logger *slog.Logger, status int, err error)
+```
+
+**Usage**:
+```go
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+    var cmd CreateCommand
+    if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
+        handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+        return
+    }
+
+    result, err := h.sys.Create(r.Context(), cmd)
+    if err != nil {
+        handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+        return
+    }
+
+    handlers.RespondJSON(w, http.StatusCreated, result)
+}
 ```
 
 ## Configuration Management
@@ -1296,25 +1424,19 @@ func openDatabase(cfg *DatabaseConfig) (*sql.DB, error) {
 
 ### Transaction Pattern
 
-Commands always use transactions:
+Commands use `repository.WithTx` for automatic transaction management:
 
 ```go
-func (r *repository) Create(ctx context.Context, cmd CreateCommand) (*Provider, error) {
-    tx, err := r.db.BeginTx(ctx, nil)
-    if err != nil {
-        return nil, fmt.Errorf("begin transaction: %w", err)
-    }
-    defer tx.Rollback()
+func (r *repo) Create(ctx context.Context, cmd CreateCommand) (*Provider, error) {
+    q := `INSERT INTO providers (name, config) VALUES ($1, $2)
+          RETURNING id, name, config, created_at, updated_at`
 
-    // Execute mutations within transaction
-    var p Provider
-    err = tx.QueryRowContext(ctx, query, args...).Scan(&p.ID, &p.Name, ...)
-    if err != nil {
-        return nil, fmt.Errorf("insert: %w", err)
-    }
+    p, err := repository.WithTx(ctx, r.db, func(tx *sql.Tx) (Provider, error) {
+        return repository.QueryOne(ctx, tx, q, []any{cmd.Name, cmd.Config}, scanProvider)
+    })
 
-    if err := tx.Commit(); err != nil {
-        return nil, fmt.Errorf("commit: %w", err)
+    if err != nil {
+        return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
     }
 
     return &p, nil
@@ -1323,23 +1445,31 @@ func (r *repository) Create(ctx context.Context, cmd CreateCommand) (*Provider, 
 
 ### Query Pattern
 
-Queries don't use transactions:
+Queries use repository helpers without transactions:
 
 ```go
-func (r *repository) FindByID(ctx context.Context, id uuid.UUID) (*Provider, error) {
-    query := `SELECT id, name, config, created_at, updated_at FROM providers WHERE id = $1`
+func (r *repo) FindByID(ctx context.Context, id uuid.UUID) (*Provider, error) {
+    q, args := query.NewBuilder(projection).BuildSingle("Id", id)
 
-    var p Provider
-    err := r.db.QueryRowContext(ctx, query, id).Scan(
-        &p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt)
-    if err == sql.ErrNoRows {
-        return nil, ErrNotFound
-    }
+    p, err := repository.QueryOne(ctx, r.db, q, args, scanProvider)
     if err != nil {
-        return nil, fmt.Errorf("query: %w", err)
+        return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
     }
 
     return &p, nil
+}
+```
+
+### Domain Scanner Pattern
+
+Each domain defines a scanner function for its entities:
+
+```go
+// internal/providers/scanner.go
+func scanProvider(s repository.Scanner) (Provider, error) {
+    var p Provider
+    err := s.Scan(&p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt)
+    return p, err
 }
 ```
 

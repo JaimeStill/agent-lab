@@ -62,7 +62,7 @@ Session 01a established the foundation infrastructure for agent-lab, implementin
 - `tests/internal_routes/` - Route registration, group support
 - `tests/internal_middleware/` - Stack composition, logger/CORS middleware
 - `tests/internal_server/` - Server lifecycle, graceful shutdown
-- `tests/cmd_service/` - Service integration tests
+- `tests/cmd_server/` - Service integration tests
 
 ### Documentation
 
@@ -401,7 +401,7 @@ func overlayPath() string {
 - `tests/internal_middleware/logger_test.go`
 - `tests/internal_middleware/cors_test.go`
 - `tests/internal_server/server_test.go`
-- `tests/cmd_service/service_test.go`
+- `tests/cmd_server/service_test.go`
 - `README.md`
 - `_context/service-design.md`
 

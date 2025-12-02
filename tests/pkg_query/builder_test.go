@@ -16,7 +16,7 @@ func newTestProjection() *query.ProjectionMap {
 
 func TestBuilder_BuildCount_NoConditions(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name")
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"})
 
 	sql, args := b.BuildCount()
 
@@ -32,7 +32,7 @@ func TestBuilder_BuildCount_NoConditions(t *testing.T) {
 
 func TestBuilder_BuildPage_NoConditions(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name")
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"})
 
 	sql, args := b.BuildPage(1, 20)
 
@@ -70,7 +70,7 @@ func TestBuilder_BuildPage_Pagination(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := query.NewBuilder(pm, "Name")
+			b := query.NewBuilder(pm, query.SortField{Field: "Name"})
 			sql, _ := b.BuildPage(tt.page, tt.pageSize)
 
 			if !strings.Contains(sql, tt.wantLimit) {
@@ -86,7 +86,7 @@ func TestBuilder_BuildPage_Pagination(t *testing.T) {
 
 func TestBuilder_BuildSingle(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name")
+	b := query.NewBuilder(pm)
 
 	sql, args := b.BuildSingle("Id", 123)
 
@@ -103,23 +103,42 @@ func TestBuilder_BuildSingle(t *testing.T) {
 	}
 }
 
-func TestBuilder_OrderBy(t *testing.T) {
+func TestBuilder_OrderByFields(t *testing.T) {
 	pm := newTestProjection()
 
 	tests := []struct {
-		name       string
-		field      string
-		descending bool
-		wantOrder  string
+		name      string
+		fields    []query.SortField
+		wantOrder string
 	}{
-		{"ascending by name", "Name", false, "ORDER BY u.name ASC"},
-		{"descending by name", "Name", true, "ORDER BY u.name DESC"},
-		{"ascending by email", "Email", false, "ORDER BY u.email ASC"},
+		{
+			"ascending by name",
+			[]query.SortField{{Field: "Name", Descending: false}},
+			"ORDER BY u.name ASC",
+		},
+		{
+			"descending by name",
+			[]query.SortField{{Field: "Name", Descending: true}},
+			"ORDER BY u.name DESC",
+		},
+		{
+			"ascending by email",
+			[]query.SortField{{Field: "Email", Descending: false}},
+			"ORDER BY u.email ASC",
+		},
+		{
+			"multi-column sort",
+			[]query.SortField{
+				{Field: "Name", Descending: false},
+				{Field: "Email", Descending: true},
+			},
+			"ORDER BY u.name ASC, u.email DESC",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := query.NewBuilder(pm, "Name").OrderBy(tt.field, tt.descending)
+			b := query.NewBuilder(pm).OrderByFields(tt.fields)
 			sql, _ := b.BuildPage(1, 20)
 
 			if !strings.Contains(sql, tt.wantOrder) {
@@ -129,9 +148,9 @@ func TestBuilder_OrderBy(t *testing.T) {
 	}
 }
 
-func TestBuilder_OrderBy_EmptyFieldUsesDefault(t *testing.T) {
+func TestBuilder_OrderByFields_EmptyUsesDefault(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name").OrderBy("", false)
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).OrderByFields(nil)
 
 	sql, _ := b.BuildPage(1, 20)
 
@@ -140,9 +159,20 @@ func TestBuilder_OrderBy_EmptyFieldUsesDefault(t *testing.T) {
 	}
 }
 
+func TestBuilder_NoSortFields(t *testing.T) {
+	pm := newTestProjection()
+	b := query.NewBuilder(pm)
+
+	sql, _ := b.BuildPage(1, 20)
+
+	if strings.Contains(sql, "ORDER BY") {
+		t.Errorf("BuildPage() should not have ORDER BY without sort fields, got %q", sql)
+	}
+}
+
 func TestBuilder_WhereEquals(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name").WhereEquals("Id", 5)
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereEquals("Id", 5)
 
 	sql, args := b.BuildCount()
 
@@ -157,7 +187,7 @@ func TestBuilder_WhereEquals(t *testing.T) {
 
 func TestBuilder_WhereEquals_NilIgnored(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name").WhereEquals("Id", nil)
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereEquals("Id", nil)
 
 	sql, args := b.BuildCount()
 
@@ -173,7 +203,7 @@ func TestBuilder_WhereEquals_NilIgnored(t *testing.T) {
 func TestBuilder_WhereContains(t *testing.T) {
 	pm := newTestProjection()
 	name := "test"
-	b := query.NewBuilder(pm, "Name").WhereContains("Name", &name)
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereContains("Name", &name)
 
 	sql, args := b.BuildCount()
 
@@ -188,7 +218,7 @@ func TestBuilder_WhereContains(t *testing.T) {
 
 func TestBuilder_WhereContains_NilIgnored(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name").WhereContains("Name", nil)
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereContains("Name", nil)
 
 	sql, args := b.BuildCount()
 
@@ -204,7 +234,7 @@ func TestBuilder_WhereContains_NilIgnored(t *testing.T) {
 func TestBuilder_WhereContains_EmptyStringIgnored(t *testing.T) {
 	pm := newTestProjection()
 	empty := ""
-	b := query.NewBuilder(pm, "Name").WhereContains("Name", &empty)
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereContains("Name", &empty)
 
 	sql, args := b.BuildCount()
 
@@ -219,7 +249,7 @@ func TestBuilder_WhereContains_EmptyStringIgnored(t *testing.T) {
 
 func TestBuilder_WhereIn(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name").WhereIn("Id", []any{1, 2, 3})
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereIn("Id", []any{1, 2, 3})
 
 	sql, args := b.BuildCount()
 
@@ -234,7 +264,7 @@ func TestBuilder_WhereIn(t *testing.T) {
 
 func TestBuilder_WhereIn_EmptyIgnored(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name").WhereIn("Id", []any{})
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereIn("Id", []any{})
 
 	sql, args := b.BuildCount()
 
@@ -250,7 +280,7 @@ func TestBuilder_WhereIn_EmptyIgnored(t *testing.T) {
 func TestBuilder_WhereSearch(t *testing.T) {
 	pm := newTestProjection()
 	search := "test"
-	b := query.NewBuilder(pm, "Name").WhereSearch(&search, "Name", "Email")
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereSearch(&search, "Name", "Email")
 
 	sql, args := b.BuildCount()
 
@@ -273,7 +303,7 @@ func TestBuilder_WhereSearch(t *testing.T) {
 
 func TestBuilder_WhereSearch_NilIgnored(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, "Name").WhereSearch(nil, "Name", "Email")
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereSearch(nil, "Name", "Email")
 
 	sql, args := b.BuildCount()
 
@@ -289,7 +319,7 @@ func TestBuilder_WhereSearch_NilIgnored(t *testing.T) {
 func TestBuilder_MultipleConditions(t *testing.T) {
 	pm := newTestProjection()
 	name := "john"
-	b := query.NewBuilder(pm, "Name").
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).
 		WhereEquals("Id", 5).
 		WhereContains("Name", &name)
 
@@ -317,5 +347,73 @@ func TestBuilder_MultipleConditions(t *testing.T) {
 
 	if args[1] != "%john%" {
 		t.Errorf("BuildCount() args[1] = %v, want %%john%%", args[1])
+	}
+}
+
+func TestParseSortFields(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		want   []query.SortField
+	}{
+		{
+			"empty string",
+			"",
+			nil,
+		},
+		{
+			"single ascending",
+			"name",
+			[]query.SortField{{Field: "name", Descending: false}},
+		},
+		{
+			"single descending",
+			"-name",
+			[]query.SortField{{Field: "name", Descending: true}},
+		},
+		{
+			"multiple fields",
+			"name,-createdAt,email",
+			[]query.SortField{
+				{Field: "name", Descending: false},
+				{Field: "createdAt", Descending: true},
+				{Field: "email", Descending: false},
+			},
+		},
+		{
+			"with spaces",
+			"name, -createdAt, email",
+			[]query.SortField{
+				{Field: "name", Descending: false},
+				{Field: "createdAt", Descending: true},
+				{Field: "email", Descending: false},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := query.ParseSortFields(tt.input)
+
+			if tt.want == nil {
+				if got != nil {
+					t.Errorf("ParseSortFields(%q) = %v, want nil", tt.input, got)
+				}
+				return
+			}
+
+			if len(got) != len(tt.want) {
+				t.Fatalf("ParseSortFields(%q) len = %d, want %d", tt.input, len(got), len(tt.want))
+			}
+
+			for i, wantField := range tt.want {
+				if got[i].Field != wantField.Field {
+					t.Errorf("ParseSortFields(%q)[%d].Field = %q, want %q", tt.input, i, got[i].Field, wantField.Field)
+				}
+				if got[i].Descending != wantField.Descending {
+					t.Errorf("ParseSortFields(%q)[%d].Descending = %v, want %v", tt.input, i, got[i].Descending, wantField.Descending)
+				}
+			}
+		})
 	}
 }

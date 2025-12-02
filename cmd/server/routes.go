@@ -10,7 +10,8 @@ import (
 
 // registerRoutes configures all HTTP routes for the service.
 func registerRoutes(r routes.System, runtime *Runtime, domain *Domain) {
-	r.RegisterGroup(providers.Routes(domain.Providers, runtime.Logger))
+	providerHandler := providers.NewHandler(domain.Providers, runtime.Logger, runtime.Pagination)
+	r.RegisterGroup(providerHandler.Routes())
 
 	r.RegisterRoute(routes.Route{
 		Method:  "GET",

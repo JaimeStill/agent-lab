@@ -925,7 +925,7 @@ tests/
 ├── internal_routes/      # Mirrors internal/routes
 ├── internal_middleware/  # Mirrors internal/middleware
 ├── internal_server/      # Mirrors internal/server
-└── cmd_service/          # Mirrors cmd/service
+└── cmd_server/          # Mirrors cmd/server
 ```
 
 ---

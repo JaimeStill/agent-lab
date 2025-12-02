@@ -7,7 +7,7 @@
 agent-lab is a containerized Go web service platform for building and orchestrating agentic workflows. It provides a laboratory environment for iteratively designing, testing, and refining intelligent workflows, then deploying them operationally.
 
 Built on the go-agents ecosystem:
-- **go-agents** (v0.2.1): LLM integration with multi-provider support
+- **go-agents** (v0.3.0): LLM integration with multi-provider support
 - **go-agents-orchestration** (v0.1.0+): Workflow orchestration patterns
 - **document-context** (v0.1.0+): PDF processing with LCA architecture
 
@@ -101,7 +101,7 @@ agent-lab will enable experimentation with:
 - **Templating**: `html/template` for server-side rendering
 - **Asset Management**: `go:embed` for embedded static assets
 - **Libraries**:
-  - go-agents v0.2.1 (LLM integration)
+  - go-agents v0.3.0 (LLM integration)
   - go-agents-orchestration v0.1.0+ (workflow patterns)
   - document-context v0.1.0+ (PDF processing)
 
@@ -246,25 +246,28 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Logger as functional infrastructure (not a System)
 - Domain errors defined in `errors.go` with handler mapping to HTTP status codes
 
-#### Session 1d: Domain Infrastructure Patterns
+#### Session 1d: Domain Infrastructure Patterns ✅
 
-**Scope:**
-- `pkg/repository` package with transaction and query helpers
-- `pkg/handlers` package with stateless utility functions
-- `pkg/query` enhancements for layered sorting
-- Handler struct pattern with consolidated routes per domain
-- GET-based search with filters and multi-column sorting
-- Refactor providers system to use new infrastructure
+**Status**: Completed (2025-12-02)
 
-**Deliverables:**
-- Repository helpers: `WithTx`, `QueryOne`, `QueryMany`, `ExecExpectOne`, `MapError`
-- Handler utilities: `RespondJSON`, `RespondError` stateless functions
-- Query enhancements: `SortField`, `OrderByFields`, `DefaultSort`, `ParseSortFields`
-- Pagination: `PageRequestFromQuery`, updated `PageRequest` with `Sort []SortField`
+**Implemented**:
+- `pkg/repository` package: `WithTx`, `QueryOne`, `QueryMany`, `ExecExpectOne`, `MapError`
+- `pkg/handlers` package: `RespondJSON`, `RespondError` stateless functions
+- `pkg/query` enhancements: `SortField`, `ParseSortFields`, `OrderByFields`, `NewBuilder` with variadic default sort
+- `pkg/pagination`: `PageRequestFromQuery`, `PageRequest.Sort []SortField` (removed old `SortBy`/`Descending`)
 - Domain filter pattern: `Filters` struct, `FiltersFromQuery`, `Apply(*query.Builder)`
-- Providers refactored with handler struct and GET endpoint
+- Handler struct pattern: `Handler` with `Routes()` method, replaces closure-based wiring
+- Providers refactored: scanner.go, filters.go, handler.go (deleted handlers.go, routes.go)
+- New endpoint: `GET /api/providers` with query parameter support
 
-**Validation**: Providers uses new infrastructure, GET endpoint supports filters + multi-column sort
+**Validation**: ✅ All endpoints working, sorting/filtering/search verified, 78.5% test coverage
+
+**Architectural Additions**:
+- Repository Helpers: Generic transaction and query execution
+- Domain Scanner: `ScanFunc[T]` defined in domain packages
+- Handler Struct: Self-contained handler with `Routes()` method
+- Domain Filters: Filter struct with `FiltersFromQuery` and `Apply`
+- HTTP Status Mapping: `MapHTTPStatus(error)` in domain errors.go
 
 #### Session 1e: Agents System
 
