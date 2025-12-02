@@ -269,14 +269,27 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Domain Filters: Filter struct with `FiltersFromQuery` and `Apply`
 - HTTP Status Mapping: `MapHTTPStatus(error)` in domain errors.go
 
-#### Session 1e: Agents System
+#### Session 1e: Agents System ✅
 
-- Database schema: `agents` table with foreign key to providers
+**Status**: Completed (2025-12-02)
+
+**Implemented**:
+- Database schema: `agents` table with JSONB config (decoupled from providers)
 - Agents domain system following refined patterns from 1d
 - Agent CRUD + Search endpoints with GET and POST variants
-- Provider reference validation
+- Agent execution endpoints: Chat, ChatStream, Vision, VisionStream, Tools, Embed
+- SSE streaming for Chat and Vision endpoints
+- VisionForm pattern for multipart/form-data image uploads
+- Token injection pattern for Azure authentication at request time
+- Config validation via go-agents agent.New() during create/update
 
-**Validation**: Create/Read/Update/Delete/Search agents via API
+**Validation**: ✅ All CRUD endpoints working, execution endpoints tested with Ollama and Azure agents
+
+**Architectural Additions**:
+- VisionForm Pattern: Centralized multipart parsing with base64 image conversion
+- Token Injection: Runtime token injection into Provider.Options["token"]
+- SSE Streaming: Standard text/event-stream format with flush after each chunk
+- Handler with Execution: Handler struct with both CRUD and execution methods
 
 ---
 
@@ -429,7 +442,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 ## Current Status
 
-**Phase**: Milestone 1 - Foundation & Infrastructure
+**Phase**: Milestone 1 Complete - Ready for Milestone Review
 
 **Completed**:
 - Session 01: Foundation architecture design (ARCHITECTURE.md)
@@ -454,22 +467,30 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Domain errors with HTTP status code mapping
   - go-agents provider config validation
   - Logger simplified to functional infrastructure
+- **Session 01d: Domain Infrastructure Patterns** ✅
+  - Repository helpers (pkg/repository): WithTx, QueryOne, QueryMany, ExecExpectOne, MapError
+  - Handler utilities (pkg/handlers): RespondJSON, RespondError
+  - Query enhancements: SortField, ParseSortFields, OrderByFields
+  - Domain filter pattern: Filters struct with FiltersFromQuery and Apply
+  - Handler struct pattern: Handler with Routes() method
+- **Session 01e: Agents System** ✅
+  - Agents domain system with CRUD + Search + Execution endpoints
+  - Agent execution: Chat, ChatStream, Vision, VisionStream, Tools, Embed
+  - SSE streaming for Chat and Vision
+  - VisionForm pattern for multipart image uploads
+  - Token injection for Azure authentication
 
 **In Progress**:
-- Milestone 1: Foundation & Infrastructure
+- Milestone 1: Foundation & Infrastructure ✅ **COMPLETE**
   - Session 01a: ✅ Completed
   - Session 01b: ✅ Completed
   - Session 01c: ✅ Completed
-  - Session 01d: Domain Infrastructure Patterns (next)
-  - Session 01e: Agents System (planned)
+  - Session 01d: ✅ Completed
+  - Session 01e: ✅ Completed
 
 **Next Steps**:
-- Session 01d: Domain Infrastructure Patterns
-  - `pkg/repository` with transaction and query helpers
-  - `pkg/handlers` with stateless utility functions
-  - `pkg/query` enhancements for layered sorting
-  - Domain filter pattern and GET-based search
-  - Refactor providers to use new infrastructure
+- Milestone 1 Review: Confirm all success criteria met
+- Begin Milestone 2: Document Upload & Processing
 
 ## Future Phases (Beyond Milestone 8)
 

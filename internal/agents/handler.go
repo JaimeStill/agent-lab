@@ -1,0 +1,406 @@
+package agents
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"net/http"
+
+	"github.com/JaimeStill/agent-lab/internal/routes"
+	"github.com/JaimeStill/agent-lab/pkg/handlers"
+	"github.com/JaimeStill/agent-lab/pkg/pagination"
+	"github.com/JaimeStill/go-agents/pkg/agent"
+	agtconfig "github.com/JaimeStill/go-agents/pkg/config"
+	"github.com/JaimeStill/go-agents/pkg/response"
+	"github.com/google/uuid"
+)
+
+// Handler provides HTTP handlers for agent CRUD operations and execution endpoints.
+type Handler struct {
+	sys        System
+	logger     *slog.Logger
+	pagination pagination.Config
+}
+
+// NewHandler creates a new agents HTTP handler.
+func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *Handler {
+	return &Handler{
+		sys:        sys,
+		logger:     logger,
+		pagination: pagination,
+	}
+}
+
+// Routes returns the route group configuration for agent endpoints.
+func (h *Handler) Routes() routes.Group {
+	return routes.Group{
+		Prefix:      "/api/agents",
+		Tags:        []string{"Agents"},
+		Description: "Agent configuration and execution",
+		Routes: []routes.Route{
+			{Method: "POST", Pattern: "", Handler: h.Create},
+			{Method: "GET", Pattern: "", Handler: h.List},
+			{Method: "GET", Pattern: "/{id}", Handler: h.GetByID},
+			{Method: "PUT", Pattern: "/{id}", Handler: h.Update},
+			{Method: "DELETE", Pattern: "/{id}", Handler: h.Delete},
+			{Method: "POST", Pattern: "/search", Handler: h.Search},
+			{Method: "POST", Pattern: "/{id}/chat", Handler: h.Chat},
+			{Method: "POST", Pattern: "/{id}/chat/stream", Handler: h.ChatStream},
+			{Method: "POST", Pattern: "/{id}/vision", Handler: h.Vision},
+			{Method: "POST", Pattern: "/{id}/vision/stream", Handler: h.VisionStream},
+			{Method: "POST", Pattern: "/{id}/tools", Handler: h.Tools},
+			{Method: "POST", Pattern: "/{id}/embed", Handler: h.Embed},
+		},
+	}
+}
+
+// Create handles POST /api/agents to create a new agent.
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	var cmd CreateCommand
+	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := h.sys.Create(r.Context(), cmd)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusCreated, result)
+}
+
+// Update handles PUT /api/agents/{id} to update an existing agent.
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	var cmd UpdateCommand
+	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := h.sys.Update(r.Context(), id, cmd)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, result)
+}
+
+// Delete handles DELETE /api/agents/{id} to remove an agent.
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.sys.Delete(r.Context(), id); err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetByID handles GET /api/agents/{id} to retrieve a single agent.
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := h.sys.GetByID(r.Context(), id)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, result)
+}
+
+// List handles GET /api/agents to retrieve a paginated list of agents.
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	page := pagination.PageRequestFromQuery(r.URL.Query(), h.pagination)
+	filters := FiltersFromQuery(r.URL.Query())
+
+	result, err := h.sys.Search(r.Context(), page, filters)
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, result)
+}
+
+// Search handles POST /api/agents/search to search agents with request body parameters.
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	var page pagination.PageRequest
+	if err := json.NewDecoder(r.Body).Decode(&page); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	filters := FiltersFromQuery(r.URL.Query())
+
+	result, err := h.sys.Search(r.Context(), page, filters)
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, result)
+}
+
+// Chat handles POST /api/agents/{id}/chat to execute a chat completion.
+func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	var req ChatRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	agt, err := h.constructAgent(r.Context(), id, req.Token)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	resp, err := agt.Chat(r.Context(), req.Prompt, req.Options)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, resp)
+}
+
+// ChatStream handles POST /api/agents/{id}/chat/stream to execute a streaming chat completion.
+func (h *Handler) ChatStream(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	var req ChatRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	agt, err := h.constructAgent(r.Context(), id, req.Token)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	stream, err := agt.ChatStream(r.Context(), req.Prompt, req.Options)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
+		return
+	}
+
+	h.writeSSEStream(w, r, stream)
+}
+
+// Vision handles POST /api/agents/{id}/vision to execute vision analysis on uploaded images.
+func (h *Handler) Vision(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	form, err := ParseVisionForm(r, 32<<20)
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	agt, err := h.constructAgent(r.Context(), id, form.Token)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	resp, err := agt.Vision(r.Context(), form.Prompt, form.Images, form.Options)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, resp)
+}
+
+// VisionStream handles POST /api/agents/{id}/vision/stream to execute streaming vision analysis.
+func (h *Handler) VisionStream(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	form, err := ParseVisionForm(r, 32<<20)
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	agt, err := h.constructAgent(r.Context(), id, form.Token)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	stream, err := agt.VisionStream(r.Context(), form.Prompt, form.Images, form.Options)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
+		return
+	}
+
+	h.writeSSEStream(w, r, stream)
+}
+
+// Tools handles POST /api/agents/{id}/tools to execute tool-calling with provided tool definitions.
+func (h *Handler) Tools(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	var req ToolsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	agt, err := h.constructAgent(r.Context(), id, req.Token)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	resp, err := agt.Tools(r.Context(), req.Prompt, req.Tools, req.Options)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, resp)
+}
+
+// Embed handles POST /api/agents/{id}/embed to generate text embeddings.
+func (h *Handler) Embed(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	var req EmbedRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	agt, err := h.constructAgent(r.Context(), id, req.Token)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	resp, err := agt.Embed(r.Context(), req.Input, req.Options)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) constructAgent(ctx context.Context, id uuid.UUID, token string) (agent.Agent, error) {
+	record, err := h.sys.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg agtconfig.AgentConfig
+	if err := json.Unmarshal(record.Config, &cfg); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+	}
+
+	if token != "" {
+		if cfg.Provider.Options == nil {
+			cfg.Provider.Options = make(map[string]any)
+		}
+		cfg.Provider.Options["token"] = token
+	}
+
+	agt, err := agent.New(&cfg)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+	}
+
+	return agt, nil
+}
+
+func (h *Handler) writeSSEStream(w http.ResponseWriter, r *http.Request, stream <-chan *response.StreamingChunk) {
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+
+	for chunk := range stream {
+		if chunk.Error != nil {
+			data, _ := json.Marshal(map[string]string{"error": chunk.Error.Error()})
+			fmt.Fprintf(w, "data %s\n\n", data)
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			return
+		}
+
+		select {
+		case <-r.Context().Done():
+			return
+		default:
+		}
+
+		data, err := json.Marshal(chunk)
+		if err != nil {
+			h.logger.Error("failed to marshal chunk", "error", err)
+			continue
+		}
+
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+	}
+
+	fmt.Fprintf(w, "data: [DONE]\n\n")
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+}

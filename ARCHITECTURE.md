@@ -202,15 +202,26 @@ internal/                 # Private API: Domain systems
 │   ├── logger.go             # Logger middleware
 │   └── cors.go               # CORS middleware
 │
-└── providers/            # Providers domain system
-    ├── provider.go           # State structures
+├── providers/            # Providers domain system
+│   ├── provider.go           # State structures
+│   ├── errors.go             # Domain errors + HTTP status mapping
+│   ├── projection.go         # Query projection map
+│   ├── system.go             # System interface
+│   ├── repository.go         # Repository implementation
+│   ├── handler.go            # Handler struct with route methods
+│   ├── scanner.go            # Row scanner function
+│   └── filters.go            # Domain-specific filters
+│
+└── agents/               # Agents domain system
+    ├── agent.go              # State structures
     ├── errors.go             # Domain errors + HTTP status mapping
     ├── projection.go         # Query projection map
     ├── system.go             # System interface
     ├── repository.go         # Repository implementation
-    ├── handler.go            # Handler struct with route methods
+    ├── handler.go            # Handler struct with CRUD + execution methods
     ├── scanner.go            # Row scanner function
-    └── filters.go            # Domain-specific filters
+    ├── filters.go            # Domain-specific filters
+    └── requests.go           # Execution request types + VisionForm
 
 pkg/                      # Public API: Shared infrastructure
 ├── handlers/
@@ -230,6 +241,7 @@ pkg/                      # Public API: Shared infrastructure
 
 tests/                    # Black-box tests
 ├── cmd_server/
+├── internal_agents/
 ├── internal_config/
 ├── internal_lifecycle/
 ├── internal_middleware/
@@ -354,11 +366,17 @@ Domain holds stateless business logic systems:
 ```go
 type Domain struct {
     Providers providers.System
+    Agents    agents.System
 }
 
 func NewDomain(runtime *Runtime) *Domain {
     return &Domain{
         Providers: providers.New(
+            runtime.Database.Connection(),
+            runtime.Logger,
+            runtime.Pagination,
+        ),
+        Agents: agents.New(
             runtime.Database.Connection(),
             runtime.Logger,
             runtime.Pagination,
@@ -1094,6 +1112,162 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
     handlers.RespondJSON(w, http.StatusCreated, result)
 }
 ```
+
+## Agent Execution Patterns
+
+### VisionForm Pattern
+
+Centralized multipart form parsing for vision endpoints with validation and base64 conversion:
+
+```go
+type VisionForm struct {
+    Prompt  string
+    Images  []string  // base64 data URIs
+    Options map[string]any
+    Token   string
+}
+
+func ParseVisionForm(r *http.Request, maxMemory int64) (*VisionForm, error) {
+    if err := r.ParseMultipartForm(maxMemory); err != nil {
+        return nil, fmt.Errorf("failed to parse multipart form: %w", err)
+    }
+
+    form := &VisionForm{
+        Prompt: r.FormValue("prompt"),
+        Token:  r.FormValue("token"),
+    }
+
+    // Validate required fields
+    if form.Prompt == "" {
+        return nil, fmt.Errorf("prompt is required")
+    }
+
+    // Parse optional JSON options
+    if optStr := r.FormValue("options"); optStr != "" {
+        if err := json.Unmarshal([]byte(optStr), &form.Options); err != nil {
+            return nil, fmt.Errorf("invalid options JSON: %w", err)
+        }
+    }
+
+    // Convert uploaded images to base64 data URIs
+    files := r.MultipartForm.File["images"]
+    if len(files) == 0 {
+        return nil, fmt.Errorf("at least one image is required")
+    }
+
+    images, err := prepareImages(files)
+    if err != nil {
+        return nil, err
+    }
+    form.Images = images
+
+    return form, nil
+}
+```
+
+**Usage**:
+```go
+func (h *Handler) Vision(w http.ResponseWriter, r *http.Request) {
+    form, err := ParseVisionForm(r, 32<<20)  // 32 MB memory limit
+    if err != nil {
+        handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+        return
+    }
+
+    agt, err := h.constructAgent(r.Context(), id, form.Token)
+    // ... execute vision with form.Prompt, form.Images, form.Options
+}
+```
+
+### Token Injection Pattern
+
+Runtime token injection for providers requiring authentication (e.g., Azure):
+
+```go
+func (h *Handler) constructAgent(ctx context.Context, id uuid.UUID, token string) (agent.Agent, error) {
+    record, err := h.sys.GetByID(ctx, id)
+    if err != nil {
+        return nil, err
+    }
+
+    var cfg agtconfig.AgentConfig
+    if err := json.Unmarshal(record.Config, &cfg); err != nil {
+        return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+    }
+
+    // Inject token at request time
+    if token != "" {
+        if cfg.Provider.Options == nil {
+            cfg.Provider.Options = make(map[string]any)
+        }
+        cfg.Provider.Options["token"] = token
+    }
+
+    agt, err := agent.New(&cfg)
+    if err != nil {
+        return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+    }
+
+    return agt, nil
+}
+```
+
+**Key Points**:
+- Token passed at request time, not stored in database
+- Stored config uses placeholder value (e.g., `"token": "token"`) for validation
+- Real token injected into `Provider.Options["token"]` before agent construction
+
+### SSE Streaming Pattern
+
+Server-Sent Events for streaming responses:
+
+```go
+func (h *Handler) writeSSEStream(w http.ResponseWriter, r *http.Request, stream <-chan *response.StreamingChunk) {
+    w.Header().Set("Content-Type", "text/event-stream")
+    w.Header().Set("Cache-Control", "no-cache")
+    w.Header().Set("Connection", "keep-alive")
+    w.WriteHeader(http.StatusOK)
+
+    if f, ok := w.(http.Flusher); ok {
+        f.Flush()
+    }
+
+    for chunk := range stream {
+        if chunk.Error != nil {
+            data, _ := json.Marshal(map[string]string{"error": chunk.Error.Error()})
+            fmt.Fprintf(w, "data: %s\n\n", data)
+            if f, ok := w.(http.Flusher); ok {
+                f.Flush()
+            }
+            return
+        }
+
+        select {
+        case <-r.Context().Done():
+            return
+        default:
+        }
+
+        data, _ := json.Marshal(chunk)
+        fmt.Fprintf(w, "data: %s\n\n", data)
+        if f, ok := w.(http.Flusher); ok {
+            f.Flush()
+        }
+    }
+
+    fmt.Fprintf(w, "data: [DONE]\n\n")
+    if f, ok := w.(http.Flusher); ok {
+        f.Flush()
+    }
+}
+```
+
+**Key Points**:
+- `text/event-stream` content type
+- Each chunk prefixed with `data: ` and followed by `\n\n`
+- Flush after each chunk for real-time delivery
+- Check context cancellation for client disconnect
+- Final `[DONE]` marker signals stream completion
 
 ## Configuration Management
 

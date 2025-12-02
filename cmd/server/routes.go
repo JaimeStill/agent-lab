@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/JaimeStill/agent-lab/internal/agents"
 	"github.com/JaimeStill/agent-lab/internal/lifecycle"
 	"github.com/JaimeStill/agent-lab/internal/providers"
 	"github.com/JaimeStill/agent-lab/internal/routes"
@@ -12,6 +13,9 @@ import (
 func registerRoutes(r routes.System, runtime *Runtime, domain *Domain) {
 	providerHandler := providers.NewHandler(domain.Providers, runtime.Logger, runtime.Pagination)
 	r.RegisterGroup(providerHandler.Routes())
+
+	agentHandler := agents.NewHandler(domain.Agents, runtime.Logger, runtime.Pagination)
+	r.RegisterGroup(agentHandler.Routes())
 
 	r.RegisterRoute(routes.Route{
 		Method:  "GET",

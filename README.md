@@ -14,19 +14,21 @@ agent-lab provides a Go-based web service architecture for developing intelligen
 ```
 agent-lab/
 ├── cmd/
-│   ├── service/          # Service entry point and composition
+│   ├── server/           # HTTP server entry point and composition
 │   └── migrate/          # Database migration CLI
 ├── internal/             # Private packages
 │   ├── config/           # Configuration management
 │   ├── database/         # Database connection management
 │   ├── lifecycle/        # Startup/shutdown coordination
-│   ├── logger/           # Logging system
 │   ├── middleware/       # HTTP middleware
 │   ├── routes/           # Route registration
-│   └── server/           # HTTP server
+│   ├── providers/        # Provider domain system
+│   └── agents/           # Agents domain system
 ├── pkg/                  # Public packages
+│   ├── handlers/         # HTTP response utilities
 │   ├── pagination/       # Pagination utilities
-│   └── query/            # SQL query builder
+│   ├── query/            # SQL query builder
+│   └── repository/       # Database helpers
 ├── tests/                # Black-box tests
 ├── compose/              # Docker Compose files
 └── config.toml           # Base configuration
@@ -78,6 +80,7 @@ go test ./tests/... -cover
 ## Documentation
 
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Technical specifications and design patterns
+- **[AGENTS.md](./AGENTS.md)** - Agents API guide with curl examples
 - **[CLAUDE.md](./CLAUDE.md)** - Development conventions and workflow
 - **[PROJECT.md](./PROJECT.md)** - Project roadmap and milestones
 - **[_context/web-service-architecture.md](./_context/web-service-architecture.md)** - Architectural philosophy
