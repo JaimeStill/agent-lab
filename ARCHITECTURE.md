@@ -171,7 +171,8 @@ cmd/
 │   ├── http.go               # HTTP server lifecycle
 │   ├── logging.go            # Logger initialization helper
 │   ├── routes.go             # Route registration
-│   └── middleware.go         # Middleware composition
+│   ├── middleware.go         # Middleware composition
+│   └── openapi.go            # OpenAPI spec generation
 │
 └── migrate/              # Migration CLI
     ├── main.go               # Migration entry point
@@ -200,7 +201,8 @@ internal/                 # Private API: Domain systems
 ├── middleware/
 │   ├── middleware.go         # Middleware system
 │   ├── logger.go             # Logger middleware
-│   └── cors.go               # CORS middleware
+│   ├── cors.go               # CORS middleware
+│   └── slash.go              # Trailing slash redirect middleware
 │
 ├── providers/            # Providers domain system
 │   ├── provider.go           # State structures
@@ -210,7 +212,8 @@ internal/                 # Private API: Domain systems
 │   ├── repository.go         # Repository implementation
 │   ├── handler.go            # Handler struct with route methods
 │   ├── scanner.go            # Row scanner function
-│   └── filters.go            # Domain-specific filters
+│   ├── filters.go            # Domain-specific filters
+│   └── openapi.go            # OpenAPI schemas and operations
 │
 └── agents/               # Agents domain system
     ├── agent.go              # State structures
@@ -221,11 +224,17 @@ internal/                 # Private API: Domain systems
     ├── handler.go            # Handler struct with CRUD + execution methods
     ├── scanner.go            # Row scanner function
     ├── filters.go            # Domain-specific filters
-    └── requests.go           # Execution request types + VisionForm
+    ├── requests.go           # Execution request types + VisionForm
+    └── openapi.go            # OpenAPI schemas and operations
 
 pkg/                      # Public API: Shared infrastructure
 ├── handlers/
 │   └── handlers.go           # HTTP response utilities
+│
+├── openapi/              # OpenAPI specification utilities
+│   ├── types.go              # OpenAPI 3.1 type definitions
+│   ├── components.go         # Shared schemas and responses
+│   └── json.go               # JSON serialization
 │
 ├── pagination/
 │   ├── config.go             # Pagination configuration
@@ -239,6 +248,13 @@ pkg/                      # Public API: Shared infrastructure
     ├── repository.go         # Transaction and query helpers
     └── errors.go             # Domain-agnostic error mapping
 
+web/                      # Web assets and handlers
+└── docs/                 # API documentation (Scalar UI)
+    ├── docs.go               # Handler serving documentation
+    ├── index.html            # HTML template
+    ├── scalar.js             # Scalar JavaScript bundle (embedded)
+    └── scalar.css            # Scalar stylesheet (embedded)
+
 tests/                    # Black-box tests
 ├── cmd_server/
 ├── internal_agents/
@@ -247,9 +263,11 @@ tests/                    # Black-box tests
 ├── internal_middleware/
 ├── internal_routes/
 ├── pkg_handlers/
+├── pkg_openapi/
 ├── pkg_pagination/
 ├── pkg_query/
-└── pkg_repository/
+├── pkg_repository/
+└── web_docs/
 ```
 
 ### Component Flow
@@ -721,6 +739,7 @@ type Route struct {
     Method  string
     Pattern string
     Handler http.HandlerFunc
+    OpenAPI *openapi.Operation  // Optional OpenAPI operation definition
 }
 ```
 
@@ -845,6 +864,110 @@ func buildMiddleware(runtime *Runtime, cfg *config.Config) middleware.System {
 ```
 
 **Why Simple Constructor**: Middleware has minimal state and is functional infrastructure. No complex initialization or owned subsystems, so config interface would be overkill.
+
+## API Documentation
+
+### OpenAPI Specification
+
+The API is documented using OpenAPI 3.1 specification generated at server startup.
+
+**Generation Flow**:
+1. Server startup calls `registerRoutes()`
+2. Domain handlers registered with optional `OpenAPI` metadata on routes
+3. `loadOrGenerateSpec()` generates spec in memory from route metadata
+4. Compares with existing file, writes only if changed
+5. Spec served from memory at `/api/openapi.json`
+
+**Environment-Specific Specs**:
+- Output location: `api/openapi.{env}.json`
+- Environment determined by `SERVICE_ENV` (default: `local`)
+- Example: `api/openapi.local.json`, `api/openapi.prod.json`
+
+**Config-Driven Metadata**:
+- `version`: API version (config.toml or `SERVICE_VERSION`)
+- `domain`: Server URL (config.toml or `SERVICE_DOMAIN`)
+
+### Schema Ownership
+
+**Infrastructure** (`pkg/openapi/components.go`):
+- Shared responses: `BadRequest`, `NotFound`, `Conflict`
+- Shared schemas: `PageRequest`
+
+**Domains** (`internal/<domain>/openapi.go`):
+- Domain-specific schemas (e.g., `Provider`, `CreateProviderCommand`)
+- Operation definitions (e.g., `Spec.Create`, `Spec.List`)
+
+```go
+// internal/providers/openapi.go
+var Spec = spec{
+    Create: &openapi.Operation{
+        Summary:     "Create provider",
+        Description: "Validates and stores a new provider configuration",
+        RequestBody: openapi.RequestBodyJSON("CreateProviderCommand", true),
+        Responses: map[int]*openapi.Response{
+            201: openapi.ResponseJSON("Provider created", "Provider"),
+            400: openapi.ResponseRef("BadRequest"),
+            409: openapi.ResponseRef("Conflict"),
+        },
+    },
+    // ... other operations
+}
+
+func (spec) Schemas() map[string]*openapi.Schema {
+    return map[string]*openapi.Schema{
+        "Provider": { /* ... */ },
+        "CreateProviderCommand": { /* ... */ },
+    }
+}
+```
+
+### Route Integration
+
+Routes reference domain operations:
+
+```go
+func (h *Handler) Routes() routes.Group {
+    return routes.Group{
+        Prefix:      "/api/providers",
+        Tags:        []string{"Providers"},
+        Description: "Provider configuration management",
+        Routes: []routes.Route{
+            {Method: "POST", Pattern: "", Handler: h.Create, OpenAPI: Spec.Create},
+            {Method: "GET", Pattern: "", Handler: h.List, OpenAPI: Spec.List},
+            // ...
+        },
+    }
+}
+```
+
+### Scalar UI
+
+Interactive documentation served at `/docs` endpoint.
+
+**Architecture**:
+- Self-hosted (no CDN dependencies)
+- Assets embedded via `go:embed`
+- Air-gap compatible
+
+**Files** (`web/docs/`):
+- `index.html` - HTML template loading Scalar
+- `scalar.js` - Standalone JavaScript bundle
+- `scalar.css` - Stylesheet
+- `docs.go` - Handler serving assets
+
+**Updating Scalar**:
+```bash
+./web/update-scalar.sh
+```
+
+### Import Hierarchy
+
+```
+pkg/openapi          - Types and helpers only (no internal imports)
+internal/<domain>    - Domain-owned schemas and operations
+cmd/server/openapi.go - Generator logic (imports pkg and internal)
+web/docs             - Scalar UI handler (imports internal/routes)
+```
 
 ## Logger Helper (cmd/server/logging.go)
 

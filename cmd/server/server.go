@@ -27,7 +27,17 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	routeSys := routes.New(runtime.Logger)
 	middlewareSys := buildMiddleware(runtime, cfg)
 
-	registerRoutes(routeSys, runtime, domain)
+	err = registerRoutes(routeSys, runtime, domain, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("register routes: %w", err)
+	}
+
+	runtime.Logger.Info(
+		"OpenAPI spec loaded",
+		"path", specFilePath(cfg.Env()),
+		"version", cfg.Version,
+	)
+
 	handler := middlewareSys.Apply(routeSys.Build())
 
 	http := newHTTPServer(&cfg.Server, handler, runtime.Logger)

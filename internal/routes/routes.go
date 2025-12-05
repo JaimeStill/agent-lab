@@ -11,6 +11,8 @@ type System interface {
 	RegisterGroup(group Group)
 	RegisterRoute(route Route)
 	Build() http.Handler
+	Groups() []Group
+	Routes() []Route
 }
 
 type routes struct {
@@ -26,6 +28,14 @@ func New(logger *slog.Logger) System {
 		groups: []Group{},
 		routes: []Route{},
 	}
+}
+
+func (r *routes) Groups() []Group {
+	return r.groups
+}
+
+func (r *routes) Routes() []Route {
+	return r.routes
 }
 
 // RegisterRoute adds a route to the route system.

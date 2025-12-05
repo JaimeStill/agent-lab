@@ -18,11 +18,15 @@ const (
 	// OverlayConfigPattern is the file name pattern for environment-specific overlays.
 	OverlayConfigPattern = "config.%s.toml"
 
+	EnvServiceDomain = "SERVICE_DOMAIN"
+
 	// EnvServiceEnv specifies the environment name for configuration overlays.
 	EnvServiceEnv = "SERVICE_ENV"
 
 	// EnvServiceShutdownTimeout overrides the service shutdown timeout.
 	EnvServiceShutdownTimeout = "SERVICE_SHUTDOWN_TIMEOUT"
+
+	EnvServiceVersion = "SERVICE_VERSION"
 )
 
 // Config represents the root service configuration.
@@ -32,7 +36,16 @@ type Config struct {
 	Logging         LoggingConfig     `toml:"logging"`
 	CORS            CORSConfig        `toml:"cors"`
 	Pagination      pagination.Config `toml:"pagination"`
+	Domain          string            `toml:"version"`
 	ShutdownTimeout string            `toml:"shutdown_timeout"`
+	Version         string            `toml:"version"`
+}
+
+func (c *Config) Env() string {
+	if env := os.Getenv(EnvServiceEnv); env != "" {
+		return env
+	}
+	return "local"
 }
 
 // ShutdownTimeoutDuration parses and returns the shutdown timeout as a time.Duration.
@@ -102,15 +115,29 @@ func (c *Config) Merge(overlay *Config) {
 }
 
 func (c *Config) loadDefaults() {
+	if c.Domain == "" {
+		c.Domain = "http://localhost:8080"
+	}
 	if c.ShutdownTimeout == "" {
 		c.ShutdownTimeout = "30s"
 	}
+	if c.Version == "" {
+		c.Version = "0.1.0"
+	}
+
 }
 
 func (c *Config) loadEnv() {
+	if v := os.Getenv(EnvServiceDomain); v != "" {
+		c.Domain = v
+	}
 	if v := os.Getenv(EnvServiceShutdownTimeout); v != "" {
 		c.ShutdownTimeout = v
 	}
+	if v := os.Getenv(EnvServiceVersion); v != "" {
+		c.Version = v
+	}
+
 }
 
 func (c *Config) validate() error {

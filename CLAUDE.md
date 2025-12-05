@@ -127,10 +127,6 @@ Session closeout ensures documentation stays aligned with the codebase and captu
 | **service-design.md** | Remove concepts that have been integrated into the codebase |
 | **PROJECT.md** | Update session status. Evaluate remaining sessions for adjustments (scope changes, dependencies, reordering) |
 
-**7.4 Commit Preparation**:
-- User handles git commit after closeout is complete
-- AI prepares commit message summary if requested
-
 ### Post Session Milestone Review
 
 After completing a development session (especially mid-milestone), conduct a **Post Session Milestone Review** to ensure the roadmap stays aligned with lessons learned:

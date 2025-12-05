@@ -39,18 +39,18 @@ func (h *Handler) Routes() routes.Group {
 		Tags:        []string{"Agents"},
 		Description: "Agent configuration and execution",
 		Routes: []routes.Route{
-			{Method: "POST", Pattern: "", Handler: h.Create},
-			{Method: "GET", Pattern: "", Handler: h.List},
-			{Method: "GET", Pattern: "/{id}", Handler: h.GetByID},
-			{Method: "PUT", Pattern: "/{id}", Handler: h.Update},
-			{Method: "DELETE", Pattern: "/{id}", Handler: h.Delete},
-			{Method: "POST", Pattern: "/search", Handler: h.Search},
-			{Method: "POST", Pattern: "/{id}/chat", Handler: h.Chat},
-			{Method: "POST", Pattern: "/{id}/chat/stream", Handler: h.ChatStream},
-			{Method: "POST", Pattern: "/{id}/vision", Handler: h.Vision},
-			{Method: "POST", Pattern: "/{id}/vision/stream", Handler: h.VisionStream},
-			{Method: "POST", Pattern: "/{id}/tools", Handler: h.Tools},
-			{Method: "POST", Pattern: "/{id}/embed", Handler: h.Embed},
+			{Method: "POST", Pattern: "", Handler: h.Create, OpenAPI: Spec.Create},
+			{Method: "GET", Pattern: "", Handler: h.List, OpenAPI: Spec.List},
+			{Method: "GET", Pattern: "/{id}", Handler: h.GetByID, OpenAPI: Spec.Get},
+			{Method: "PUT", Pattern: "/{id}", Handler: h.Update, OpenAPI: Spec.Update},
+			{Method: "DELETE", Pattern: "/{id}", Handler: h.Delete, OpenAPI: Spec.Delete},
+			{Method: "POST", Pattern: "/search", Handler: h.Search, OpenAPI: Spec.Search},
+			{Method: "POST", Pattern: "/{id}/chat", Handler: h.Chat, OpenAPI: Spec.Chat},
+			{Method: "POST", Pattern: "/{id}/chat/stream", Handler: h.ChatStream, OpenAPI: Spec.ChatStream},
+			{Method: "POST", Pattern: "/{id}/vision", Handler: h.Vision, OpenAPI: Spec.Vision},
+			{Method: "POST", Pattern: "/{id}/vision/stream", Handler: h.VisionStream, OpenAPI: Spec.VisionStream},
+			{Method: "POST", Pattern: "/{id}/tools", Handler: h.Tools, OpenAPI: Spec.Tools},
+			{Method: "POST", Pattern: "/{id}/embed", Handler: h.Embed, OpenAPI: Spec.Embed},
 		},
 	}
 }
@@ -181,7 +181,7 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := agt.Chat(r.Context(), req.Prompt, req.Options)
+	resp, err := agt.Chat(r.Context(), req.Prompt, options(req.Options))
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
@@ -210,7 +210,7 @@ func (h *Handler) ChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stream, err := agt.ChatStream(r.Context(), req.Prompt, req.Options)
+	stream, err := agt.ChatStream(r.Context(), req.Prompt, options(req.Options))
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
@@ -239,7 +239,7 @@ func (h *Handler) Vision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := agt.Vision(r.Context(), form.Prompt, form.Images, form.Options)
+	resp, err := agt.Vision(r.Context(), form.Prompt, form.Images, options(form.Options))
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
@@ -268,7 +268,7 @@ func (h *Handler) VisionStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stream, err := agt.VisionStream(r.Context(), form.Prompt, form.Images, form.Options)
+	stream, err := agt.VisionStream(r.Context(), form.Prompt, form.Images, options(form.Options))
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
@@ -297,7 +297,7 @@ func (h *Handler) Tools(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := agt.Tools(r.Context(), req.Prompt, req.Tools, req.Options)
+	resp, err := agt.Tools(r.Context(), req.Prompt, req.Tools, options(req.Options))
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
@@ -326,7 +326,7 @@ func (h *Handler) Embed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := agt.Embed(r.Context(), req.Input, req.Options)
+	resp, err := agt.Embed(r.Context(), req.Input, options(req.Options))
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
@@ -359,6 +359,13 @@ func (h *Handler) constructAgent(ctx context.Context, id uuid.UUID, token string
 	}
 
 	return agt, nil
+}
+
+func options(opts map[string]any) map[string]any {
+	if len(opts) == 0 {
+		return nil
+	}
+	return opts
 }
 
 func (h *Handler) writeSSEStream(w http.ResponseWriter, r *http.Request, stream <-chan *response.StreamingChunk) {

@@ -1,0 +1,1213 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Agent Lab API",
+    "version": "0.1.0",
+    "description": "Containerized web service platform for building and orchestrating agentic workflows."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "paths": {
+    "/api/agents": {
+      "get": {
+        "summary": "List agents",
+        "description": "Returns a paginated list of agents with optional filtering and sorting",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-indexed)",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Results per page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search query (matches name)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Comma-separated sort fields. Prefix with - for descending",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Filter by agent name (contains)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of agents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPageResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create agent",
+        "description": "Validates and stores a new agent configuration",
+        "tags": [
+          "Agents"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAgentCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "description": "",
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/agents/search": {
+      "post": {
+        "summary": "Search agents",
+        "description": "Search agents with filters and pagination via POST body",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Filter by agent name (contains)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paginated search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentPageResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/agents/{id}": {
+      "get": {
+        "summary": "Get agent by ID",
+        "description": "Retrieves a single agent configuration",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update agent",
+        "description": "Updates an existing agent configuration",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAgentCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "",
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete agent",
+        "description": "Removes an agent configuration",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Agent deleted"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/agents/{id}/chat": {
+      "post": {
+        "summary": "Chat with agent",
+        "description": "Execute agent chat completion (synchronous)",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chat response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/agents/{id}/chat/stream": {
+      "post": {
+        "summary": "Chat with agent (streaming)",
+        "description": "Execute agent chat completion with SSE streaming",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream of chat response chunks"
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/agents/{id}/embed": {
+      "post": {
+        "summary": "Generate embeddings",
+        "description": "Generate text embeddings using agent",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmbedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Embedding vector",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmbedResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/agents/{id}/tools": {
+      "post": {
+        "summary": "Execute with tools",
+        "description": "Execute agent with tool calling capabilities",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ToolsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tool execution response"
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/agents/{id}/vision": {
+      "post": {
+        "summary": "Vision analysis",
+        "description": "Execute agent vision analysis (synchronous, multipart/form-data)",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "images": {
+                    "type": "string",
+                    "description": "Image file (multiple supported via repeated field)"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "description": "Analysis prompt"
+                  },
+                  "token": {
+                    "type": "string",
+                    "description": "Optional authentication token"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Vision analysis response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/agents/{id}/vision/stream": {
+      "post": {
+        "summary": "Vision analysis (streaming)",
+        "description": "Execute agent vision analysis with SSE streaming",
+        "tags": [
+          "Agents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Agent UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "images": {
+                    "type": "string",
+                    "description": "Image file (multiple supported via repeated field)"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "description": "Analysis prompt"
+                  },
+                  "token": {
+                    "type": "string",
+                    "description": "Optional authentication token"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE stream of vision analysis chunks"
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/providers": {
+      "get": {
+        "summary": "List providers",
+        "description": "Returns a paginated list of providers with optional filtering and sorting",
+        "tags": [
+          "Providers"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-indexed)",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Results per page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search query (matches name)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Comma-separated sort fields. Prefix with - for descending",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Filter by provider name (contains)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderPageResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create provider",
+        "description": "Validates and stores a new provider configuration",
+        "tags": [
+          "Providers"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProviderCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Provider created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "description": "",
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/providers/search": {
+      "post": {
+        "summary": "Search providers",
+        "description": "Search providers with filters and pagination via POST body",
+        "tags": [
+          "Providers"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Filter by provider name (contains)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Paginated search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderPageResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/providers/{id}": {
+      "get": {
+        "summary": "Get provider by ID",
+        "description": "Retrieves a single provider configuration",
+        "tags": [
+          "Providers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Provider UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update provider",
+        "description": "Updates an existing provider configuration",
+        "tags": [
+          "Providers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Provider UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Provider updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "",
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete provider",
+        "description": "Removes a provider configuration",
+        "tags": [
+          "Providers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Provider UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Provider deleted"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Health check endpoint",
+        "tags": [
+          "Infrastructure"
+        ],
+        "responses": {
+          "200": {
+            "description": "Service is healthy"
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Readiness check endpoint",
+        "tags": [
+          "Infrastructure"
+        ],
+        "responses": {
+          "200": {
+            "description": "Service is ready"
+          },
+          "503": {
+            "description": "Service not ready"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Agent": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "object",
+            "description": "go-agents AgentConfig as JSON (includes embedded provider config)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AgentPageResult": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "Array of agents"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page number"
+          },
+          "page_size": {
+            "type": "integer",
+            "description": "Results per page"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of results"
+          },
+          "total_pages": {
+            "type": "integer",
+            "description": "Total number of pages"
+          }
+        }
+      },
+      "ChatRequest": {
+        "type": "object",
+        "properties": {
+          "options": {
+            "type": "object",
+            "description": "Optional agent options override"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "User prompt"
+          },
+          "token": {
+            "type": "string",
+            "description": "Optional authentication token (for Azure providers)"
+          }
+        },
+        "required": [
+          "prompt"
+        ]
+      },
+      "ChatResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "description": "Agent response text"
+          }
+        }
+      },
+      "CreateAgentCommand": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "object",
+            "description": "go-agents AgentConfig as JSON"
+          },
+          "name": {
+            "type": "string",
+            "example": "gpt-4o"
+          }
+        },
+        "required": [
+          "name",
+          "config"
+        ]
+      },
+      "CreateProviderCommand": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "object",
+            "description": "go-agents ProviderConfig as JSON"
+          },
+          "name": {
+            "type": "string",
+            "example": "ollama"
+          }
+        },
+        "required": [
+          "name",
+          "config"
+        ]
+      },
+      "EmbedRequest": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "description": "Text to embed"
+          },
+          "options": {
+            "type": "object",
+            "description": "Optional embedding options"
+          },
+          "token": {
+            "type": "string",
+            "description": "Optional authentication token"
+          }
+        },
+        "required": [
+          "input"
+        ]
+      },
+      "EmbedResponse": {
+        "type": "object",
+        "properties": {
+          "embedding": {
+            "type": "array",
+            "description": "Embedding vector"
+          }
+        }
+      },
+      "PageRequest": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "description": "Page number (1-indexed)",
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "description": "Results per page",
+            "example": 20
+          },
+          "search": {
+            "type": "string",
+            "description": "Search query"
+          },
+          "sort": {
+            "type": "string",
+            "description": "Comma-separated sort fields. Prefix with - for descending. Example: name,-created_at"
+          }
+        }
+      },
+      "Provider": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "object",
+            "description": "go-agents ProviderConfig as JSON"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProviderPageResult": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "Array of providers"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Current page number"
+          },
+          "page_size": {
+            "type": "integer",
+            "description": "Results per page"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total number of results"
+          },
+          "total_pages": {
+            "type": "integer",
+            "description": "Total number of pages"
+          }
+        }
+      },
+      "ToolsRequest": {
+        "type": "object",
+        "properties": {
+          "options": {
+            "type": "object",
+            "description": "Optional agent options override"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "User prompt"
+          },
+          "token": {
+            "type": "string",
+            "description": "Optional authentication token"
+          },
+          "tools": {
+            "type": "array",
+            "description": "Available tools"
+          }
+        },
+        "required": [
+          "prompt",
+          "tools"
+        ]
+      },
+      "UpdateAgentCommand": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "object",
+            "description": "go-agents AgentConfig as JSON"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "config"
+        ]
+      },
+      "UpdateProviderCommand": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "object",
+            "description": "go-agents ProviderConfig as JSON"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "config"
+        ]
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "description": "Error message"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Resource conflict (duplicate name)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "description": "Error message"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "description": "Error message"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

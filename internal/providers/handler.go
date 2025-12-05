@@ -31,12 +31,12 @@ func (h *Handler) Routes() routes.Group {
 		Tags:        []string{"Providers"},
 		Description: "Provider configuration management",
 		Routes: []routes.Route{
-			{Method: "POST", Pattern: "", Handler: h.Create},
-			{Method: "GET", Pattern: "", Handler: h.List},
-			{Method: "GET", Pattern: "/{id}", Handler: h.GetByID},
-			{Method: "PUT", Pattern: "/{id}", Handler: h.Update},
-			{Method: "DELETE", Pattern: "/{id}", Handler: h.Delete},
-			{Method: "POST", Pattern: "/search", Handler: h.Search},
+			{Method: "POST", Pattern: "", Handler: h.Create, OpenAPI: Spec.Create},
+			{Method: "GET", Pattern: "", Handler: h.List, OpenAPI: Spec.List},
+			{Method: "GET", Pattern: "/{id}", Handler: h.GetByID, OpenAPI: Spec.Get},
+			{Method: "PUT", Pattern: "/{id}", Handler: h.Update, OpenAPI: Spec.Update},
+			{Method: "DELETE", Pattern: "/{id}", Handler: h.Delete, OpenAPI: Spec.Delete},
+			{Method: "POST", Pattern: "/search", Handler: h.Search, OpenAPI: Spec.Search},
 		},
 	}
 }

@@ -53,12 +53,12 @@ agent-lab enables organizations to:
 
 ### Technology Principles
 
-1. **Go-Native Web Standards**: Raw web platform without Node.js/npm complexity
+1. **Build in CI, Deploy Without Node.js**: Web assets built during CI, embedded in Go binary, container has no Node.js runtime
 2. **Minimal Dependencies**: Only essential, industry-recognized libraries
-3. **Embedded Assets**: All dependencies embedded via `go:embed`, self-hosted (D3.js embedded)
-4. **Zero Build Process**: Serve embedded assets directly, no preprocessing
+3. **Embedded Assets**: All dependencies embedded via `go:embed`, self-hosted
+4. **Tree-Shaken Bundles**: Vite builds eliminate unused code for optimal bundle sizes
 5. **Standards-Forward**: Web Components, TC39 Signals, SSE, Fetch API
-6. **Air-Gap Compatible**: Build with minimal resources for IL6 Azure Secret Government
+6. **Air-Gap Compatible**: Single Go binary with embedded assets for air-gapped environments
 
 ## Success Criteria
 
@@ -107,12 +107,13 @@ agent-lab will enable experimentation with:
 
 ### Frontend
 
-- **JavaScript**: Vanilla JS (no build process)
+- **Build**: Bun + Vite + TypeScript (CI only, not in container)
 - **Components**: Web Components for encapsulated UI elements
 - **State Management**: TC39 Signals for reactive state
 - **Real-Time**: Server-Sent Events (SSE) for execution monitoring
 - **HTTP**: Fetch API for REST interactions
 - **Visualization**: D3.js (embedded) for confidence score graphs
+- **Architecture**: See [web/README.md](./web/README.md) for full details
 
 ### API
 
@@ -290,6 +291,27 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Token Injection: Runtime token injection into Provider.Options["token"]
 - SSE Streaming: Standard text/event-stream format with flush after each chunk
 - Handler with Execution: Handler struct with both CRUD and execution methods
+
+#### Session 1f: OpenAPI Specification & Scalar UI Integration ✅
+
+**Status**: Completed (2025-12-05)
+
+**Implemented**:
+- OpenAPI 3.1 specification infrastructure (`pkg/openapi`)
+- Domain-owned OpenAPI schemas and operations (`internal/providers/openapi.go`, `internal/agents/openapi.go`)
+- Integrated spec generation at server startup (`cmd/server/openapi.go`)
+- Environment-specific spec caching (`api/openapi.{env}.json`)
+- Self-hosted Scalar UI with embedded assets (`web/docs`)
+- TrimSlash middleware for trailing slash redirects
+- Configuration extensions: Version, Domain, Env() method
+
+**Validation**: ✅ Scalar UI loads at `/docs`, all endpoints documented, "Try It" functionality works
+
+**Architectural Additions**:
+- Domain-Owned OpenAPI: Each domain owns its schemas and operations in `openapi.go`
+- Route OpenAPI Integration: Routes carry optional `OpenAPI` field referencing domain specs
+- Spec Generation Flow: Routes → Generate in memory → Compare with file → Write only if changed
+- Embedded Assets: `go:embed` for air-gap compatible Scalar UI
 
 ---
 
@@ -479,6 +501,12 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - SSE streaming for Chat and Vision
   - VisionForm pattern for multipart image uploads
   - Token injection for Azure authentication
+- **Session 01f: OpenAPI Specification & Scalar UI Integration** ✅
+  - OpenAPI 3.1 spec infrastructure (pkg/openapi)
+  - Domain-owned schemas and operations
+  - Integrated spec generation at server startup
+  - Self-hosted Scalar UI at `/docs` endpoint
+  - TrimSlash middleware for trailing slash redirects
 
 **In Progress**:
 - Milestone 1: Foundation & Infrastructure ✅ **COMPLETE**
@@ -487,6 +515,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Session 01c: ✅ Completed
   - Session 01d: ✅ Completed
   - Session 01e: ✅ Completed
+  - Session 01f: ✅ Completed
 
 **Next Steps**:
 - Milestone 1 Review: Confirm all success criteria met

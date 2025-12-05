@@ -1,6 +1,10 @@
 package routes
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/JaimeStill/agent-lab/pkg/openapi"
+)
 
 // Group represents a collection of routes with a common prefix.
 type Group struct {
@@ -15,4 +19,5 @@ type Route struct {
 	Method  string
 	Pattern string
 	Handler http.HandlerFunc
+	OpenAPI *openapi.Operation
 }

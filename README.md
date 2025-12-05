@@ -26,9 +26,12 @@ agent-lab/
 │   └── agents/           # Agents domain system
 ├── pkg/                  # Public packages
 │   ├── handlers/         # HTTP response utilities
+│   ├── openapi/          # OpenAPI spec utilities
 │   ├── pagination/       # Pagination utilities
 │   ├── query/            # SQL query builder
 │   └── repository/       # Database helpers
+├── web/                  # Web assets
+│   └── docs/             # API documentation (Scalar UI)
 ├── tests/                # Black-box tests
 ├── compose/              # Docker Compose files
 └── config.toml           # Base configuration
@@ -54,6 +57,9 @@ curl http://localhost:8080/healthz
 
 # Readiness check (subsystems operational)
 curl http://localhost:8080/readyz
+
+# API documentation (Scalar UI)
+open http://localhost:8080/docs
 ```
 
 ### Configuration
@@ -62,7 +68,7 @@ Configuration loads from `config.toml` with optional environment-specific overla
 
 Set `SERVICE_ENV` to load an overlay:
 ```bash
-SERVICE_ENV=dev ./bin/service  # Loads config.dev.toml
+SERVICE_ENV=dev ./bin/server  # Loads config.dev.toml
 ```
 
 See [config.toml](./config.toml) for available settings.
