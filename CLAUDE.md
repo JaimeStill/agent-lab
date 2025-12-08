@@ -36,14 +36,44 @@ The project follows **Layered Composition Architecture (LCA)** principles from t
 
 ## Development Workflow
 
-### Milestone Planning
+### Milestone Planning Session
 
-Before starting a milestone, conduct a **Milestone Planning Session**:
-1. Review milestone objectives and success criteria
-2. Break milestone into focused development sessions (2-3 hour chunks)
-3. Define validation criteria for each session
-4. Ensure dependency order (sessions build on previous work)
-5. Document session breakdown in PROJECT.md
+Before starting a milestone, conduct a **Milestone Planning Session** to ensure alignment on scope, dependencies, and session breakdown.
+
+#### 1. Explore Current State
+- Launch explore agents to understand codebase, architecture, dependencies
+- Identify patterns established in previous milestones
+- Review what infrastructure exists to build on
+
+#### 2. Analyze Roadmap Alignment
+- Review milestone deliverables and success criteria from PROJECT.md
+- Check for missing dependencies (go.mod, external tools, libraries)
+- Evaluate milestone ordering - surface concerns if dependencies seem misaligned
+- Identify any deliverables that could be simplified by existing patterns
+
+#### 3. Discuss Strategic Questions
+- Surface ordering concerns or alternatives collaboratively
+- Resolve through discussion, not assumptions
+- Document decisions with rationale
+
+#### 4. Explore External Dependencies
+- For milestones using external libraries, explore their APIs
+- Identify built-in capabilities that simplify scope
+- Understand configuration patterns and integration points
+
+#### 5. Define Session Breakdown
+- Break milestone into focused 2-3 hour sessions
+- Identify key files and validation criteria per session
+- Leverage existing patterns from previous milestones
+- Ensure dependency order (sessions build on previous work)
+
+#### 6. Resolve Design Questions
+- Address implementation decisions incrementally with context
+- Document decisions with rationale in PROJECT.md
+
+#### 7. Finalize and Document
+- Update PROJECT.md with session breakdown and design decisions
+- Capture process improvements in CLAUDE.md if workflow evolved
 
 ### Development Session Workflow
 
