@@ -20,6 +20,8 @@ vendor/
 
 # Build artifacts
 /cmd/server/server
+.data
+coverage*
 
 # Configuration overrides (local development)
 config.local.yaml
