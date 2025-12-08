@@ -194,6 +194,11 @@ internal/                 # Private API: Domain systems
 │   ├── database.go           # Database system
 │   └── errors.go             # Package errors
 │
+├── storage/
+│   ├── storage.go            # Storage system interface
+│   ├── filesystem.go         # Filesystem implementation
+│   └── errors.go             # Package errors
+│
 ├── routes/
 │   ├── routes.go             # Route system
 │   └── group.go              # Route group definition
@@ -262,6 +267,7 @@ tests/                    # Black-box tests
 ├── internal_lifecycle/
 ├── internal_middleware/
 ├── internal_routes/
+├── internal_storage/
 ├── pkg_handlers/
 ├── pkg_openapi/
 ├── pkg_pagination/
@@ -347,6 +353,7 @@ type Runtime struct {
     Lifecycle  *lifecycle.Coordinator
     Logger     *slog.Logger
     Database   database.System
+    Storage    storage.System
     Pagination pagination.Config
 }
 
@@ -359,10 +366,16 @@ func NewRuntime(cfg *config.Config) (*Runtime, error) {
         return nil, fmt.Errorf("database init failed: %w", err)
     }
 
+    storageSys, err := storage.New(&cfg.Storage, logger)
+    if err != nil {
+        return nil, fmt.Errorf("storage init failed: %w", err)
+    }
+
     return &Runtime{
         Lifecycle:  lc,
         Logger:     logger,
         Database:   dbSys,
+        Storage:    storageSys,
         Pagination: cfg.Pagination,
     }, nil
 }
@@ -371,6 +384,11 @@ func (r *Runtime) Start() error {
     if err := r.Database.Start(r.Lifecycle); err != nil {
         return fmt.Errorf("database start failed: %w", err)
     }
+
+    if err := r.Storage.Start(r.Lifecycle); err != nil {
+        return fmt.Errorf("storage start failed: %w", err)
+    }
+
     return nil
 }
 ```
@@ -664,6 +682,128 @@ func (d *database) Start(lc *lifecycle.Coordinator) error {
 ```
 
 **Note**: Database uses both OnStartup (ping to verify connectivity) and OnShutdown (close connection pool).
+
+## Storage System (internal/storage)
+
+The Storage system provides blob storage abstractions for file persistence.
+
+### System Interface
+
+```go
+type System interface {
+    Store(ctx context.Context, key string, data []byte) error
+    Retrieve(ctx context.Context, key string) ([]byte, error)
+    Delete(ctx context.Context, key string) error
+    Validate(ctx context.Context, key string) (bool, error)
+    Start(lc *lifecycle.Coordinator) error
+}
+```
+
+### Error Types
+
+```go
+var (
+    ErrNotFound         = errors.New("storage: key not found")
+    ErrPermissionDenied = errors.New("storage: permission denied")
+    ErrInvalidKey       = errors.New("storage: invalid key")
+)
+```
+
+### Filesystem Implementation
+
+```go
+type filesystem struct {
+    basePath string
+    logger   *slog.Logger
+}
+
+func New(cfg *config.StorageConfig, logger *slog.Logger) (System, error) {
+    if cfg.BasePath == "" {
+        return nil, fmt.Errorf("base_path required")
+    }
+
+    absPath, err := filepath.Abs(cfg.BasePath)
+    if err != nil {
+        return nil, fmt.Errorf("resolve base_path: %w", err)
+    }
+
+    return &filesystem{
+        basePath: absPath,
+        logger:   logger.With("system", "storage"),
+    }, nil
+}
+
+func (f *filesystem) Start(lc *lifecycle.Coordinator) error {
+    f.logger.Info("starting storage system", "base_path", f.basePath)
+
+    lc.OnStartup(func() {
+        if err := os.MkdirAll(f.basePath, 0755); err != nil {
+            f.logger.Error("storage initialization failed", "error", err)
+            return
+        }
+        f.logger.Info("storage directory initialized")
+    })
+
+    return nil
+}
+```
+
+### Atomic File Writes
+
+Store uses temp file + rename for crash safety:
+
+```go
+func (f *filesystem) Store(ctx context.Context, key string, data []byte) error {
+    path, err := f.fullPath(key)
+    if err != nil {
+        return err
+    }
+
+    dir := filepath.Dir(path)
+    if err := os.MkdirAll(dir, 0755); err != nil {
+        return fmt.Errorf("create directory: %w", err)
+    }
+
+    tmpPath := path + ".tmp"
+    if err := os.WriteFile(tmpPath, data, 0644); err != nil {
+        return fmt.Errorf("write temp file: %w", err)
+    }
+
+    if err := os.Rename(tmpPath, path); err != nil {
+        os.Remove(tmpPath)
+        return fmt.Errorf("rename temp file: %w", err)
+    }
+
+    return nil
+}
+```
+
+### Path Traversal Protection
+
+The `fullPath` helper validates keys and prevents directory traversal:
+
+```go
+func (f *filesystem) fullPath(key string) (string, error) {
+    if key == "" {
+        return "", ErrInvalidKey
+    }
+
+    cleaned := filepath.Clean(key)
+    if strings.HasPrefix(cleaned, "..") || filepath.IsAbs(cleaned) {
+        return "", ErrInvalidKey
+    }
+
+    fullPath := filepath.Join(f.basePath, cleaned)
+
+    if !strings.HasPrefix(fullPath, f.basePath) {
+        return "", ErrInvalidKey
+    }
+
+    return fullPath, nil
+}
+```
+
+**Note**: Storage uses OnStartup only (directory creation). No OnShutdown needed for filesystem.
 
 ## Route System (internal/routes)
 

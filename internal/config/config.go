@@ -36,6 +36,7 @@ type Config struct {
 	Logging         LoggingConfig     `toml:"logging"`
 	CORS            CORSConfig        `toml:"cors"`
 	Pagination      pagination.Config `toml:"pagination"`
+	Storage         StorageConfig     `toml:"storage"`
 	Domain          string            `toml:"version"`
 	ShutdownTimeout string            `toml:"shutdown_timeout"`
 	Version         string            `toml:"version"`
@@ -99,6 +100,9 @@ func (c *Config) finalize() error {
 	if err := c.Pagination.Finalize(); err != nil {
 		return fmt.Errorf("pagination: %w", err)
 	}
+	if err := c.Storage.Finalize(); err != nil {
+		return fmt.Errorf("storage: %w", err)
+	}
 	return nil
 }
 
@@ -112,6 +116,7 @@ func (c *Config) Merge(overlay *Config) {
 	c.Logging.Merge(&overlay.Logging)
 	c.CORS.Merge(&overlay.CORS)
 	c.Pagination.Merge(&overlay.Pagination)
+	c.Storage.Merge(&overlay.Storage)
 }
 
 func (c *Config) loadDefaults() {

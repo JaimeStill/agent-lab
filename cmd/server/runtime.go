@@ -7,6 +7,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/config"
 	"github.com/JaimeStill/agent-lab/internal/database"
 	"github.com/JaimeStill/agent-lab/internal/lifecycle"
+	"github.com/JaimeStill/agent-lab/internal/storage"
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 )
 
@@ -14,6 +15,7 @@ type Runtime struct {
 	Lifecycle  *lifecycle.Coordinator
 	Logger     *slog.Logger
 	Database   database.System
+	Storage    storage.System
 	Pagination pagination.Config
 }
 
@@ -26,10 +28,16 @@ func NewRuntime(cfg *config.Config) (*Runtime, error) {
 		return nil, fmt.Errorf("database init failed: %w", err)
 	}
 
+	storageSys, err := storage.New(&cfg.Storage, logger)
+	if err != nil {
+		return nil, fmt.Errorf("storage init failed: %w", err)
+	}
+
 	return &Runtime{
 		Lifecycle:  lc,
 		Logger:     logger,
 		Database:   dbSys,
+		Storage:    storageSys,
 		Pagination: cfg.Pagination,
 	}, nil
 }
@@ -37,6 +45,10 @@ func NewRuntime(cfg *config.Config) (*Runtime, error) {
 func (r *Runtime) Start() error {
 	if err := r.Database.Start(r.Lifecycle); err != nil {
 		return fmt.Errorf("database start failed: %w", err)
+	}
+
+	if err := r.Storage.Start(r.Lifecycle); err != nil {
+		return fmt.Errorf("storage start failed: %w", err)
 	}
 	return nil
 }

@@ -126,7 +126,7 @@ AI reviews and validates implementation:
 - Review for accuracy and completeness
 - Add and revise testing infrastructure
 - Execute tests until passing
-- Verify 80% minimum coverage (100% for critical paths)
+- Verify critical paths are covered (see Testing Conventions)
 - Black-box testing: `package <name>_test`, test only public API
 
 #### 6. Documentation Phase
@@ -223,9 +223,27 @@ Mark milestone complete only after:
 - Import package being tested
 - Test only exported types/functions/methods
 
-**Coverage:** 80% minimum, 100% for critical paths (validation, transactions, routing)
+**Coverage Success Criteria:**
+
+Testing success is measured by coverage of critical paths, not arbitrary percentages:
+
+- ✅ **Happy paths** - Normal operation flows work correctly
+- ✅ **Security paths** - Input validation, path traversal prevention, injection protection
+- ✅ **Error types** - Domain errors are defined and distinguishable
+- ✅ **Integration points** - Lifecycle hooks, system boundaries, external dependencies
+
+Uncovered code is acceptable when it consists of:
+- Defensive error handling for OS-level failures (disk full, permission denied)
+- Edge cases requiring filesystem mocking or special conditions
+- Error wrapping paths that don't affect behavior
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for testing patterns and table-driven test examples.
+
+## Go Commands
+
+**Validation:** Use `go vet ./...` to check for errors, NOT `go build`. Build is expensive and unnecessary for validation.
+
+**Testing:** Use `go test ./tests/...` for running tests.
 
 ## Directory Conventions
 
