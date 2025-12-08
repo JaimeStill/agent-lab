@@ -335,10 +335,62 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Enhancement filter configuration API
 - Document preview endpoint (`GET /api/documents/{id}/pages/{num}`)
 
+**Design Decisions**:
+- **Blob Storage**: Interface-based abstraction from start (filesystem in M2, Azure in M8)
+- **Page Count Extraction**: On upload (blocking) - metadata complete immediately
+- **Cache Strategy**: Simple filesystem, no eviction (leverage document-context built-in cache)
+- **Enhancement Filters**: Leverage document-context configuration (brightness, contrast, saturation, rotation, background)
+
+**Development Sessions**:
+
+#### Session 2a: Blob Storage Infrastructure
+
+**Focus**: Storage abstraction and filesystem implementation
+
+**Deliverables**:
+- `pkg/storage` - Storage interface (Store, Retrieve, Delete, Exists)
+- Filesystem implementation with configurable base path
+- Configuration integration (storage paths in config.toml)
+- Directory initialization on startup (lifecycle integration)
+- Unit tests for storage operations
+
+**Validation**: Store/retrieve/delete files via filesystem storage
+
+#### Session 2b: Documents Domain System
+
+**Focus**: Document entity management following M1 patterns (no document-context dependency)
+
+**Deliverables**:
+- Database schema: `documents` table (id, name, filename, content_type, size_bytes, page_count nullable, metadata JSONB, created_at, updated_at)
+- Migration for documents table
+- Documents domain system (system.go, repository.go, handler.go, filters.go, etc.)
+- Upload API (`POST /api/documents`) - multipart/form-data, store blob, store basic metadata
+- CRUD endpoints (GET by ID, DELETE, list with pagination/filters)
+- Delete removes both database record and blob
+- OpenAPI integration for all endpoints
+
+**Validation**: Upload PDF, retrieve metadata (page_count null), delete document (blob + record removed)
+
+#### Session 2c: document-context Integration
+
+**Focus**: PDF processing - metadata extraction and page rendering
+
+**Deliverables**:
+- Add document-context library to go.mod
+- Enhance upload flow: extract page_count as part of initial record creation (not a separate update)
+- Page rendering endpoint: `GET /api/documents/{id}/pages/{num}`
+- Query params for filters: `?dpi=300&brightness=110&contrast=10&format=png`
+- Configuration for document-context cache directory
+- Filter parameter mapping (HTTP query → ImageMagickConfig)
+
+**Validation**: Upload PDF with page_count extracted and stored, render page with filters, verify cache hit
+
+---
+
 **Success Criteria**:
 - Upload multi-page PDF, extract metadata (page count)
 - Render page as PNG with default settings (300 DPI)
-- Apply enhancement filters (brightness, contrast)
+- Apply enhancement filters (brightness, contrast, saturation, rotation)
 - Serve rendered page image for preview
 - Cache subsequent requests (verify cache hit performance)
 
@@ -464,7 +516,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 ## Current Status
 
-**Phase**: Milestone 1 Complete - Ready for Milestone Review
+**Phase**: Milestone 2 - Document Upload & Processing
 
 **Completed**:
 - Session 01: Foundation architecture design (ARCHITECTURE.md)
@@ -509,17 +561,13 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - TrimSlash middleware for trailing slash redirects
 
 **In Progress**:
-- Milestone 1: Foundation & Infrastructure ✅ **COMPLETE**
-  - Session 01a: ✅ Completed
-  - Session 01b: ✅ Completed
-  - Session 01c: ✅ Completed
-  - Session 01d: ✅ Completed
-  - Session 01e: ✅ Completed
-  - Session 01f: ✅ Completed
+- Milestone 2: Document Upload & Processing
+  - Session 02a: Blob Storage Infrastructure - Not Started
+  - Session 02b: Documents Domain System - Not Started
+  - Session 02c: document-context Integration - Not Started
 
 **Next Steps**:
-- Milestone 1 Review: Confirm all success criteria met
-- Begin Milestone 2: Document Upload & Processing
+- Begin Session 02a: Blob Storage Infrastructure
 
 ## Future Phases (Beyond Milestone 8)
 
