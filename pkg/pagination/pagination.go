@@ -1,18 +1,38 @@
 package pagination
 
 import (
+	"encoding/json"
 	"net/url"
 	"strconv"
 
 	"github.com/JaimeStill/agent-lab/pkg/query"
 )
 
+// SortFields wraps []query.SortField with flexible JSON unmarshaling.
+// Accepts either a string ("name,-created_at") or an array of SortField objects.
+type SortFields []query.SortField
+
+func (s *SortFields) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		*s = query.ParseSortFields(str)
+		return nil
+	}
+
+	var fields []query.SortField
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	*s = fields
+	return nil
+}
+
 // PageRequest represents a client request for a page of data with optional search and sorting.
 type PageRequest struct {
-	Page     int               `json:"page"`
-	PageSize int               `json:"page_size"`
-	Search   *string           `json:"search,omitempty"`
-	Sort     []query.SortField `json:"sort,omitempty"`
+	Page     int        `json:"page"`
+	PageSize int        `json:"page_size"`
+	Search   *string    `json:"search,omitempty"`
+	Sort     SortFields `json:"sort,omitempty"`
 }
 
 // Normalize adjusts the request to ensure valid pagination values based on the config.

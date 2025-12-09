@@ -38,14 +38,14 @@ func TestAddSchemas(t *testing.T) {
 	newSchemas := map[string]*openapi.Schema{
 		"User": {
 			Type: "object",
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"id":   {Type: "string", Format: "uuid"},
 				"name": {Type: "string"},
 			},
 		},
 		"Product": {
 			Type: "object",
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"sku":   {Type: "string"},
 				"price": {Type: "number"},
 			},

@@ -131,7 +131,7 @@ var Spec = spec{
 				"multipart/form-data": {
 					Schema: &openapi.Schema{
 						Type: "object",
-						Properties: map[string]*openapi.Property{
+						Properties: map[string]*openapi.Schema{
 							"prompt": {Type: "string", Description: "Analysis prompt"},
 							"images": {Type: "string", Description: "Image file (multiple supported via repeated field)"},
 							"token":  {Type: "string", Description: "Optional authentication token"},
@@ -158,7 +158,7 @@ var Spec = spec{
 				"multipart/form-data": {
 					Schema: &openapi.Schema{
 						Type: "object",
-						Properties: map[string]*openapi.Property{
+						Properties: map[string]*openapi.Schema{
 							"prompt": {Type: "string", Description: "Analysis prompt"},
 							"images": {Type: "string", Description: "Image file (multiple supported via repeated field)"},
 							"token":  {Type: "string", Description: "Optional authentication token"},
@@ -206,7 +206,7 @@ func (spec) Schemas() map[string]*openapi.Schema {
 	return map[string]*openapi.Schema{
 		"Agent": {
 			Type: "object",
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"id":         {Type: "string", Format: "uuid"},
 				"name":       {Type: "string"},
 				"config":     {Type: "object", Description: "go-agents AgentConfig as JSON (includes embedded provider config)"},
@@ -217,7 +217,7 @@ func (spec) Schemas() map[string]*openapi.Schema {
 		"CreateAgentCommand": {
 			Type:     "object",
 			Required: []string{"name", "config"},
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"name":   {Type: "string", Example: "gpt-4o"},
 				"config": {Type: "object", Description: "go-agents AgentConfig as JSON"},
 			},
@@ -225,15 +225,15 @@ func (spec) Schemas() map[string]*openapi.Schema {
 		"UpdateAgentCommand": {
 			Type:     "object",
 			Required: []string{"name", "config"},
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"name":   {Type: "string"},
 				"config": {Type: "object", Description: "go-agents AgentConfig as JSON"},
 			},
 		},
 		"AgentPageResult": {
 			Type: "object",
-			Properties: map[string]*openapi.Property{
-				"data":        {Type: "array", Description: "Array of agents"},
+			Properties: map[string]*openapi.Schema{
+				"data":        {Type: "array", Items: openapi.SchemaRef("Agent")},
 				"total":       {Type: "integer", Description: "Total number of results"},
 				"page":        {Type: "integer", Description: "Current page number"},
 				"page_size":   {Type: "integer", Description: "Results per page"},
@@ -243,7 +243,7 @@ func (spec) Schemas() map[string]*openapi.Schema {
 		"ChatRequest": {
 			Type:     "object",
 			Required: []string{"prompt"},
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"prompt":  {Type: "string", Description: "User prompt"},
 				"token":   {Type: "string", Description: "Optional authentication token (for Azure providers)"},
 				"options": {Type: "object", Description: "Optional agent options override"},
@@ -251,14 +251,14 @@ func (spec) Schemas() map[string]*openapi.Schema {
 		},
 		"ChatResponse": {
 			Type: "object",
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"response": {Type: "string", Description: "Agent response text"},
 			},
 		},
 		"ToolsRequest": {
 			Type:     "object",
 			Required: []string{"prompt", "tools"},
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"prompt":  {Type: "string", Description: "User prompt"},
 				"tools":   {Type: "array", Description: "Available tools"},
 				"token":   {Type: "string", Description: "Optional authentication token"},
@@ -268,15 +268,15 @@ func (spec) Schemas() map[string]*openapi.Schema {
 		"EmbedRequest": {
 			Type:     "object",
 			Required: []string{"input"},
-			Properties: map[string]*openapi.Property{
-				"input":   {Type: "string", Description: "Text to embed"},
+			Properties: map[string]*openapi.Schema{
+				"prompt":  {Type: "string", Description: "Text to embed"},
 				"token":   {Type: "string", Description: "Optional authentication token"},
 				"options": {Type: "object", Description: "Optional embedding options"},
 			},
 		},
 		"EmbedResponse": {
 			Type: "object",
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"embedding": {Type: "array", Description: "Embedding vector"},
 			},
 		},

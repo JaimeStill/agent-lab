@@ -72,22 +72,26 @@ type MediaType struct {
 }
 
 // Schema defines the structure of input and output data.
+// Per OpenAPI 3.1, Schema Objects follow JSON Schema Draft 2020-12.
+// Properties are themselves Schema Objects, enabling full composition.
 type Schema struct {
-	Type        string               `json:"type,omitempty"`
-	Format      string               `json:"format,omitempty"`
-	Description string               `json:"description,omitempty"`
-	Properties  map[string]*Property `json:"properties,omitempty"`
-	Required    []string             `json:"required,omitempty"`
-	Items       *Schema              `json:"items,omitempty"`
-	Ref         string               `json:"$ref,omitempty"`
-}
+	Type        string             `json:"type,omitempty"`
+	Format      string             `json:"format,omitempty"`
+	Description string             `json:"description,omitempty"`
+	Properties  map[string]*Schema `json:"properties,omitempty"`
+	Required    []string           `json:"required,omitempty"`
+	Items       *Schema            `json:"items,omitempty"`
+	Ref         string             `json:"$ref,omitempty"`
 
-// Property defines a single property within a schema.
-type Property struct {
-	Type        string `json:"type"`
-	Format      string `json:"format,omitempty"`
-	Description string `json:"description,omitempty"`
-	Example     any    `json:"example,omitempty"`
+	Example any   `json:"example,omitempty"`
+	Default any   `json:"default,omitempty"`
+	Enum    []any `json:"enum,omitempty"`
+
+	Minimum   *float64 `json:"minimum,omitempty"`
+	Maximum   *float64 `json:"maximum,omitempty"`
+	MinLength *int     `json:"minLength,omitempty"`
+	MaxLength *int     `json:"maxLength,omitempty"`
+	Pattern   string   `json:"pattern,omitempty"`
 }
 
 // Components holds reusable schema and response definitions.
