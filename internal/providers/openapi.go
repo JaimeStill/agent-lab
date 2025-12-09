@@ -94,7 +94,7 @@ func (spec) Schemas() map[string]*openapi.Schema {
 	return map[string]*openapi.Schema{
 		"Provider": {
 			Type: "object",
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"id":         {Type: "string", Format: "uuid"},
 				"name":       {Type: "string"},
 				"config":     {Type: "object", Description: "go-agents ProviderConfig as JSON"},
@@ -105,7 +105,7 @@ func (spec) Schemas() map[string]*openapi.Schema {
 		"CreateProviderCommand": {
 			Type:     "object",
 			Required: []string{"name", "config"},
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"name":   {Type: "string", Example: "ollama"},
 				"config": {Type: "object", Description: "go-agents ProviderConfig as JSON"},
 			},
@@ -113,15 +113,15 @@ func (spec) Schemas() map[string]*openapi.Schema {
 		"UpdateProviderCommand": {
 			Type:     "object",
 			Required: []string{"name", "config"},
-			Properties: map[string]*openapi.Property{
+			Properties: map[string]*openapi.Schema{
 				"name":   {Type: "string"},
 				"config": {Type: "object", Description: "go-agents ProviderConfig as JSON"},
 			},
 		},
 		"ProviderPageResult": {
 			Type: "object",
-			Properties: map[string]*openapi.Property{
-				"data":        {Type: "array", Description: "Array of providers"},
+			Properties: map[string]*openapi.Schema{
+				"data":        {Type: "array", Items: openapi.SchemaRef("Provider")},
 				"total":       {Type: "integer", Description: "Total number of results"},
 				"page":        {Type: "integer", Description: "Current page number"},
 				"page_size":   {Type: "integer", Description: "Results per page"},

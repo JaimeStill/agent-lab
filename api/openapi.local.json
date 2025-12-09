@@ -590,6 +590,285 @@
         }
       }
     },
+    "/api/documents": {
+      "get": {
+        "summary": "List documents",
+        "description": "List documents with pagination and optional filters",
+        "tags": [
+          "Documents"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Items per page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search in name and filename",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Filter by name (contains)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content_type",
+            "in": "query",
+            "description": "Filter by content type (contains)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Documents list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPageResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Upload document",
+        "description": "Upload a document file with optional display name. PDFs have page count extracted automatically.",
+        "tags": [
+          "Documents"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "description": "Document file to upload"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Optional display name (defaults to filename)"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Document uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "413": {
+            "description": "File too large"
+          }
+        }
+      }
+    },
+    "/api/documents/search": {
+      "post": {
+        "summary": "Search documents",
+        "description": "Search documents with pagination in request body",
+        "tags": [
+          "Documents"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Filter by name (contains)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "content_type",
+            "in": "query",
+            "description": "Filter by content type (contains)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentPageResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/api/documents/{id}": {
+      "get": {
+        "summary": "Get document",
+        "description": "Get document by ID",
+        "tags": [
+          "Documents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Document ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update document",
+        "description": "Update document display name",
+        "tags": [
+          "Documents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Document ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDocumentCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Document"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete document",
+        "description": "Delete document and its stored file",
+        "tags": [
+          "Documents"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Document ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Document deleted"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/providers": {
       "get": {
         "summary": "List providers",
@@ -917,7 +1196,9 @@
         "properties": {
           "data": {
             "type": "array",
-            "description": "Array of agents"
+            "items": {
+              "$ref": "#/components/schemas/Agent"
+            }
           },
           "page": {
             "type": "integer",
@@ -1000,16 +1281,81 @@
           "config"
         ]
       },
+      "Document": {
+        "type": "object",
+        "properties": {
+          "content_type": {
+            "type": "string",
+            "description": "MIME type"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Original filename"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Display name"
+          },
+          "page_count": {
+            "type": "integer",
+            "description": "Page count (PDFs only)"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "File size in bytes"
+          },
+          "storage_key": {
+            "type": "string",
+            "description": "Storage location key"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DocumentPageResult": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Document"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          }
+        }
+      },
       "EmbedRequest": {
         "type": "object",
         "properties": {
-          "input": {
-            "type": "string",
-            "description": "Text to embed"
-          },
           "options": {
             "type": "object",
             "description": "Optional embedding options"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Text to embed"
           },
           "token": {
             "type": "string",
@@ -1081,7 +1427,9 @@
         "properties": {
           "data": {
             "type": "array",
-            "description": "Array of providers"
+            "items": {
+              "$ref": "#/components/schemas/Provider"
+            }
           },
           "page": {
             "type": "integer",
@@ -1140,6 +1488,18 @@
         "required": [
           "name",
           "config"
+        ]
+      },
+      "UpdateDocumentCommand": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "New display name"
+          }
+        },
+        "required": [
+          "name"
         ]
       },
       "UpdateProviderCommand": {

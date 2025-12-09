@@ -386,3 +386,64 @@ func TestStore_InvalidKey(t *testing.T) {
 		t.Errorf("Store('') error = %v, want %v", err, storage.ErrInvalidKey)
 	}
 }
+
+func TestDelete_CleansUpEmptyParentDirectory(t *testing.T) {
+	dir := tempStorageDir(t)
+	cfg := &config.StorageConfig{BasePath: dir}
+	sys, _ := storage.New(cfg, testLogger())
+
+	lc := lifecycle.New()
+	sys.Start(lc)
+	lc.WaitForStartup()
+
+	ctx := context.Background()
+	key := "documents/abc-123/file.pdf"
+
+	sys.Store(ctx, key, []byte("pdf content"))
+
+	parentDir := filepath.Join(dir, "documents", "abc-123")
+	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+		t.Fatal("Parent directory should exist after Store()")
+	}
+
+	if err := sys.Delete(ctx, key); err != nil {
+		t.Fatalf("Delete() failed: %v", err)
+	}
+
+	if _, err := os.Stat(parentDir); !os.IsNotExist(err) {
+		t.Error("Empty parent directory should be removed after Delete()")
+	}
+
+	docsDir := filepath.Join(dir, "documents")
+	if _, err := os.Stat(docsDir); os.IsNotExist(err) {
+		t.Error("Non-empty ancestor directory should not be removed")
+	}
+}
+
+func TestDelete_PreservesNonEmptyParentDirectory(t *testing.T) {
+	dir := tempStorageDir(t)
+	cfg := &config.StorageConfig{BasePath: dir}
+	sys, _ := storage.New(cfg, testLogger())
+
+	lc := lifecycle.New()
+	sys.Start(lc)
+	lc.WaitForStartup()
+
+	ctx := context.Background()
+
+	sys.Store(ctx, "shared/file1.txt", []byte("content1"))
+	sys.Store(ctx, "shared/file2.txt", []byte("content2"))
+
+	if err := sys.Delete(ctx, "shared/file1.txt"); err != nil {
+		t.Fatalf("Delete() failed: %v", err)
+	}
+
+	sharedDir := filepath.Join(dir, "shared")
+	if _, err := os.Stat(sharedDir); os.IsNotExist(err) {
+		t.Error("Non-empty parent directory should not be removed")
+	}
+
+	if _, err := sys.Retrieve(ctx, "shared/file2.txt"); err != nil {
+		t.Error("Other file in directory should still exist")
+	}
+}

@@ -9,7 +9,7 @@ func NewComponents() *Components {
 		Schemas: map[string]*Schema{
 			"PageRequest": {
 				Type: "object",
-				Properties: map[string]*Property{
+				Properties: map[string]*Schema{
 					"page":      {Type: "integer", Description: "Page number (1-indexed)", Example: 1},
 					"page_size": {Type: "integer", Description: "Results per page", Example: 20},
 					"search":    {Type: "string", Description: "Search query"},
@@ -24,7 +24,7 @@ func NewComponents() *Components {
 					"application/json": {
 						Schema: &Schema{
 							Type: "object",
-							Properties: map[string]*Property{
+							Properties: map[string]*Schema{
 								"error": {Type: "string", Description: "Error message"},
 							},
 						},
@@ -37,7 +37,7 @@ func NewComponents() *Components {
 					"application/json": {
 						Schema: &Schema{
 							Type: "object",
-							Properties: map[string]*Property{
+							Properties: map[string]*Schema{
 								"error": {Type: "string", Description: "Error message"},
 							},
 						},
@@ -50,7 +50,7 @@ func NewComponents() *Components {
 					"application/json": {
 						Schema: &Schema{
 							Type: "object",
-							Properties: map[string]*Property{
+							Properties: map[string]*Schema{
 								"error": {Type: "string", Description: "Error message"},
 							},
 						},

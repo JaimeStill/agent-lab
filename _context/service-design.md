@@ -27,19 +27,25 @@ Milestone 1 implementations evolved from initial designs in this document:
 
 See ARCHITECTURE.md for current implementation details.
 
-## Milestone 2+: Future Patterns
+## Milestone 2: Implemented & Documented
+
+**Milestone 2a-2b patterns have been implemented and documented in ARCHITECTURE.md:**
+
+- ✅ **Storage System** - Blob storage interface with filesystem implementation
+- ✅ **Documents Domain** - Document upload, metadata extraction, CRUD operations
+
+**Pattern Evolution Notes:**
+
+- **Storage-First Atomicity**: Store blob first, rollback on DB failure
+- **Empty Directory Cleanup**: Delete removes empty parent directories within base path
+- **PDF Metadata Extraction**: pdfcpu integrated directly for page count
+- **MaxUploadSize Config**: Human-readable format via docker/go-units
+
+See ARCHITECTURE.md for current implementation details.
+
+## Milestone 3+: Future Patterns
 
 *This section will be populated as future milestone patterns are designed.*
-
-### Blob Storage Abstraction (Milestone 2)
-
-**Not yet designed - To be added during Milestone 2 planning**
-
-Considerations:
-- Filesystem vs Azure Blob Storage implementation
-- Interface abstraction for storage backends
-- Transaction coordination between DB and blob storage
-- Cleanup strategies for orphaned blobs
 
 ### Long-Running Systems (Milestone 3)
 

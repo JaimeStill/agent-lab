@@ -363,34 +363,44 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - `Validate` method returns `(bool, error)` - false/nil for not exists, false/err for permission issues
 - Testing success measured by critical path coverage, not arbitrary percentages
 
-#### Session 2b: Documents Domain System
+#### Session 2b: Documents Domain System ✅
 
-**Focus**: Document entity management following M1 patterns (no document-context dependency)
+**Status**: Completed (2025-12-09)
 
-**Deliverables**:
-- Database schema: `documents` table (id, name, filename, content_type, size_bytes, page_count nullable, metadata JSONB, created_at, updated_at)
-- Migration for documents table
-- Documents domain system (system.go, repository.go, handler.go, filters.go, etc.)
-- Upload API (`POST /api/documents`) - multipart/form-data, store blob, store basic metadata
-- CRUD endpoints (GET by ID, DELETE, list with pagination/filters)
-- Delete removes both database record and blob
-- OpenAPI integration for all endpoints
+**Implemented**:
+- Database schema: `documents` table with indexes (omitted metadata JSONB per YAGNI)
+- Migration `000004_documents` (up/down)
+- Documents domain system (document.go, errors.go, filters.go, system.go, repository.go, handler.go, openapi.go, projection.go, scanner.go)
+- Upload API with PDF page count extraction via pdfcpu
+- Full CRUD endpoints with pagination and filtering
+- Delete removes blob and database record; cleans up empty parent directories
+- Storage-first atomicity with rollback on DB failure
+- MaxUploadSize config (human-readable via docker/go-units)
 
-**Validation**: Upload PDF, retrieve metadata (page_count null), delete document (blob + record removed)
+**Validation**: ✅ Upload PDF with page_count extracted, update name, delete (blob + record + empty directory removed)
+
+**Architectural Decisions**:
+- Omit metadata JSONB (add when concrete use case emerges)
+- pdfcpu integrated directly (not via document-context)
+- Documents domain constructs storage keys (`documents/{uuid}/{filename}`)
+- SortFields type with flexible JSON unmarshaling (string or array)
+- OpenAPI Properties aligned with OpenAPI 3.1 (Properties ARE Schemas)
 
 #### Session 2c: document-context Integration
 
-**Focus**: PDF processing - metadata extraction and page rendering
+**Focus**: PDF page rendering via document-context library
 
 **Deliverables**:
 - Add document-context library to go.mod
-- Enhance upload flow: extract page_count as part of initial record creation (not a separate update)
 - Page rendering endpoint: `GET /api/documents/{id}/pages/{num}`
 - Query params for filters: `?dpi=300&brightness=110&contrast=10&format=png`
 - Configuration for document-context cache directory
 - Filter parameter mapping (HTTP query → ImageMagickConfig)
+- Integration with existing documents domain (retrieve blob for rendering)
 
-**Validation**: Upload PDF with page_count extracted and stored, render page with filters, verify cache hit
+**Validation**: Render page with filters, verify cache hit on subsequent requests
+
+**Note**: Page count extraction already implemented in Session 2b via pdfcpu
 
 ---
 

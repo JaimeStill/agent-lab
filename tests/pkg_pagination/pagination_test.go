@@ -320,3 +320,134 @@ func TestPageRequestFromQuery(t *testing.T) {
 func strPtr(s string) *string {
 	return &s
 }
+
+func TestSortFields_UnmarshalJSON_String(t *testing.T) {
+	tests := []struct {
+		name     string
+		json     string
+		wantSort []query.SortField
+	}{
+		{
+			name:     "single ascending field",
+			json:     `"name"`,
+			wantSort: []query.SortField{{Field: "name", Descending: false}},
+		},
+		{
+			name:     "single descending field",
+			json:     `"-created_at"`,
+			wantSort: []query.SortField{{Field: "created_at", Descending: true}},
+		},
+		{
+			name: "multiple fields",
+			json: `"name,-created_at,updated_at"`,
+			wantSort: []query.SortField{
+				{Field: "name", Descending: false},
+				{Field: "created_at", Descending: true},
+				{Field: "updated_at", Descending: false},
+			},
+		},
+		{
+			name:     "empty string",
+			json:     `""`,
+			wantSort: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sf pagination.SortFields
+			if err := sf.UnmarshalJSON([]byte(tt.json)); err != nil {
+				t.Fatalf("UnmarshalJSON() error = %v", err)
+			}
+
+			if tt.wantSort == nil {
+				if len(sf) != 0 {
+					t.Errorf("SortFields = %v, want empty", sf)
+				}
+				return
+			}
+
+			if len(sf) != len(tt.wantSort) {
+				t.Fatalf("len(SortFields) = %d, want %d", len(sf), len(tt.wantSort))
+			}
+
+			for i, want := range tt.wantSort {
+				if sf[i].Field != want.Field {
+					t.Errorf("SortFields[%d].Field = %q, want %q", i, sf[i].Field, want.Field)
+				}
+				if sf[i].Descending != want.Descending {
+					t.Errorf("SortFields[%d].Descending = %v, want %v", i, sf[i].Descending, want.Descending)
+				}
+			}
+		})
+	}
+}
+
+func TestSortFields_UnmarshalJSON_Array(t *testing.T) {
+	tests := []struct {
+		name     string
+		json     string
+		wantSort []query.SortField
+	}{
+		{
+			name:     "single field object",
+			json:     `[{"Field":"name","Descending":false}]`,
+			wantSort: []query.SortField{{Field: "name", Descending: false}},
+		},
+		{
+			name: "multiple field objects",
+			json: `[{"Field":"name","Descending":false},{"Field":"created_at","Descending":true}]`,
+			wantSort: []query.SortField{
+				{Field: "name", Descending: false},
+				{Field: "created_at", Descending: true},
+			},
+		},
+		{
+			name:     "empty array",
+			json:     `[]`,
+			wantSort: []query.SortField{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sf pagination.SortFields
+			if err := sf.UnmarshalJSON([]byte(tt.json)); err != nil {
+				t.Fatalf("UnmarshalJSON() error = %v", err)
+			}
+
+			if len(sf) != len(tt.wantSort) {
+				t.Fatalf("len(SortFields) = %d, want %d", len(sf), len(tt.wantSort))
+			}
+
+			for i, want := range tt.wantSort {
+				if sf[i].Field != want.Field {
+					t.Errorf("SortFields[%d].Field = %q, want %q", i, sf[i].Field, want.Field)
+				}
+				if sf[i].Descending != want.Descending {
+					t.Errorf("SortFields[%d].Descending = %v, want %v", i, sf[i].Descending, want.Descending)
+				}
+			}
+		})
+	}
+}
+
+func TestSortFields_UnmarshalJSON_InvalidInput(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+	}{
+		{"invalid type number", `123`},
+		{"invalid type boolean", `true`},
+		{"malformed json", `{invalid`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sf pagination.SortFields
+			if err := sf.UnmarshalJSON([]byte(tt.json)); err == nil {
+				t.Error("UnmarshalJSON() expected error, got nil")
+			}
+		})
+	}
+}

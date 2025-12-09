@@ -109,19 +109,29 @@ Create comprehensive step-by-step guide:
 - Code blocks have NO comments (minimize tokens, avoid maintenance)
 - NO testing infrastructure (AI's responsibility after implementation)
 - NO documentation (godoc comments added by AI after validation)
+- NO OpenAPI specifications (AI's responsibility in Step 4)
 
 **File Change Conventions:**
 - **Existing files**: Show incremental changes only (what's being added/modified)
 - **New files**: Provide complete implementation
 - Never replace entire existing files - preserve original architecture integrity
 
-#### 4. Developer Execution
+#### 4. OpenAPI Maintenance
+Prepare API specification infrastructure before implementation:
+- Create/update domain `openapi.go` with operations and schemas
+- Ensure schema types align with OpenAPI 3.1 (Properties are Schemas)
+- Verify helper functions produce valid references
+- See `_context/openapi-integration.md` for patterns and conventions
+
+This ensures handlers can reference `Spec.{Operation}` without compilation errors.
+
+#### 5. Developer Execution
 Developer implements following the guide:
 - You execute implementation as code base maintainer
 - AI on standby for mentorship and adjustments
 - Focus on code structure, not comments or tests
 
-#### 5. Validation Phase
+#### 6. Validation Phase
 AI reviews and validates implementation:
 - Review for accuracy and completeness
 - Add and revise testing infrastructure
@@ -129,25 +139,24 @@ AI reviews and validates implementation:
 - Verify critical paths are covered (see Testing Conventions)
 - Black-box testing: `package <name>_test`, test only public API
 
-#### 6. Documentation Phase
-AI adds code documentation and maintains API specifications:
+#### 7. Documentation Phase
+AI adds code documentation:
 - Add godoc comments to exported types, functions, methods
 - Document non-obvious behavior
-- **Maintain OpenAPI specification** (`api/openapi.yaml`) after API surface changes
 
-#### 7. Session Closeout
+#### 8. Session Closeout
 
 Session closeout ensures documentation stays aligned with the codebase and captures verified patterns.
 
-**7.1 Generate Session Summary**:
+**8.1 Generate Session Summary**:
 - Create `_context/sessions/[session-id]-[session-title].md`
 - Document what was implemented, key decisions, and patterns established
 
-**7.2 Archive Implementation Guide**:
+**8.2 Archive Implementation Guide**:
 - Move guide to `_context/sessions/.archive/[session-id]-[session-title].md`
 - We **archive** instead of deleting for reference
 
-**7.3 Update Documentation** (evaluate each):
+**8.3 Update Documentation** (evaluate each):
 
 | Document | Update Criteria |
 |----------|-----------------|

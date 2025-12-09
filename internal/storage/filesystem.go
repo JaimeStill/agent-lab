@@ -105,6 +105,8 @@ func (f *filesystem) Delete(ctx context.Context, key string) error {
 		return err
 	}
 
+	dir := filepath.Dir(path)
+
 	if err := os.Remove(path); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
@@ -113,6 +115,20 @@ func (f *filesystem) Delete(ctx context.Context, key string) error {
 			return ErrPermissionDenied
 		}
 		return fmt.Errorf("remove file: %w", err)
+	}
+
+	if dir != f.basePath && strings.HasPrefix(dir, f.basePath) {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			f.logger.Warn("failed to read directory for cleanup", "dir", dir, "error", err)
+			return nil
+		}
+
+		if len(entries) == 0 {
+			if err := os.Remove(dir); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				f.logger.Warn("failed to remove empty directory", "dir", dir, "error", err)
+			}
+		}
 	}
 
 	return nil

@@ -46,3 +46,4 @@ max_page_size = 100
 
 [storage]
 base_path = ".data/blobs"
+max_upload_size = "100MB"
