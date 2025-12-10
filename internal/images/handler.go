@@ -1,9 +1,10 @@
-package providers
+package images
 
 import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/JaimeStill/agent-lab/internal/routes"
 	"github.com/JaimeStill/agent-lab/pkg/handlers"
@@ -11,36 +12,39 @@ import (
 	"github.com/google/uuid"
 )
 
+// Handler provides HTTP endpoints for image management.
 type Handler struct {
 	sys        System
 	logger     *slog.Logger
 	pagination pagination.Config
 }
 
+// NewHandler creates a new images HTTP handler.
 func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *Handler {
 	return &Handler{
 		sys:        sys,
-		logger:     logger,
+		logger:     logger.With("handler", "images"),
 		pagination: pagination,
 	}
 }
 
+// Routes returns the route configuration for image endpoints.
 func (h *Handler) Routes() routes.Group {
 	return routes.Group{
-		Prefix:      "/api/providers",
-		Tags:        []string{"Providers"},
-		Description: "Provider configuration management",
+		Prefix:      "/api/images",
+		Tags:        []string{"Images"},
+		Description: "Document page image rendering and management",
 		Routes: []routes.Route{
 			{Method: "GET", Pattern: "", Handler: h.List, OpenAPI: Spec.List},
 			{Method: "GET", Pattern: "/{id}", Handler: h.Find, OpenAPI: Spec.Find},
-			{Method: "POST", Pattern: "/search", Handler: h.Search, OpenAPI: Spec.Search},
-			{Method: "POST", Pattern: "", Handler: h.Create, OpenAPI: Spec.Create},
-			{Method: "PUT", Pattern: "/{id}", Handler: h.Update, OpenAPI: Spec.Update},
+			{Method: "GET", Pattern: "/{id}/data", Handler: h.Data, OpenAPI: Spec.Data},
+			{Method: "POST", Pattern: "/{documentId}/render", Handler: h.Render, OpenAPI: Spec.Render},
 			{Method: "DELETE", Pattern: "/{id}", Handler: h.Delete, OpenAPI: Spec.Delete},
 		},
 	}
 }
 
+// List handles GET / - returns paginated images with optional filters.
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	page := pagination.PageRequestFromQuery(r.URL.Query(), h.pagination)
 	filters := FiltersFromQuery(r.URL.Query())
@@ -54,6 +58,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	handlers.RespondJSON(w, http.StatusOK, result)
 }
 
+// Find handles GET /{id} - returns image metadata.
 func (h *Handler) Find(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
@@ -61,71 +66,64 @@ func (h *Handler) Find(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.sys.Find(r.Context(), id)
+	img, err := h.sys.Find(r.Context(), id)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
 		return
 	}
 
-	handlers.RespondJSON(w, http.StatusOK, result)
+	handlers.RespondJSON(w, http.StatusOK, img)
 }
 
-func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
-	var page pagination.PageRequest
-	if err := json.NewDecoder(r.Body).Decode(&page); err != nil {
-		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
-		return
-	}
-
-	filters := FiltersFromQuery(r.URL.Query())
-
-	result, err := h.sys.List(r.Context(), page, filters)
-	if err != nil {
-		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
-		return
-	}
-
-	handlers.RespondJSON(w, http.StatusOK, result)
-}
-
-func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	var cmd CreateCommand
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
-		return
-	}
-
-	result, err := h.sys.Create(r.Context(), cmd)
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	handlers.RespondJSON(w, http.StatusCreated, result)
-}
-
-func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+// Data handles GET /{id}/data - returns raw image bytes.
+func (h *Handler) Data(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
 		return
 	}
 
-	var cmd UpdateCommand
-	if err := json.NewDecoder(r.Body).Decode(&cmd); err != nil {
-		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
-		return
-	}
-
-	result, err := h.sys.Update(r.Context(), id, cmd)
+	data, contentType, err := h.sys.Data(r.Context(), id)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
 		return
 	}
 
-	handlers.RespondJSON(w, http.StatusOK, result)
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+	w.WriteHeader(http.StatusOK)
+	w.Write(data)
 }
 
+// Render handles POST /{documentId}/render - renders document pages to images.
+func (h *Handler) Render(w http.ResponseWriter, r *http.Request) {
+	documentID, err := uuid.Parse(r.PathValue("documentId"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	var opts RenderOptions
+	if err := json.NewDecoder(r.Body).Decode(&opts); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := opts.Validate(); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	images, err := h.sys.Render(r.Context(), documentID, opts)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusCreated, images)
+}
+
+// Delete handles DELETE /{id} - removes an image.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {

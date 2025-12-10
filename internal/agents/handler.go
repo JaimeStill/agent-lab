@@ -39,12 +39,12 @@ func (h *Handler) Routes() routes.Group {
 		Tags:        []string{"Agents"},
 		Description: "Agent configuration and execution",
 		Routes: []routes.Route{
-			{Method: "POST", Pattern: "", Handler: h.Create, OpenAPI: Spec.Create},
 			{Method: "GET", Pattern: "", Handler: h.List, OpenAPI: Spec.List},
-			{Method: "GET", Pattern: "/{id}", Handler: h.GetByID, OpenAPI: Spec.Get},
+			{Method: "GET", Pattern: "/{id}", Handler: h.Find, OpenAPI: Spec.Find},
+			{Method: "POST", Pattern: "/search", Handler: h.Search, OpenAPI: Spec.Search},
+			{Method: "POST", Pattern: "", Handler: h.Create, OpenAPI: Spec.Create},
 			{Method: "PUT", Pattern: "/{id}", Handler: h.Update, OpenAPI: Spec.Update},
 			{Method: "DELETE", Pattern: "/{id}", Handler: h.Delete, OpenAPI: Spec.Delete},
-			{Method: "POST", Pattern: "/search", Handler: h.Search, OpenAPI: Spec.Search},
 			{Method: "POST", Pattern: "/{id}/chat", Handler: h.Chat, OpenAPI: Spec.Chat},
 			{Method: "POST", Pattern: "/{id}/chat/stream", Handler: h.ChatStream, OpenAPI: Spec.ChatStream},
 			{Method: "POST", Pattern: "/{id}/vision", Handler: h.Vision, OpenAPI: Spec.Vision},
@@ -53,6 +53,56 @@ func (h *Handler) Routes() routes.Group {
 			{Method: "POST", Pattern: "/{id}/embed", Handler: h.Embed, OpenAPI: Spec.Embed},
 		},
 	}
+}
+
+// List handles GET /api/agents to retrieve a paginated list of agents.
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	page := pagination.PageRequestFromQuery(r.URL.Query(), h.pagination)
+	filters := FiltersFromQuery(r.URL.Query())
+
+	result, err := h.sys.List(r.Context(), page, filters)
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, result)
+}
+
+// Find handles GET /api/agents/{id} to retrieve a single agent.
+func (h *Handler) Find(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := h.sys.Find(r.Context(), id)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, result)
+}
+
+// Search handles POST /api/agents/search to search agents with request body parameters.
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	var page pagination.PageRequest
+	if err := json.NewDecoder(r.Body).Decode(&page); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	filters := FiltersFromQuery(r.URL.Query())
+
+	result, err := h.sys.List(r.Context(), page, filters)
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, result)
 }
 
 // Create handles POST /api/agents to create a new agent.
@@ -109,56 +159,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// GetByID handles GET /api/agents/{id} to retrieve a single agent.
-func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
-		return
-	}
-
-	result, err := h.sys.GetByID(r.Context(), id)
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	handlers.RespondJSON(w, http.StatusOK, result)
-}
-
-// List handles GET /api/agents to retrieve a paginated list of agents.
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	page := pagination.PageRequestFromQuery(r.URL.Query(), h.pagination)
-	filters := FiltersFromQuery(r.URL.Query())
-
-	result, err := h.sys.Search(r.Context(), page, filters)
-	if err != nil {
-		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
-		return
-	}
-
-	handlers.RespondJSON(w, http.StatusOK, result)
-}
-
-// Search handles POST /api/agents/search to search agents with request body parameters.
-func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
-	var page pagination.PageRequest
-	if err := json.NewDecoder(r.Body).Decode(&page); err != nil {
-		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
-		return
-	}
-
-	filters := FiltersFromQuery(r.URL.Query())
-
-	result, err := h.sys.Search(r.Context(), page, filters)
-	if err != nil {
-		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
-		return
-	}
-
-	handlers.RespondJSON(w, http.StatusOK, result)
 }
 
 // Chat handles POST /api/agents/{id}/chat to execute a chat completion.
@@ -336,7 +336,7 @@ func (h *Handler) Embed(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) constructAgent(ctx context.Context, id uuid.UUID, token string) (agent.Agent, error) {
-	record, err := h.sys.GetByID(ctx, id)
+	record, err := h.sys.Find(ctx, id)
 	if err != nil {
 		return nil, err
 	}

@@ -8,3 +8,5 @@ var projection = query.NewProjectionMap("public", "providers", "p").
 	Project("config", "Config").
 	Project("created_at", "CreatedAt").
 	Project("updated_at", "UpdatedAt")
+
+var defaultSort = query.SortField{Field: "Name"}

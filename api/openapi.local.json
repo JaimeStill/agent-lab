@@ -869,6 +869,231 @@
         }
       }
     },
+    "/api/images": {
+      "get": {
+        "summary": "List images",
+        "description": "List rendered images with optional filters and pagination",
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "query",
+            "description": "Filter by document ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Items per page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Filter by format (png or jpg)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page_number",
+            "in": "query",
+            "description": "Filter by page number",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImagePageResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/images/{documentId}/render": {
+      "post": {
+        "summary": "Render document pages",
+        "description": "Render document pages to images. Supports batch rendering with page range expressions (e.g., '1-5,10,15-20'). Currently supports PDF files.",
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "documentId",
+            "in": "path",
+            "required": true,
+            "description": "Document ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Images rendered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageArray"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "description": "Render failed"
+          }
+        }
+      }
+    },
+    "/api/images/{id}": {
+      "get": {
+        "summary": "Get image metadata",
+        "description": "Get metadata for a rendered image",
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Image ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Image"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete image",
+        "description": "Delete a rendered image from storage and database",
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Image ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Image deleted"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/images/{id}/data": {
+      "get": {
+        "summary": "Get image binary",
+        "description": "Get the raw binary data for a rendered image",
+        "tags": [
+          "Images"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Image ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image binary data",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/providers": {
       "get": {
         "summary": "List providers",
@@ -1375,6 +1600,97 @@
           }
         }
       },
+      "Image": {
+        "type": "object",
+        "properties": {
+          "background": {
+            "type": "string",
+            "description": "Background color name"
+          },
+          "brightness": {
+            "type": "integer",
+            "description": "Brightness adjustment (0-200)"
+          },
+          "contrast": {
+            "type": "integer",
+            "description": "Contrast adjustment (-100 to 100)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dpi": {
+            "type": "integer",
+            "description": "Resolution in DPI"
+          },
+          "format": {
+            "type": "string",
+            "description": "Image format (png or jpg)"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "page_number": {
+            "type": "integer",
+            "description": "Page number (1-indexed)"
+          },
+          "quality": {
+            "type": "integer",
+            "description": "JPEG quality (1-100)"
+          },
+          "rotation": {
+            "type": "integer",
+            "description": "Rotation in degrees (0-360)"
+          },
+          "saturation": {
+            "type": "integer",
+            "description": "Saturation adjustment (0-200)"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "format": "int64",
+            "description": "File size in bytes"
+          },
+          "storage_key": {
+            "type": "string",
+            "description": "Storage location key"
+          }
+        }
+      },
+      "ImageArray": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Image"
+        }
+      },
+      "ImagePageResult": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Image"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          }
+        }
+      },
       "PageRequest": {
         "type": "object",
         "properties": {
@@ -1446,6 +1762,90 @@
           "total_pages": {
             "type": "integer",
             "description": "Total number of pages"
+          }
+        }
+      },
+      "RenderRequest": {
+        "type": "object",
+        "properties": {
+          "background": {
+            "type": "string",
+            "description": "Background color name",
+            "default": "white"
+          },
+          "brightness": {
+            "type": "integer",
+            "description": "Brightness adjustment (0-200, 100 is neutral)",
+            "default": 100,
+            "minimum": 0,
+            "maximum": 200
+          },
+          "contrast": {
+            "type": "integer",
+            "description": "Contrast adjustment (-100 to 100, 0 is neutral)",
+            "default": 0,
+            "minimum": -100,
+            "maximum": 100
+          },
+          "dpi": {
+            "type": "integer",
+            "description": "Resolution in DPI (72-1200)",
+            "default": 300,
+            "minimum": 72,
+            "maximum": 1200
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Re-render even if matching image exists",
+            "default": false
+          },
+          "format": {
+            "type": "string",
+            "description": "Output format",
+            "default": "png",
+            "enum": [
+              "png",
+              "jpg"
+            ]
+          },
+          "pages": {
+            "type": "string",
+            "description": "Page range expression (e.g., '1-5,10,15-20'). Omit to render all pages."
+          },
+          "quality": {
+            "type": "integer",
+            "description": "JPEG quality (1-100, only applies to jpg format)",
+            "default": 90,
+            "minimum": 1,
+            "maximum": 100
+          },
+          "rotation": {
+            "type": "integer",
+            "description": "Rotation in degrees (0-360)",
+            "default": 0,
+            "minimum": 0,
+            "maximum": 360
+          },
+          "saturation": {
+            "type": "integer",
+            "description": "Saturation adjustment (0-200, 100 is neutral)",
+            "default": 100,
+            "minimum": 0,
+            "maximum": 200
+          }
+        }
+      },
+      "RenderResponse": {
+        "type": "object",
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/Document"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Image"
+            }
           }
         }
       },

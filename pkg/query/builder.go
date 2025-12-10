@@ -54,9 +54,9 @@ func ParseSortFields(s string) []SortField {
 			continue
 		}
 
-		if strings.HasPrefix(part, "-") {
+		if after, ok := strings.CutPrefix(part, "-"); ok {
 			fields = append(fields, SortField{
-				Field:      strings.TrimPrefix(part, "-"),
+				Field:      after,
 				Descending: true,
 			})
 		} else {
@@ -108,6 +108,17 @@ func (b *Builder) BuildSingle(idField string, id any) (string, []any) {
 	return sql, []any{id}
 }
 
+func (b *Builder) BuildSingleOrNull() (string, []any) {
+	where, args, _ := b.buildWhere(1)
+	sql := fmt.Sprintf(
+		"SELECT %s FROM %s%s LIMIT 1",
+		b.projection.Columns(),
+		b.projection.Table(),
+		where,
+	)
+	return sql, args
+}
+
 // OrderByFields sets the sort order for paginated queries.
 // Overrides default sort fields set in NewBuilder. Nil or empty clears explicit sorting.
 func (b *Builder) OrderByFields(fields []SortField) *Builder {
@@ -155,6 +166,23 @@ func (b *Builder) WhereIn(field string, values []any) *Builder {
 		clause: fmt.Sprintf("%s IN (%s)", col, strings.Join(placeholders, ", ")),
 		args:   values,
 	})
+	return b
+}
+
+func (b *Builder) WhereNullable(column string, val any) *Builder {
+	col := b.projection.Column(column)
+	if val == nil {
+		b.conditions = append(b.conditions, condition{
+			clause: col + " IS NULL",
+			args:   nil,
+		})
+	} else {
+		b.conditions = append(b.conditions, condition{
+			clause: fmt.Sprintf("%s = $%%d", col),
+			args:   []any{val},
+		})
+	}
+
 	return b
 }
 

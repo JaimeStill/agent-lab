@@ -386,30 +386,44 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - SortFields type with flexible JSON unmarshaling (string or array)
 - OpenAPI Properties aligned with OpenAPI 3.1 (Properties ARE Schemas)
 
-#### Session 2c: document-context Integration
+#### Session 2c: document-context Integration ✅
 
-**Focus**: PDF page rendering via document-context library
+**Status**: Completed (2025-12-10)
 
-**Deliverables**:
-- Add document-context library to go.mod
-- Page rendering endpoint: `GET /api/documents/{id}/pages/{num}`
-- Query params for filters: `?dpi=300&brightness=110&contrast=10&format=png`
-- Configuration for document-context cache directory
-- Filter parameter mapping (HTTP query → ImageMagickConfig)
-- Integration with existing documents domain (retrieve blob for rendering)
+**Implemented**:
+- Images domain system (`internal/images/`) - first-class database entities
+- Database schema: `images` table with full render options storage
+- Page range expressions: `1`, `1-5`, `1,3,5`, `1-5,10,15-20`, `-3`, `5-`
+- document-context integration for ImageMagick rendering
+- API endpoints: render, list, get metadata, get binary, delete
+- Deduplication with optional force re-render
+- Storage system `Path()` method for document-context integration
 
-**Validation**: Render page with filters, verify cache hit on subsequent requests
+**API Endpoints**:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/images/{documentId}/render` | Render document pages |
+| GET | `/api/images` | List images with optional filters |
+| GET | `/api/images/{id}` | Get image metadata |
+| GET | `/api/images/{id}/data` | Get raw image binary |
+| DELETE | `/api/images/{id}` | Delete image |
 
-**Note**: Page count extraction already implemented in Session 2b via pdfcpu
+**Validation**: ✅ All endpoints tested with curl, 52 unit tests passing
+
+**Architectural Decisions**:
+- Images as first-class resources (not nested under documents)
+- Cross-domain dependency: images → documents (unidirectional)
+- Optional DocumentID filter for flexible querying
+- ImageMagick neutral defaults (brightness=100, contrast=0, saturation=100)
 
 ---
 
 **Success Criteria**:
-- Upload multi-page PDF, extract metadata (page count)
-- Render page as PNG with default settings (300 DPI)
-- Apply enhancement filters (brightness, contrast, saturation, rotation)
-- Serve rendered page image for preview
-- Cache subsequent requests (verify cache hit performance)
+- Upload multi-page PDF, extract metadata (page count) ✅
+- Render page as PNG with default settings (300 DPI) ✅
+- Apply enhancement filters (brightness, contrast, saturation, rotation) ✅
+- Serve rendered page image for preview ✅
+- Deduplication: Same render options returns existing image without re-rendering ✅
 
 ### Milestone 3: Async Workflow Execution Engine
 
@@ -580,11 +594,12 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 **In Progress**:
 - Milestone 2: Document Upload & Processing
   - Session 02a: Blob Storage Infrastructure - ✅ Completed
-  - Session 02b: Documents Domain System - Not Started
-  - Session 02c: document-context Integration - Not Started
+  - Session 02b: Documents Domain System - ✅ Completed
+  - Session 02c: document-context Integration - ✅ Completed
 
 **Next Steps**:
-- Begin Session 02b: Documents Domain System
+- Milestone 2 Review: Validate success criteria, integration testing
+- Begin Milestone 3: Async Workflow Execution Engine
 
 ## Future Phases (Beyond Milestone 8)
 

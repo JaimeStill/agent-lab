@@ -30,6 +30,45 @@ func New(db *sql.DB, logger *slog.Logger, pagination pagination.Config) System {
 	}
 }
 
+func (r *repo) List(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Agent], error) {
+	page.Normalize(r.pagination)
+
+	qb := query.
+		NewBuilder(projection, defaultSort).
+		WhereSearch(page.Search, "Name")
+
+	filters.Apply(qb)
+
+	if len(page.Sort) > 0 {
+		qb.OrderByFields(page.Sort)
+	}
+
+	countSql, countArgs := qb.BuildCount()
+	var total int
+	if err := r.db.QueryRowContext(ctx, countSql, countArgs...).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count agents: %w", err)
+	}
+
+	pageSQL, pageArgs := qb.BuildPage(page.Page, page.PageSize)
+	agents, err := repository.QueryMany(ctx, r.db, pageSQL, pageArgs, scanAgent)
+	if err != nil {
+		return nil, fmt.Errorf("query agents: %w", err)
+	}
+
+	result := pagination.NewPageResult(agents, total, page.Page, page.PageSize)
+	return &result, nil
+}
+
+func (r *repo) Find(ctx context.Context, id uuid.UUID) (*Agent, error) {
+	q, args := query.NewBuilder(projection).BuildSingle("Id", id)
+
+	a, err := repository.QueryOne(ctx, r.db, q, args, scanAgent)
+	if err != nil {
+		return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
+	}
+	return &a, nil
+}
+
 func (r *repo) Create(ctx context.Context, cmd CreateCommand) (*Agent, error) {
 	if err := r.validateConfig(cmd.Config); err != nil {
 		return nil, err
@@ -87,45 +126,6 @@ func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
 
 	r.logger.Info("agent deleted", "id", id)
 	return nil
-}
-
-func (r *repo) GetByID(ctx context.Context, id uuid.UUID) (*Agent, error) {
-	q, args := query.NewBuilder(projection).BuildSingle("Id", id)
-
-	a, err := repository.QueryOne(ctx, r.db, q, args, scanAgent)
-	if err != nil {
-		return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
-	}
-	return &a, nil
-}
-
-func (r *repo) Search(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Agent], error) {
-	page.Normalize(r.pagination)
-
-	qb := query.
-		NewBuilder(projection, query.SortField{Field: "Name"}).
-		WhereSearch(page.Search, "Name")
-
-	filters.Apply(qb)
-
-	if len(page.Sort) > 0 {
-		qb.OrderByFields(page.Sort)
-	}
-
-	countSql, countArgs := qb.BuildCount()
-	var total int
-	if err := r.db.QueryRowContext(ctx, countSql, countArgs...).Scan(&total); err != nil {
-		return nil, fmt.Errorf("count agents: %w", err)
-	}
-
-	pageSQL, pageArgs := qb.BuildPage(page.Page, page.PageSize)
-	agents, err := repository.QueryMany(ctx, r.db, pageSQL, pageArgs, scanAgent)
-	if err != nil {
-		return nil, fmt.Errorf("query agents: %w", err)
-	}
-
-	result := pagination.NewPageResult(agents, total, page.Page, page.PageSize)
-	return &result, nil
 }
 
 func (r *repo) validateConfig(config json.RawMessage) error {
