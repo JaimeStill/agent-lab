@@ -4,12 +4,12 @@ import "github.com/JaimeStill/agent-lab/pkg/openapi"
 
 // spec holds OpenAPI operation definitions for the agents domain.
 type spec struct {
-	Create       *openapi.Operation
 	List         *openapi.Operation
-	Get          *openapi.Operation
+	Find         *openapi.Operation
+	Search       *openapi.Operation
+	Create       *openapi.Operation
 	Update       *openapi.Operation
 	Delete       *openapi.Operation
-	Search       *openapi.Operation
 	Chat         *openapi.Operation
 	ChatStream   *openapi.Operation
 	Vision       *openapi.Operation
@@ -20,16 +20,6 @@ type spec struct {
 
 // Spec contains OpenAPI operation definitions for all agent endpoints.
 var Spec = spec{
-	Create: &openapi.Operation{
-		Summary:     "Create agent",
-		Description: "Validates and stores a new agent configuration",
-		RequestBody: openapi.RequestBodyJSON("CreateAgentCommand", true),
-		Responses: map[int]*openapi.Response{
-			201: openapi.ResponseJSON("Agent created", "Agent"),
-			400: openapi.ResponseRef("BadRequest"),
-			409: openapi.ResponseRef("Conflict"),
-		},
-	},
 	List: &openapi.Operation{
 		Summary:     "List agents",
 		Description: "Returns a paginated list of agents with optional filtering and sorting",
@@ -44,8 +34,8 @@ var Spec = spec{
 			200: openapi.ResponseJSON("Paginated list of agents", "AgentPageResult"),
 		},
 	},
-	Get: &openapi.Operation{
-		Summary:     "Get agent by ID",
+	Find: &openapi.Operation{
+		Summary:     "Find agent by ID",
 		Description: "Retrieves a single agent configuration",
 		Parameters: []*openapi.Parameter{
 			openapi.PathParam("id", "Agent UUID"),
@@ -54,6 +44,28 @@ var Spec = spec{
 			200: openapi.ResponseJSON("Agent configuration", "Agent"),
 			400: openapi.ResponseRef("BadRequest"),
 			404: openapi.ResponseRef("NotFound"),
+		},
+	},
+	Search: &openapi.Operation{
+		Summary:     "Search agents",
+		Description: "Search agents with filters and pagination via POST body",
+		Parameters: []*openapi.Parameter{
+			openapi.QueryParam("name", "string", "Filter by agent name (contains)", false),
+		},
+		RequestBody: openapi.RequestBodyJSON("PageRequest", false),
+		Responses: map[int]*openapi.Response{
+			200: openapi.ResponseJSON("Paginated search results", "AgentPageResult"),
+			400: openapi.ResponseRef("BadRequest"),
+		},
+	},
+	Create: &openapi.Operation{
+		Summary:     "Create agent",
+		Description: "Validates and stores a new agent configuration",
+		RequestBody: openapi.RequestBodyJSON("CreateAgentCommand", true),
+		Responses: map[int]*openapi.Response{
+			201: openapi.ResponseJSON("Agent created", "Agent"),
+			400: openapi.ResponseRef("BadRequest"),
+			409: openapi.ResponseRef("Conflict"),
 		},
 	},
 	Update: &openapi.Operation{
@@ -79,18 +91,6 @@ var Spec = spec{
 		Responses: map[int]*openapi.Response{
 			204: {Description: "Agent deleted"},
 			404: openapi.ResponseRef("NotFound"),
-		},
-	},
-	Search: &openapi.Operation{
-		Summary:     "Search agents",
-		Description: "Search agents with filters and pagination via POST body",
-		Parameters: []*openapi.Parameter{
-			openapi.QueryParam("name", "string", "Filter by agent name (contains)", false),
-		},
-		RequestBody: openapi.RequestBodyJSON("PageRequest", false),
-		Responses: map[int]*openapi.Response{
-			200: openapi.ResponseJSON("Paginated search results", "AgentPageResult"),
-			400: openapi.ResponseRef("BadRequest"),
 		},
 	},
 	Chat: &openapi.Operation{

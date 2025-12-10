@@ -34,4 +34,6 @@ type System interface {
 	// Start registers lifecycle hooks with the coordinator.
 	// For filesystem storage, this creates the base directory.
 	Start(lc *lifecycle.Coordinator) error
+
+	Path(ctx context.Context, key string) (string, error)
 }

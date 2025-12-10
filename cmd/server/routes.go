@@ -6,6 +6,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/agents"
 	"github.com/JaimeStill/agent-lab/internal/config"
 	"github.com/JaimeStill/agent-lab/internal/documents"
+	"github.com/JaimeStill/agent-lab/internal/images"
 	"github.com/JaimeStill/agent-lab/internal/lifecycle"
 	"github.com/JaimeStill/agent-lab/internal/providers"
 	"github.com/JaimeStill/agent-lab/internal/routes"
@@ -36,6 +37,13 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 		cfg.Storage.MaxUploadSizeBytes(),
 	)
 	r.RegisterGroup(documentHandler.Routes())
+
+	imagesHandler := images.NewHandler(
+		domain.Images,
+		runtime.Logger,
+		runtime.Pagination,
+	)
+	r.RegisterGroup(imagesHandler.Routes())
 
 	r.RegisterRoute(routes.Route{
 		Method:  "GET",
@@ -70,6 +78,7 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 	components.AddSchemas(agents.Spec.Schemas())
 	components.AddSchemas(providers.Spec.Schemas())
 	components.AddSchemas(documents.Spec.Schemas())
+	components.AddSchemas(images.Spec.Schemas())
 
 	specBytes, err := loadOrGenerateSpec(cfg, r, components)
 	if err != nil {

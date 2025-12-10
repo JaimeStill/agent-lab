@@ -3,15 +3,53 @@ package documents
 import "github.com/JaimeStill/agent-lab/pkg/openapi"
 
 type spec struct {
-	Upload *openapi.Operation
 	List   *openapi.Operation
-	Get    *openapi.Operation
+	Find   *openapi.Operation
+	Search *openapi.Operation
+	Upload *openapi.Operation
 	Update *openapi.Operation
 	Delete *openapi.Operation
-	Search *openapi.Operation
 }
 
 var Spec = spec{
+	List: &openapi.Operation{
+		Summary:     "List documents",
+		Description: "List documents with pagination and optional filters",
+		Parameters: []*openapi.Parameter{
+			openapi.QueryParam("page", "integer", "Page number", false),
+			openapi.QueryParam("page_size", "integer", "Items per page", false),
+			openapi.QueryParam("search", "string", "Search in name and filename", false),
+			openapi.QueryParam("name", "string", "Filter by name (contains)", false),
+			openapi.QueryParam("content_type", "string", "Filter by content type (contains)", false),
+		},
+		Responses: map[int]*openapi.Response{
+			200: openapi.ResponseJSON("Documents list", "DocumentPageResult"),
+		},
+	},
+	Find: &openapi.Operation{
+		Summary:     "Find document",
+		Description: "Find document by ID",
+		Parameters: []*openapi.Parameter{
+			openapi.PathParam("id", "Document ID"),
+		},
+		Responses: map[int]*openapi.Response{
+			200: openapi.ResponseJSON("Document details", "Document"),
+			404: openapi.ResponseRef("NotFound"),
+		},
+	},
+	Search: &openapi.Operation{
+		Summary:     "Search documents",
+		Description: "Search documents with pagination in request body",
+		Parameters: []*openapi.Parameter{
+			openapi.QueryParam("name", "string", "Filter by name (contains)", false),
+			openapi.QueryParam("content_type", "string", "Filter by content type (contains)", false),
+		},
+		RequestBody: openapi.RequestBodyJSON("PageRequest", true),
+		Responses: map[int]*openapi.Response{
+			200: openapi.ResponseJSON("Search results", "DocumentPageResult"),
+			400: openapi.ResponseRef("BadRequest"),
+		},
+	},
 	Upload: &openapi.Operation{
 		Summary:     "Upload document",
 		Description: "Upload a document file with optional display name. PDFs have page count extracted automatically.",
@@ -36,31 +74,6 @@ var Spec = spec{
 			413: {Description: "File too large"},
 		},
 	},
-	List: &openapi.Operation{
-		Summary:     "List documents",
-		Description: "List documents with pagination and optional filters",
-		Parameters: []*openapi.Parameter{
-			openapi.QueryParam("page", "integer", "Page number", false),
-			openapi.QueryParam("page_size", "integer", "Items per page", false),
-			openapi.QueryParam("search", "string", "Search in name and filename", false),
-			openapi.QueryParam("name", "string", "Filter by name (contains)", false),
-			openapi.QueryParam("content_type", "string", "Filter by content type (contains)", false),
-		},
-		Responses: map[int]*openapi.Response{
-			200: openapi.ResponseJSON("Documents list", "DocumentPageResult"),
-		},
-	},
-	Get: &openapi.Operation{
-		Summary:     "Get document",
-		Description: "Get document by ID",
-		Parameters: []*openapi.Parameter{
-			openapi.PathParam("id", "Document ID"),
-		},
-		Responses: map[int]*openapi.Response{
-			200: openapi.ResponseJSON("Document details", "Document"),
-			404: openapi.ResponseRef("NotFound"),
-		},
-	},
 	Update: &openapi.Operation{
 		Summary:     "Update document",
 		Description: "Update document display name",
@@ -83,19 +96,6 @@ var Spec = spec{
 		Responses: map[int]*openapi.Response{
 			204: {Description: "Document deleted"},
 			404: openapi.ResponseRef("NotFound"),
-		},
-	},
-	Search: &openapi.Operation{
-		Summary:     "Search documents",
-		Description: "Search documents with pagination in request body",
-		Parameters: []*openapi.Parameter{
-			openapi.QueryParam("name", "string", "Filter by name (contains)", false),
-			openapi.QueryParam("content_type", "string", "Filter by content type (contains)", false),
-		},
-		RequestBody: openapi.RequestBodyJSON("PageRequest", true),
-		Responses: map[int]*openapi.Response{
-			200: openapi.ResponseJSON("Search results", "DocumentPageResult"),
-			400: openapi.ResponseRef("BadRequest"),
 		},
 	},
 }

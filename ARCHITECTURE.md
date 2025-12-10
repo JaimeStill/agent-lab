@@ -403,9 +403,18 @@ Domain holds stateless business logic systems:
 type Domain struct {
     Providers providers.System
     Agents    agents.System
+    Documents documents.System
+    Images    images.System
 }
 
 func NewDomain(runtime *Runtime) *Domain {
+    docs := documents.New(
+        runtime.Database.Connection(),
+        runtime.Storage,
+        runtime.Logger,
+        runtime.Pagination,
+    )
+
     return &Domain{
         Providers: providers.New(
             runtime.Database.Connection(),
@@ -417,13 +426,21 @@ func NewDomain(runtime *Runtime) *Domain {
             runtime.Logger,
             runtime.Pagination,
         ),
+        Documents: docs,
+        Images: images.New(
+            docs,  // Domain dependency first
+            runtime.Database.Connection(),
+            runtime.Storage,
+            runtime.Logger,
+            runtime.Pagination,
+        ),
     }
 }
 ```
 
 **Key Principles**:
 1. **Runtime holds System interfaces** - Domain systems call methods like `runtime.Database.Connection()` to get what they need
-2. **Domain systems are independent** - They only depend on Runtime systems, not on each other
+2. **Domain dependencies first** - Cross-domain dependencies listed before runtime dependencies in constructors
 3. **Domain systems pre-initialized** - Created at startup in `NewDomain()`, stored in Server struct
 
 ### Server Structure
@@ -1282,6 +1299,7 @@ func (b *Builder) OrderByFields(fields []SortField) *Builder
 func (b *Builder) BuildCount() (sql string, args []any)
 func (b *Builder) BuildPage(page, pageSize int) (sql string, args []any)
 func (b *Builder) BuildSingle(idField string, id any) (sql string, args []any)
+func (b *Builder) BuildSingleOrNull() (sql string, args []any)  // Use accumulated filters
 ```
 
 **Usage**:
@@ -1948,6 +1966,38 @@ func scanProvider(s repository.Scanner) (Provider, error) {
     return p, err
 }
 ```
+
+### Cross-Domain Dependencies
+
+Domain systems can depend on other domain systems when operations require
+cross-domain data access. Dependencies must be unidirectional to prevent cycles.
+
+**Pattern**: Inject dependent systems via constructor with domain dependencies first:
+```go
+// images depends on documents (unidirectional)
+func New(
+    docs documents.System,  // Domain dependencies first
+    db *sql.DB,             // Then runtime dependencies
+    storage storage.System,
+    logger *slog.Logger,
+    pagination pagination.Config,
+) System {
+    return &repo{
+        db:         db,
+        documents:  docs,
+        storage:    storage,
+        logger:     logger,
+        pagination: pagination,
+    }
+}
+```
+
+**Rules**:
+- Domain dependencies listed before runtime dependencies in constructor signatures
+- Dependencies flow one direction only (A → B, never B → A)
+- Inject via constructor, not method parameters
+- Use interface types to avoid import cycles
+- Wire at server startup in `cmd/server/domain.go`
 
 ## Error Handling
 

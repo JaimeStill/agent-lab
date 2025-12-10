@@ -32,6 +32,47 @@ func New(db *sql.DB, storage storage.System, logger *slog.Logger, pagination pag
 	}
 }
 
+func (r *repo) List(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Document], error) {
+	page.Normalize(r.pagination)
+
+	qb := query.
+		NewBuilder(projection, defaultSort).
+		WhereSearch(page.Search, "Name", "Filename")
+
+	filters.Apply(qb)
+
+	if len(page.Sort) > 0 {
+		qb.OrderByFields(page.Sort)
+	}
+
+	countSQL, countArgs := qb.BuildCount()
+	var total int
+	if err := r.db.QueryRowContext(ctx, countSQL, countArgs...).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count documents: %w", err)
+	}
+
+	pageSQL, pageArgs := qb.BuildPage(page.Page, page.PageSize)
+	docs, err := repository.QueryMany(ctx, r.db, pageSQL, pageArgs, scanDocument)
+	if err != nil {
+		return nil, fmt.Errorf("query documents: %w", err)
+	}
+
+	result := pagination.NewPageResult(docs, total, page.Page, page.PageSize)
+	return &result, nil
+}
+
+func (r *repo) Find(ctx context.Context, id uuid.UUID) (*Document, error) {
+	q, args := query.
+		NewBuilder(projection).
+		BuildSingle("Id", id)
+
+	doc, err := repository.QueryOne(ctx, r.db, q, args, scanDocument)
+	if err != nil {
+		return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
+	}
+	return &doc, nil
+}
+
 func (r *repo) Create(ctx context.Context, cmd CreateCommand) (*Document, error) {
 	id := uuid.New()
 	storageKey := buildStorageKey(id, cmd.Filename)
@@ -79,7 +120,7 @@ func (r *repo) Update(ctx context.Context, id uuid.UUID, cmd UpdateCommand) (*Do
 }
 
 func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
-	doc, err := r.GetByID(ctx, id)
+	doc, err := r.Find(ctx, id)
 	if err != nil {
 		if err == ErrNotFound {
 			return nil
@@ -102,47 +143,6 @@ func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
 
 	r.logger.Info("document deleted", "id", id)
 	return nil
-}
-
-func (r *repo) GetByID(ctx context.Context, id uuid.UUID) (*Document, error) {
-	q, args := query.
-		NewBuilder(projection).
-		BuildSingle("Id", id)
-
-	doc, err := repository.QueryOne(ctx, r.db, q, args, scanDocument)
-	if err != nil {
-		return nil, repository.MapError(err, ErrNotFound, ErrDuplicate)
-	}
-	return &doc, nil
-}
-
-func (r *repo) Search(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Document], error) {
-	page.Normalize(r.pagination)
-
-	qb := query.
-		NewBuilder(projection, query.SortField{Field: "CreatedAt", Descending: true}).
-		WhereSearch(page.Search, "Name", "Filename")
-
-	filters.Apply(qb)
-
-	if len(page.Sort) > 0 {
-		qb.OrderByFields(page.Sort)
-	}
-
-	countSQL, countArgs := qb.BuildCount()
-	var total int
-	if err := r.db.QueryRowContext(ctx, countSQL, countArgs...).Scan(&total); err != nil {
-		return nil, fmt.Errorf("count documents: %w", err)
-	}
-
-	pageSQL, pageArgs := qb.BuildPage(page.Page, page.PageSize)
-	docs, err := repository.QueryMany(ctx, r.db, pageSQL, pageArgs, scanDocument)
-	if err != nil {
-		return nil, fmt.Errorf("query documents: %w", err)
-	}
-
-	result := pagination.NewPageResult(docs, total, page.Page, page.PageSize)
-	return &result, nil
 }
 
 func buildStorageKey(id uuid.UUID, filename string) string {

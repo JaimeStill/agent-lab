@@ -3,6 +3,7 @@ module github.com/JaimeStill/agent-lab
 go 1.25.4
 
 require (
+	github.com/JaimeStill/document-context v0.1.0
 	github.com/JaimeStill/go-agents v0.3.0
 	github.com/docker/go-units v0.5.0
 	github.com/golang-migrate/migrate/v4 v4.19.0

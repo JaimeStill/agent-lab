@@ -39,14 +39,61 @@ func (h *Handler) Routes() routes.Group {
 		Tags:        []string{"Documents"},
 		Description: "Document upload and management",
 		Routes: []routes.Route{
-			{Method: "POST", Pattern: "", Handler: h.Upload, OpenAPI: Spec.Upload},
 			{Method: "GET", Pattern: "", Handler: h.List, OpenAPI: Spec.List},
-			{Method: "GET", Pattern: "/{id}", Handler: h.GetByID, OpenAPI: Spec.Get},
+			{Method: "GET", Pattern: "/{id}", Handler: h.Find, OpenAPI: Spec.Find},
+			{Method: "POST", Pattern: "/search", Handler: h.Search, OpenAPI: Spec.Search},
+			{Method: "POST", Pattern: "", Handler: h.Upload, OpenAPI: Spec.Upload},
 			{Method: "PUT", Pattern: "/{id}", Handler: h.Update, OpenAPI: Spec.Update},
 			{Method: "DELETE", Pattern: "/{id}", Handler: h.Delete, OpenAPI: Spec.Delete},
-			{Method: "POST", Pattern: "/search", Handler: h.Search, OpenAPI: Spec.Search},
 		},
 	}
+}
+
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	page := pagination.PageRequestFromQuery(r.URL.Query(), h.pagination)
+	filters := FiltersFromQuery(r.URL.Query())
+
+	result, err := h.sys.List(r.Context(), page, filters)
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, result)
+}
+
+func (h *Handler) Find(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	doc, err := h.sys.Find(r.Context(), id)
+	if err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, doc)
+}
+
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+	var page pagination.PageRequest
+	if err := json.NewDecoder(r.Body).Decode(&page); err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	filters := FiltersFromQuery(r.URL.Query())
+
+	result, err := h.sys.List(r.Context(), page, filters)
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
+		return
+	}
+
+	handlers.RespondJSON(w, http.StatusOK, result)
 }
 
 func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
@@ -108,35 +155,6 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 	handlers.RespondJSON(w, http.StatusCreated, doc)
 }
 
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	page := pagination.PageRequestFromQuery(r.URL.Query(), h.pagination)
-	filters := FiltersFromQuery(r.URL.Query())
-
-	result, err := h.sys.Search(r.Context(), page, filters)
-	if err != nil {
-		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
-		return
-	}
-
-	handlers.RespondJSON(w, http.StatusOK, result)
-}
-
-func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil {
-		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
-		return
-	}
-
-	doc, err := h.sys.GetByID(r.Context(), id)
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	handlers.RespondJSON(w, http.StatusOK, doc)
-}
-
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
@@ -174,24 +192,6 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
-	var page pagination.PageRequest
-	if err := json.NewDecoder(r.Body).Decode(&page); err != nil {
-		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
-		return
-	}
-
-	filters := FiltersFromQuery(r.URL.Query())
-
-	result, err := h.sys.Search(r.Context(), page, filters)
-	if err != nil {
-		handlers.RespondError(w, h.logger, http.StatusInternalServerError, err)
-		return
-	}
-
-	handlers.RespondJSON(w, http.StatusOK, result)
-}
-
 func detectContentType(header string, data []byte) string {
 	if header != "" && header != "application/octet-stream" {
 		return header
@@ -200,10 +200,9 @@ func detectContentType(header string, data []byte) string {
 }
 
 func extractPDFPageCount(data []byte) (*int, error) {
-	ctx, err := api.ReadContext(bytes.NewReader(data), model.NewDefaultConfiguration())
+	count, err := api.PageCount(bytes.NewReader(data), model.NewDefaultConfiguration())
 	if err != nil {
 		return nil, err
 	}
-	count := ctx.PageCount
 	return &count, nil
 }

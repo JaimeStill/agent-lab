@@ -109,7 +109,10 @@ Create comprehensive step-by-step guide:
 - Code blocks have NO comments (minimize tokens, avoid maintenance)
 - NO testing infrastructure (AI's responsibility after implementation)
 - NO documentation (godoc comments added by AI after validation)
-- NO OpenAPI specifications (AI's responsibility in Step 4)
+- NO OpenAPI `openapi.go` file contents (AI creates these in Step 4)
+  - DO include route definitions with `OpenAPI: Spec.*` references
+  - DO include schema registration in routes.go (`components.AddSchemas(...)`)
+  - The AI prepares the actual `openapi.go` files before developer execution
 
 **File Change Conventions:**
 - **Existing files**: Show incremental changes only (what's being added/modified)
@@ -274,6 +277,7 @@ All technical patterns are documented in [ARCHITECTURE.md](./ARCHITECTURE.md):
 - Configuration precedence
 - Database patterns (raw SQL, parameterized queries)
 - Query Engine (ProjectionMap, QueryBuilder)
+- Cross-Domain Dependencies
 - Error handling and logging
 
 **Pattern Decision Guide:**

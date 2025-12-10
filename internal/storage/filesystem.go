@@ -41,6 +41,22 @@ func New(cfg *config.StorageConfig, logger *slog.Logger) (System, error) {
 	}, nil
 }
 
+func (f *filesystem) Path(ctx context.Context, key string) (string, error) {
+	path, err := f.fullPath(key)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", ErrNotFound
+		}
+		return "", fmt.Errorf("stat file: %w", err)
+	}
+
+	return path, nil
+}
+
 func (f *filesystem) Start(lc *lifecycle.Coordinator) error {
 	f.logger.Info("starting storage system", "base_path", f.basePath)
 
