@@ -157,7 +157,7 @@
     },
     "/api/agents/{id}": {
       "get": {
-        "summary": "Get agent by ID",
+        "summary": "Find agent by ID",
         "description": "Retrieves a single agent configuration",
         "tags": [
           "Agents"
@@ -757,8 +757,8 @@
     },
     "/api/documents/{id}": {
       "get": {
-        "summary": "Get document",
-        "description": "Get document by ID",
+        "summary": "Find document",
+        "description": "Find document by ID",
         "tags": [
           "Documents"
         ],
@@ -987,8 +987,8 @@
     },
     "/api/images/{id}": {
       "get": {
-        "summary": "Get image metadata",
-        "description": "Get metadata for a rendered image",
+        "summary": "Find image metadata",
+        "description": "Find metadata for a rendered image",
         "tags": [
           "Images"
         ],
@@ -1240,7 +1240,7 @@
     },
     "/api/providers/{id}": {
       "get": {
-        "summary": "Get provider by ID",
+        "summary": "Find provider by ID",
         "description": "Retrieves a single provider configuration",
         "tags": [
           "Providers"
@@ -1832,20 +1832,6 @@
             "default": 100,
             "minimum": 0,
             "maximum": 200
-          }
-        }
-      },
-      "RenderResponse": {
-        "type": "object",
-        "properties": {
-          "document": {
-            "$ref": "#/components/schemas/Document"
-          },
-          "images": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Image"
-            }
           }
         }
       },

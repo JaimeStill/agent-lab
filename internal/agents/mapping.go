@@ -4,7 +4,24 @@ import (
 	"net/url"
 
 	"github.com/JaimeStill/agent-lab/pkg/query"
+	"github.com/JaimeStill/agent-lab/pkg/repository"
 )
+
+var projection = query.
+	NewProjectionMap("public", "agents", "a").
+	Project("id", "Id").
+	Project("name", "Name").
+	Project("config", "Config").
+	Project("created_at", "CreatedAt").
+	Project("updated_at", "UpdatedAt")
+
+var defaultSort = query.SortField{Field: "Name"}
+
+func scanAgent(s repository.Scanner) (Agent, error) {
+	var a Agent
+	err := s.Scan(&a.ID, &a.Name, &a.Config, &a.CreatedAt, &a.UpdatedAt)
+	return a, err
+}
 
 // Filters contains optional filtering criteria for agent queries.
 type Filters struct {

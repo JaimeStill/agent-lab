@@ -212,24 +212,39 @@ internal/                 # Private API: Domain systems
 ├── providers/            # Providers domain system
 │   ├── provider.go           # State structures
 │   ├── errors.go             # Domain errors + HTTP status mapping
-│   ├── projection.go         # Query projection map
+│   ├── mapping.go            # Projection, scanner, and filters
 │   ├── system.go             # System interface
 │   ├── repository.go         # Repository implementation
 │   ├── handler.go            # Handler struct with route methods
-│   ├── scanner.go            # Row scanner function
-│   ├── filters.go            # Domain-specific filters
 │   └── openapi.go            # OpenAPI schemas and operations
 │
-└── agents/               # Agents domain system
-    ├── agent.go              # State structures
+├── agents/               # Agents domain system
+│   ├── agent.go              # State structures
+│   ├── errors.go             # Domain errors + HTTP status mapping
+│   ├── mapping.go            # Projection, scanner, and filters
+│   ├── system.go             # System interface
+│   ├── repository.go         # Repository implementation
+│   ├── handler.go            # Handler struct with CRUD + execution methods
+│   ├── requests.go           # Execution request types + VisionForm
+│   └── openapi.go            # OpenAPI schemas and operations
+│
+├── documents/            # Documents domain system
+│   ├── document.go           # State structures
+│   ├── errors.go             # Domain errors + HTTP status mapping
+│   ├── mapping.go            # Projection, scanner, and filters
+│   ├── system.go             # System interface
+│   ├── repository.go         # Repository implementation
+│   ├── handler.go            # Handler struct with route methods
+│   └── openapi.go            # OpenAPI schemas and operations
+│
+└── images/               # Images domain system
+    ├── image.go              # State structures + RenderOptions
+    ├── document.go           # Document interface for rendering
     ├── errors.go             # Domain errors + HTTP status mapping
-    ├── projection.go         # Query projection map
+    ├── mapping.go            # Projection, scanner, filters, and page range parsing
     ├── system.go             # System interface
-    ├── repository.go         # Repository implementation
-    ├── handler.go            # Handler struct with CRUD + execution methods
-    ├── scanner.go            # Row scanner function
-    ├── filters.go            # Domain-specific filters
-    ├── requests.go           # Execution request types + VisionForm
+    ├── repository.go         # Repository implementation + rendering logic
+    ├── handler.go            # Handler struct with route methods
     └── openapi.go            # OpenAPI schemas and operations
 
 pkg/                      # Public API: Shared infrastructure
@@ -264,8 +279,11 @@ tests/                    # Black-box tests
 ├── cmd_server/
 ├── internal_agents/
 ├── internal_config/
+├── internal_documents/
+├── internal_images/
 ├── internal_lifecycle/
 ├── internal_middleware/
+├── internal_providers/
 ├── internal_routes/
 ├── internal_storage/
 ├── pkg_handlers/
@@ -1956,10 +1974,10 @@ func (r *repo) FindByID(ctx context.Context, id uuid.UUID) (*Provider, error) {
 
 ### Domain Scanner Pattern
 
-Each domain defines a scanner function for its entities:
+Each domain defines a scanner function in its mapping.go file:
 
 ```go
-// internal/providers/scanner.go
+// internal/providers/mapping.go
 func scanProvider(s repository.Scanner) (Provider, error) {
     var p Provider
     err := s.Scan(&p.ID, &p.Name, &p.Config, &p.CreatedAt, &p.UpdatedAt)
@@ -2028,6 +2046,7 @@ internal/database/
 
 internal/providers/
 ├── errors.go      # Package errors (ErrNotFound, ErrInvalidConfig, etc.)
+├── mapping.go     # Projection, scanner, and filters
 ├── provider.go    # State definitions
 └── repository.go  # System implementation
 ```
@@ -2125,13 +2144,22 @@ func TestLoad_Scenarios(t *testing.T) {
 
 ```
 tests/
+├── cmd_server/           # Server integration tests
+├── internal_agents/      # Agents domain tests
 ├── internal_config/      # Config package tests
+├── internal_documents/   # Documents domain tests
+├── internal_images/      # Images domain tests
 ├── internal_lifecycle/   # Lifecycle coordinator tests
-├── internal_routes/      # Routes package tests
 ├── internal_middleware/  # Middleware package tests
+├── internal_providers/   # Providers domain tests
+├── internal_routes/      # Routes package tests
+├── internal_storage/     # Storage system tests
+├── pkg_handlers/         # HTTP handlers tests
+├── pkg_openapi/          # OpenAPI package tests
 ├── pkg_pagination/       # Pagination package tests
 ├── pkg_query/            # Query builder tests
-└── cmd_server/           # Server integration tests
+├── pkg_repository/       # Repository helpers tests
+└── web_docs/             # Documentation UI tests
 ```
 
 ## Pattern Decision Guide
