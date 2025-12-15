@@ -341,10 +341,14 @@ func (h *Handler) constructAgent(ctx context.Context, id uuid.UUID, token string
 		return nil, err
 	}
 
-	var cfg agtconfig.AgentConfig
-	if err := json.Unmarshal(record.Config, &cfg); err != nil {
+	cfg := agtconfig.DefaultAgentConfig()
+
+	var storedCfg agtconfig.AgentConfig
+	if err := json.Unmarshal(record.Config, &storedCfg); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 	}
+
+	cfg.Merge(&storedCfg)
 
 	if token != "" {
 		if cfg.Provider.Options == nil {

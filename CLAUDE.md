@@ -169,6 +169,36 @@ Session closeout ensures documentation stays aligned with the codebase and captu
 | **service-design.md** | Remove concepts that have been integrated into the codebase |
 | **PROJECT.md** | Update session status. Evaluate remaining sessions for adjustments (scope changes, dependencies, reordering) |
 
+### Maintenance Session Workflow
+
+Maintenance sessions differ from development sessions - they focus on cleanup, refactoring, or cross-repository coordination rather than new feature development.
+
+**When to Use**:
+- Migrating functionality between repositories (e.g., shims → library)
+- Refactoring patterns across multiple domains
+- Pre-milestone cleanup to reduce technical debt
+- Cross-repository version coordination
+
+**Session ID Format**: `m##` (e.g., `m01`, `m02`)
+
+**Workflow**:
+
+1. **Planning Phase** - Review scope and dependencies across repositories
+2. **Implementation Guide** - Create guide at `_context/m##-[title].md`
+3. **Developer Execution** - Follow guide, coordinating releases if needed
+4. **AI Validation** - Validate changes and adjust tests
+5. **Session Closeout**:
+   - Archive guide to `_context/sessions/.archive/m##-[title].md`
+   - Create summary at `_context/sessions/m##-[title].md`
+   - Update PROJECT.md with maintenance session status
+   - Update CLAUDE.md if workflow patterns evolved
+
+**Key Differences from Development Sessions**:
+- May span multiple repositories
+- Library releases may be required between phases
+- Focus on consolidation rather than new capability
+- Tests may need adjustment rather than creation
+
 ### Post Session Milestone Review
 
 After completing a development session (especially mid-milestone), conduct a **Post Session Milestone Review** to ensure the roadmap stays aligned with lessons learned:

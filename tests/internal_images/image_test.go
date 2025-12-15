@@ -9,49 +9,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestParseImageFormat(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    document.ImageFormat
-		wantErr bool
-	}{
-		{"png lowercase", "png", document.PNG, false},
-		{"PNG uppercase", "PNG", document.PNG, false},
-		{"Png mixed case", "Png", document.PNG, false},
-		{"jpg lowercase", "jpg", document.JPEG, false},
-		{"JPG uppercase", "JPG", document.JPEG, false},
-		{"jpeg lowercase", "jpeg", document.JPEG, false},
-		{"JPEG uppercase", "JPEG", document.JPEG, false},
-		{"empty string defaults to png", "", document.PNG, false},
-		{"invalid format gif", "gif", "", true},
-		{"invalid format bmp", "bmp", "", true},
-		{"invalid format tiff", "tiff", "", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := images.ParseImageFormat(tt.input)
-
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("ParseImageFormat() error = nil, want error")
-				}
-				if !errors.Is(err, images.ErrInvalidRenderOption) {
-					t.Errorf("ParseImageFormat() error = %v, want ErrInvalidRenderOption", err)
-				}
-			} else {
-				if err != nil {
-					t.Errorf("ParseImageFormat() error = %v, want nil", err)
-				}
-				if got != tt.want {
-					t.Errorf("ParseImageFormat() = %q, want %q", got, tt.want)
-				}
-			}
-		})
-	}
-}
-
 func TestRenderOptions_Validate(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -9,7 +9,7 @@ agent-lab is a containerized Go web service platform for building and orchestrat
 Built on the go-agents ecosystem:
 - **go-agents** (v0.3.0): LLM integration with multi-provider support
 - **go-agents-orchestration** (v0.1.0+): Workflow orchestration patterns
-- **document-context** (v0.1.0+): PDF processing with LCA architecture
+- **document-context** (v0.1.1): PDF processing with LCA architecture
 
 ## Long-Term Vision
 
@@ -103,7 +103,7 @@ agent-lab will enable experimentation with:
 - **Libraries**:
   - go-agents v0.3.0 (LLM integration)
   - go-agents-orchestration v0.1.0+ (workflow patterns)
-  - document-context v0.1.0+ (PDF processing)
+  - document-context v0.1.1 (PDF processing)
 
 ### Frontend
 
@@ -1224,13 +1224,19 @@ internal/tools/registry.go         # Register domain tools
   - TrimSlash middleware for trailing slash redirects
 
 **In Progress**:
-- Milestone 2: Document Upload & Processing
-  - Session 02a: Blob Storage Infrastructure - ✅ Completed
-  - Session 02b: Documents Domain System - ✅ Completed
-  - Session 02c: document-context Integration - ✅ Completed
+- Milestone 3: Async Workflow Execution Engine (planning phase)
+
+**Recently Completed**:
+- Milestone 2: Document Upload & Processing ✅
+  - Session 02a: Blob Storage Infrastructure ✅
+  - Session 02b: Documents Domain System ✅
+  - Session 02c: document-context Integration ✅
+- Maintenance Session m01: document-context Format Support ✅
+  - Migrated format support from agent-lab shims to document-context v0.1.1
+  - Added ParseImageFormat, Open, IsSupported, SupportedFormats to document-context
+  - Improved agent config validation with Default + Merge pattern
 
 **Next Steps**:
-- Milestone 2 Review: Validate success criteria, integration testing
 - Begin Milestone 3: Async Workflow Execution Engine
 
 ## Future Phases (Beyond Milestone 8)

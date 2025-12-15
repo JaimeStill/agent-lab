@@ -129,10 +129,14 @@ func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *repo) validateConfig(config json.RawMessage) error {
-	var cfg agtconfig.AgentConfig
-	if err := json.Unmarshal(config, &cfg); err != nil {
+	cfg := agtconfig.DefaultAgentConfig()
+
+	var userCfg agtconfig.AgentConfig
+	if err := json.Unmarshal(config, &userCfg); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)
 	}
+
+	cfg.Merge(&userCfg)
 
 	if _, err := agent.New(&cfg); err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidConfig, err)

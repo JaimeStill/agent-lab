@@ -73,7 +73,7 @@ func FiltersFromQuery(values url.Values) Filters {
 	}
 
 	if format := values.Get("format"); format != "" {
-		if parsed, err := ParseImageFormat(format); err == nil {
+		if parsed, err := document.ParseImageFormat(format); err == nil {
 			f.Format = &parsed
 		}
 	}
