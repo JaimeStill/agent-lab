@@ -425,130 +425,117 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Serve rendered page image for preview ✅
 - Deduplication: Same render options returns existing image without re-rendering ✅
 
-### Milestone 3: Async Workflow Execution Engine
+### Milestone 3: Workflow Execution Infrastructure
 
-**Objective**: Implement queue-based async execution with state management. This is the **core value proposition** of agent-lab - enabling users to design effective agentic workflows in an empowering, intuitive way without deep development efforts.
+**Objective**: Build infrastructure for executing code-defined workflows with full observability, enabling iterative experimentation on agentic workflow designs.
 
-**Two Foundational Pillars**:
-1. **Workflow Definition & Execution** - Design and run multi-agent workflows
-2. **Agent Tool Integration** - Agents intuitively interfacing with domain systems (documents, images)
+**Architecture Document**: `_context/milestones/m03-workflow-execution.md`
 
-**Status**: Schema Redesign In Progress
+**Key Decisions**:
 
-The initial session structure was based on a flawed understanding of how go-agents-orchestration primitives should map to database structures. We're pausing to approach this correctly with a bottom-up design.
+1. **Code-defined workflows** - Workflows are Go code registered by name. No workflow definition CRUD - that comes after we understand patterns better through iteration.
 
-**Key Insights from Exploration**:
+2. **Visibility via Observer** - Per-stage results + routing decisions captured via go-agents-orchestration's Observer interface. Events both persisted to database AND streamed via SSE.
 
-1. **Workflow type at wrong level** - Composition should happen at node/step level, not workflow level
-2. **Conditional is edge behavior** - Multiple edges with predicates, not a step type
-3. **StateGraph is the general model** - Chain/Parallel/Conditional are patterns within it or convenience wrappers
-4. **Hubs are coordination infrastructure** - Can be used standalone or within workflow nodes, not a workflow structure element
-5. **Checkpointing is graph-only** - ProcessChain and ProcessParallel are synchronous; only StateGraph uses checkpoints
-6. **Avoid over-abstraction** - Schema got too complex trying to model everything relationally
+3. **Infrastructure only** - No classify-docs workflow in M3. This milestone builds the execution engine; classify-docs implementation comes in Milestone 5.
 
-**go-agents-orchestration Primitives** (what we're mapping from):
+4. **Sync + SSE streaming** - Two execution modes: sync (wait for completion) and streaming (real-time SSE progress with cancellation support). No background/polling model needed for iteration.
 
-| Primitive | Execution Model | Checkpointing | Description |
-|-----------|-----------------|---------------|-------------|
-| `ProcessChain` | Synchronous | No | Sequential task execution, state flows through |
-| `ProcessParallel` | Synchronous | No | Concurrent tasks with aggregation |
-| `ProcessConditional` | Synchronous | No | Predicate-based routing to different handlers |
-| `StateGraph` | Async-capable | Yes | Nodes + edges, entry/exit points, iteration limits |
-| `Hub` | Standalone or embedded | No | Multi-agent coordination, usable independently or within nodes |
+**Database Schema** (4 tables):
+- `runs` - Execution records (id, workflow_name, status, params, result)
+- `stages` - Per-node execution via Observer events
+- `decisions` - Routing decisions (from_node, to_node, predicate_result, reason)
+- `checkpoints` - State persistence for resume capability
 
-**Schema Approaches Explored** (and why they didn't fit):
+**API Endpoints**:
 
-1. **Workflow-level type enum** (`chain`/`parallel`/`conditional`/`graph`)
-   - Problem: Composition happens at node level, not workflow level
-   - A workflow might have a chain inside a graph node
-
-2. **Separate typed step tables** (workflow_steps, workflow_edges, workflow_hubs)
-   - Problem: Over-abstraction, forced relational structure on concepts that don't map cleanly
-   - Tried to make hubs a workflow structure element when they're coordination infrastructure
-
-3. **Linked-list cascade from entry_point**
-   - Problem: Still complex, and conditional routing is edge behavior (multiple edges with predicates), not a step type
-
-4. **Hybrid approach** (operation_type discriminator + separate operation tables)
-   - Problem: Still cramming library features into relational tables
-   - The library already has well-designed in-memory structures
-
-5. **JSONB definition blob** (single workflows table with `definition JSONB`)
-   - Trade-off: Simplest approach but loses referential integrity benefits
-   - May be appropriate if most structure is ephemeral
-
-**Key Tension**:
-
-The core question is what **agent-lab specifically** needs to persist vs what can remain ephemeral. go-agents-orchestration already has well-designed in-memory structures for execution. The database schema should capture what's needed for:
-- User management (CRUD workflows)
-- Execution history (runs, traces)
-- Agent/document references (foreign keys)
-- Querying and filtering (which workflows use which agents?)
-
-Not everything in the library's type system needs a corresponding table.
-
-**Redesign Approach**:
-
-1. Analyze concrete go-agents-orchestration examples
-2. Identify what actually needs persistence (not everything does)
-3. Extract minimal composable primitives from real use cases
-4. Let schema emerge from those primitives (bottom-up design)
-5. Restructure sessions around the validated schema
-
-**Questions to Resolve**:
-
-- What are the minimal stateful primitives that require persistence?
-- How do we maintain referential integrity without over-abstracting?
-- What's the right balance between relational structure and JSON flexibility?
-- How should workflows cascade execution from an entry point through the structure?
-
-**Risk Areas** (unchanged):
-1. **Worker Pool Shutdown** - Graceful completion of in-flight work
-2. **Cancellation Propagation** - Context flow from API to worker to orchestration
-3. **Checkpoint Consistency** - Atomic state writes during execution
-4. **Event Bus Reliability** - Bounded channels, overflow handling
-5. **Tool Execution Security** - Validate tool calls, prevent injection
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/workflows` | List registered workflows |
+| POST | `/api/workflows/{name}/execute` | Execute workflow (sync) |
+| POST | `/api/workflows/{name}/execute/stream` | Execute with SSE progress |
+| GET | `/api/runs` | List runs with filters |
+| GET | `/api/runs/{id}` | Get run details |
+| GET | `/api/runs/{id}/stages` | Get execution stages |
+| GET | `/api/runs/{id}/decisions` | Get routing decisions |
+| POST | `/api/runs/{id}/cancel` | Cancel running workflow |
+| POST | `/api/runs/{id}/resume` | Resume from checkpoint |
 
 **Development Sessions**:
 
-> **Note**: The session breakdown below is INVALIDATED pending schema redesign. Sessions will be restructured once the bottom-up schema design is complete.
+#### Session 3a: Workflow Infrastructure Foundation
 
-#### Phase A: Workflow Definition System (PENDING REDESIGN)
+**Objective**: Database schema and core types.
 
-Sessions 3a1-3a6 were designed around a flawed domain model. The new sessions will be defined after:
-1. Analyzing go-agents-orchestration examples
-2. Identifying composable primitives
-3. Designing schema from primitives
-4. Validating assembly/execution patterns
+**Deliverables**:
+- Migration: runs, stages, decisions, checkpoints
+- Package skeleton: `internal/workflows/`
+- Types: Run, Stage, Decision, Checkpoint
+- Registry: workflow registration and discovery
+- Repository: Run CRUD operations
 
-**Original Session List** (for reference, will be replaced):
-- 3a1: Workflows Domain
-- 3a2: Workflow Steps Domain
-- 3a3: Workflow Edges Domain
-- 3a4: Workflow Hubs Domain
-- 3a5: Workflow Validation
-- 3a6: Workflow Assembly
+**Validation**: Registry accepts factories, runs persist to database.
 
-#### Phase B: Execution Infrastructure (PENDING REDESIGN)
+#### Session 3b: Observer and Checkpoint Store
 
-Sessions 3b1-3b4 cover execution state tracking, event bus, queue, and worker pool. Details will be defined after Phase A schema is finalized.
+**Objective**: Implement go-agents-orchestration interfaces for persistence.
 
-#### Phase C: Workflow Execution Integration (PENDING REDESIGN)
+**Deliverables**:
+- PostgresObserver implementing `observability.Observer`
+- PostgresCheckpointStore implementing `state.CheckpointStore`
+- Registration with go-agents-orchestration registries
+- Stage/decision recording from Observer events
 
-Sessions 3c1-3c7 cover chain, parallel, conditional, graph, hub execution, checkpointing, and cancellation. Details will be defined after Phases A-B are finalized.
+**Validation**: Observer captures events to database, checkpoints save/load correctly.
 
-#### Phase D: Agent Tool System (PENDING REDESIGN)
+#### Session 3c: Workflow Execution Engine
 
-Sessions 3d1-3d4 cover tool registry, permissions, interface, and domain tools. Details will be defined after Phases A-C are finalized.
+**Objective**: Connect components to execute workflows.
+
+**Deliverables**:
+- Executor: combines registry + observer + checkpoint store
+- Dependencies struct for domain access (agents, documents, images)
+- Run lifecycle: pending → running → completed/failed/cancelled
+- Context cancellation propagation for workflow abort
+- SSE event channel for streaming progress
+
+**Validation**: Execute test workflow, verify stages/decisions recorded, cancellation works.
+
+#### Session 3d: API Endpoints
+
+**Objective**: HTTP interface for execution and inspection.
+
+**Deliverables**:
+- Handler with routes following agents/handler.go pattern
+- OpenAPI specification
+- Execute endpoint (sync completion)
+- Execute/stream endpoint (SSE progress)
+- Cancel endpoint (abort running workflow)
+- List runs, get run details, stages, decisions endpoints
+- Resume endpoint
+
+**Validation**: Full API workflow via curl/tests, SSE streaming works.
+
+#### Session 3e: Sample Workflow and Integration Tests
+
+**Objective**: Validate infrastructure with working example.
+
+**Deliverables**:
+- Sample "echo" workflow (simple chain: input → transform → output)
+- Sample workflow using conditional routing
+- Integration tests covering execution, checkpoints, resume
+- ARCHITECTURE.md updates
+
+**Validation**: Integration tests pass, patterns documented.
 
 ---
 
 **Success Criteria**:
-- Execute workflow returns immediately with run_id (202 Accepted)
-- Worker pool processes queued executions
-- Update execution status throughout lifecycle
-- Cancel running execution via API
-- Track cache entries per execution run
+- Execute workflow via API, receive results
+- Real-time SSE streaming of execution progress
+- Cancel running workflow via API
+- Resume workflow from checkpoint
+- Query execution history with stages and routing decisions
 
 ### Milestone 4: Real-Time Monitoring & SSE
 
@@ -652,7 +639,7 @@ Sessions 3d1-3d4 cover tool registry, permissions, interface, and domain tools. 
 
 ## Current Status
 
-**Phase**: Milestone 2 - Document Upload & Processing
+**Phase**: Milestone 3 - Workflow Execution Infrastructure
 
 **Completed**:
 - Session 01: Foundation architecture design (ARCHITECTURE.md)
@@ -697,7 +684,8 @@ Sessions 3d1-3d4 cover tool registry, permissions, interface, and domain tools. 
   - TrimSlash middleware for trailing slash redirects
 
 **In Progress**:
-- Milestone 3: Async Workflow Execution Engine (schema redesign - see Milestone 3 section)
+- Milestone 3: Workflow Execution Infrastructure
+  - Session 3a: Workflow Infrastructure Foundation (pending)
 
 **Recently Completed**:
 - Milestone 2: Document Upload & Processing ✅
@@ -710,8 +698,8 @@ Sessions 3d1-3d4 cover tool registry, permissions, interface, and domain tools. 
   - Improved agent config validation with Default + Merge pattern
 
 **Next Steps**:
-- Complete Milestone 3 schema redesign (analyze go-agents-orchestration examples, identify primitives)
-- Define new session breakdown based on validated schema
+- Create milestone architecture document (`_context/milestones/m03-workflow-execution.md`)
+- Begin Session 3a: Workflow Infrastructure Foundation
 
 ## Future Phases (Beyond Milestone 8)
 

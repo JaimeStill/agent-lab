@@ -24,6 +24,7 @@ The project follows **Layered Composition Architecture (LCA)** principles from t
 | CLAUDE.md | Project orientation, workflow instructions | How we work together |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Patterns implemented in current codebase | Technical implementation details |
 | [PROJECT.md](./PROJECT.md) | Vision, goals, milestone roadmap | What we're building and when |
+| `_context/milestones/m##-[title].md` | Milestone architecture documents | Technical depth for multi-session milestones |
 | [_context/web-service-architecture.md](./_context/web-service-architecture.md) | General web service architecture | Broader architectural philosophy |
 | [_context/service-design.md](./_context/service-design.md) | Project-specific conceptual patterns | Future design directions |
 
@@ -31,6 +32,7 @@ The project follows **Layered Composition Architecture (LCA)** principles from t
 - **Implementation questions** → ARCHITECTURE.md
 - **Workflow/process questions** → CLAUDE.md (this file)
 - **Roadmap/priorities** → PROJECT.md
+- **Milestone technical context** → _context/milestones/m##-[title].md
 - **Architectural philosophy** → _context/web-service-architecture.md
 - **Conceptual/future patterns** → _context/service-design.md
 
@@ -73,7 +75,28 @@ Before starting a milestone, conduct a **Milestone Planning Session** to ensure 
 
 #### 7. Finalize and Document
 - Update PROJECT.md with session breakdown and design decisions
+- Create milestone architecture document at `_context/milestones/m##-[title].md`
 - Capture process improvements in CLAUDE.md if workflow evolved
+
+### Milestone Architecture Documents
+
+For milestones with multiple sessions, create an architecture document that preserves technical context across sessions. This prevents rebuilding context from scratch at the start of each session.
+
+**Location**: `_context/milestones/m##-[title].md` (e.g., `m03-workflow-execution.md`)
+
+**Contents**:
+- **Key Decisions**: Architectural choices and rationale
+- **Schema Design**: Database tables with field descriptions
+- **API Design**: Endpoints with request/response formats
+- **Integration Patterns**: How this milestone connects to existing domains
+- **Interface Definitions**: Key types and contracts
+- **Session Breakdown**: Overview of what each session delivers
+
+**Lifecycle**:
+- Created during milestone planning
+- Referenced by implementation guides for each session
+- Updated if sessions reveal new patterns or decisions
+- Archived to `_context/milestones/.archive/` after milestone completion
 
 ### Development Session Workflow
 
@@ -295,6 +318,8 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for testing patterns and table-driven t
 
 **Context Structure:**
 - `_context/##-[guide-title].md` - Active implementation guides
+- `_context/milestones/` - Milestone architecture documents (persistent cross-session context)
+- `_context/milestones/.archive/` - Archived milestone documents (after milestone completion)
 - `_context/sessions/` - Development session summaries
 - `_context/sessions/.archive/` - Archived implementation guides
 
