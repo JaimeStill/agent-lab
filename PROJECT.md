@@ -9,7 +9,7 @@ agent-lab is a containerized Go web service platform for building and orchestrat
 Built on the go-agents ecosystem:
 - **go-agents** (v0.3.0): LLM integration with multi-provider support
 - **go-agents-orchestration** (v0.1.0+): Workflow orchestration patterns
-- **document-context** (v0.1.0+): PDF processing with LCA architecture
+- **document-context** (v0.1.1): PDF processing with LCA architecture
 
 ## Long-Term Vision
 
@@ -103,7 +103,7 @@ agent-lab will enable experimentation with:
 - **Libraries**:
   - go-agents v0.3.0 (LLM integration)
   - go-agents-orchestration v0.1.0+ (workflow patterns)
-  - document-context v0.1.0+ (PDF processing)
+  - document-context v0.1.1 (PDF processing)
 
 ### Frontend
 
@@ -425,657 +425,117 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Serve rendered page image for preview ✅
 - Deduplication: Same render options returns existing image without re-rendering ✅
 
-### Milestone 3: Async Workflow Execution Engine
+### Milestone 3: Workflow Execution Infrastructure
 
-**Objective**: Implement queue-based async execution with state management. This is the **core value proposition** of agent-lab - enabling users to design effective agentic workflows in an empowering, intuitive way without deep development efforts.
+**Objective**: Build infrastructure for executing code-defined workflows with full observability, enabling iterative experimentation on agentic workflow designs.
 
-**Two Foundational Pillars**:
-1. **Workflow Definition & Execution** - Design and run multi-agent workflows
-2. **Agent Tool Integration** - Agents intuitively interfacing with domain systems (documents, images)
+**Architecture Document**: `_context/milestones/m03-workflow-execution.md`
 
 **Key Decisions**:
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Domain Structure | Separate domains (workflows, steps, edges, hubs) | Queryable, composable, supports visual designer |
-| Workflow Types | All types (chain, parallel, conditional, graph) | Full go-agents-orchestration capability |
-| Event Bus | SSE-ready from start | Enables real-time monitoring in M4 |
-| Cache Entries | Debugging/tracing | Execution trace reconstruction |
-| Complexity Approach | Emergent across many sessions | Manageable context, validated patterns |
+1. **Code-defined workflows** - Workflows are Go code registered by name. No workflow definition CRUD - that comes after we understand patterns better through iteration.
 
-**Domain Model**:
+2. **Visibility via Observer** - Per-stage results + routing decisions captured via go-agents-orchestration's Observer interface. Events both persisted to database AND streamed via SSE.
 
-- **Workflows**: `id`, `name`, `description`, `type`, `config` (JSONB), `entry_point`, `exit_points`
-- **Workflow Steps**: `id`, `workflow_id`, `name`, `type`, `agent_id`, `config`, `input_schema`, `output_schema`, `order`
-- **Workflow Edges**: `id`, `workflow_id`, `from_step`, `to_step`, `predicate` (JSONB), `sequence`
-- **Workflow Hubs**: `id`, `workflow_id`, `name`, `config` (JSONB)
-- **Execution Runs**: `id`, `workflow_id`, `status`, `state` (JSONB), `error_message`, timestamps
-- **Execution Cache Entries**: `id`, `run_id`, `step_name`, `entry_type`, `data` (JSONB)
+3. **Infrastructure only** - No classify-docs workflow in M3. This milestone builds the execution engine; classify-docs implementation comes in Milestone 5.
 
-**Risk Areas**:
-1. **Worker Pool Shutdown** - Graceful completion of in-flight work
-2. **Cancellation Propagation** - Context flow from API to worker to orchestration
-3. **Checkpoint Consistency** - Atomic state writes during execution
-4. **Event Bus Reliability** - Bounded channels, overflow handling
-5. **Tool Execution Security** - Validate tool calls, prevent injection
+4. **Sync + SSE streaming** - Two execution modes: sync (wait for completion) and streaming (real-time SSE progress with cancellation support). No background/polling model needed for iteration.
+
+**Database Schema** (4 tables):
+- `runs` - Execution records (id, workflow_name, status, params, result)
+- `stages` - Per-node execution via Observer events
+- `decisions` - Routing decisions (from_node, to_node, predicate_result, reason)
+- `checkpoints` - State persistence for resume capability
+
+**API Endpoints**:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/workflows` | List registered workflows |
+| POST | `/api/workflows/{name}/execute` | Execute workflow (sync) |
+| POST | `/api/workflows/{name}/execute/stream` | Execute with SSE progress |
+| GET | `/api/runs` | List runs with filters |
+| GET | `/api/runs/{id}` | Get run details |
+| GET | `/api/runs/{id}/stages` | Get execution stages |
+| GET | `/api/runs/{id}/decisions` | Get routing decisions |
+| POST | `/api/runs/{id}/cancel` | Cancel running workflow |
+| POST | `/api/runs/{id}/resume` | Resume from checkpoint |
 
 **Development Sessions**:
 
-#### Phase A: Workflow Definition System
+#### Session 3a: Workflow Infrastructure Foundation
 
-##### Session 3a1: Workflows Domain
-
-**Status**: Pending
-
-**Scope**: Core workflow entity with type validation
+**Objective**: Database schema and core types.
 
 **Deliverables**:
-- Migration `000006_workflows` with CHECK constraint for type enum
-- WorkflowType enum: `chain`, `parallel`, `conditional`, `graph`
-- Workflow entity with `exit_points` as PostgreSQL TEXT[] array
-- Full CRUD + Search endpoints at `/api/workflows`
-- Type-aware validation (graph requires entry_point, etc.)
+- Migration: runs, stages, decisions, checkpoints
+- Package skeleton: `internal/workflows/`
+- Types: Run, Stage, Decision, Checkpoint
+- Registry: workflow registration and discovery
+- Repository: Run CRUD operations
 
-**Key Files**:
-```
-cmd/migrate/migrations/000006_workflows.up.sql
-cmd/migrate/migrations/000006_workflows.down.sql
-internal/workflows/workflow.go      # Entity, CreateCommand, UpdateCommand
-internal/workflows/errors.go        # ErrNotFound, ErrDuplicate, ErrInvalidType
-internal/workflows/system.go        # System interface
-internal/workflows/mapping.go       # ProjectionMap, scan, Filters
-internal/workflows/repository.go    # repo implementation
-internal/workflows/handler.go       # HTTP handler with Routes()
-internal/workflows/openapi.go       # Spec operations + Schemas()
-cmd/server/domain.go               # Add Workflows system
-cmd/server/routes.go               # Register workflows handler
-```
+**Validation**: Registry accepts factories, runs persist to database.
 
-**Pattern Reference**: `internal/documents/` (simple CRUD domain)
+#### Session 3b: Observer and Checkpoint Store
 
-##### Session 3a2: Workflow Steps Domain
-
-**Status**: Pending
-
-**Scope**: Steps within workflows with agent references
+**Objective**: Implement go-agents-orchestration interfaces for persistence.
 
 **Deliverables**:
-- Migration `000007_workflow_steps` with FK to workflows
-- Step entity with `agent_id` FK (nullable for non-agent steps)
-- Step types: `function`, `chain`, `parallel`, `conditional`
-- `input_schema`/`output_schema` as JSONB for state key mapping
-- Nested API: `/api/workflows/{id}/steps`
-- Cascade delete when parent workflow deleted
+- PostgresObserver implementing `observability.Observer`
+- PostgresCheckpointStore implementing `state.CheckpointStore`
+- Registration with go-agents-orchestration registries
+- Stage/decision recording from Observer events
 
-**Key Files**:
-```
-cmd/migrate/migrations/000007_workflow_steps.up.sql
-cmd/migrate/migrations/000007_workflow_steps.down.sql
-internal/steps/step.go
-internal/steps/errors.go
-internal/steps/system.go
-internal/steps/mapping.go
-internal/steps/repository.go
-internal/steps/handler.go          # Nested under workflows
-internal/steps/openapi.go
-```
+**Validation**: Observer captures events to database, checkpoints save/load correctly.
 
-**Dependencies**: Session 3a1 (workflows table must exist)
+#### Session 3c: Workflow Execution Engine
 
-**Pattern Reference**: `internal/images/` (cross-domain dependency with documents)
-
-##### Session 3a3: Workflow Edges Domain
-
-**Status**: Pending
-
-**Scope**: Transitions between steps with optional predicates
+**Objective**: Connect components to execute workflows.
 
 **Deliverables**:
-- Migration `000008_workflow_edges` with FKs to workflow and steps
-- Edge validation: `from_step` and `to_step` must belong to same workflow
-- `predicate` JSONB for conditional routing expressions
-- `sequence` for ordering multiple edges from same source
-- Nested API: `/api/workflows/{id}/edges`
+- Executor: combines registry + observer + checkpoint store
+- Dependencies struct for domain access (agents, documents, images)
+- Run lifecycle: pending → running → completed/failed/cancelled
+- Context cancellation propagation for workflow abort
+- SSE event channel for streaming progress
 
-**Key Files**:
-```
-cmd/migrate/migrations/000008_workflow_edges.up.sql
-cmd/migrate/migrations/000008_workflow_edges.down.sql
-internal/edges/edge.go
-internal/edges/errors.go
-internal/edges/system.go
-internal/edges/mapping.go
-internal/edges/repository.go
-internal/edges/handler.go
-internal/edges/openapi.go
-```
+**Validation**: Execute test workflow, verify stages/decisions recorded, cancellation works.
 
-**Dependencies**: Session 3a2 (steps table must exist for FK validation)
+#### Session 3d: API Endpoints
 
-##### Session 3a4: Workflow Hubs Domain
-
-**Status**: Pending
-
-**Scope**: Multi-agent coordination hub definitions
+**Objective**: HTTP interface for execution and inspection.
 
 **Deliverables**:
-- Migration `000009_workflow_hubs` with FK to workflows
-- Migration `000010_hub_agents` junction table (hub_id, agent_id)
-- Hub config JSONB: `channel_buffer_size`, `default_timeout`
-- Agent-to-hub assignment endpoints
-- Nested API: `/api/workflows/{id}/hubs`
+- Handler with routes following agents/handler.go pattern
+- OpenAPI specification
+- Execute endpoint (sync completion)
+- Execute/stream endpoint (SSE progress)
+- Cancel endpoint (abort running workflow)
+- List runs, get run details, stages, decisions endpoints
+- Resume endpoint
 
-**Key Files**:
-```
-cmd/migrate/migrations/000009_workflow_hubs.up.sql
-cmd/migrate/migrations/000009_workflow_hubs.down.sql
-cmd/migrate/migrations/000010_hub_agents.up.sql
-cmd/migrate/migrations/000010_hub_agents.down.sql
-internal/hubs/hub.go
-internal/hubs/errors.go
-internal/hubs/system.go
-internal/hubs/mapping.go
-internal/hubs/repository.go
-internal/hubs/handler.go
-internal/hubs/openapi.go
-```
+**Validation**: Full API workflow via curl/tests, SSE streaming works.
 
-**Dependencies**: Session 3a1 (workflows table)
+#### Session 3e: Sample Workflow and Integration Tests
 
-**API Reference**: `go-agents-orchestration/pkg/hub/hub.go` - Hub.New(), RegisterAgent()
-
-##### Session 3a5: Workflow Validation
-
-**Status**: Pending
-
-**Scope**: Structural validation before assembly
+**Objective**: Validate infrastructure with working example.
 
 **Deliverables**:
-- `internal/workflows/validator.go` - WorkflowValidator system
-- Validation rules by workflow type:
-  - **graph**: entry_point required, at least one exit_point, all steps reachable
-  - **chain**: steps have sequential order, no cycles
-  - **parallel**: all steps independent
-  - **conditional**: predicates well-formed
-- Agent reference validation (agents must exist)
-- Edge connectivity validation (no orphaned steps)
-- `POST /api/workflows/{id}/validate` endpoint
-
-**Key Files**:
-```
-internal/workflows/validator.go     # WorkflowValidator
-internal/workflows/validation.go    # Validation rules per type
-internal/workflows/handler.go       # Add Validate endpoint
-internal/workflows/openapi.go       # Add Validate operation
-```
-
-**Dependencies**: Sessions 3a1-3a4 (all workflow entities must exist)
-
-##### Session 3a6: Workflow Assembly
-
-**Status**: Pending
-
-**Scope**: Build executable orchestration from database records
-
-**Deliverables**:
-- `internal/execution/assembler/` package
-- WorkflowAssembler system that:
-  - Loads workflow + steps + edges + hubs from database
-  - Validates via WorkflowValidator (fail fast)
-  - Resolves agent_id → agent.Agent instances
-  - Builds appropriate orchestration type:
-    - chain → ProcessChain task list
-    - parallel → ProcessParallel task list
-    - conditional → ProcessConditional with routes
-    - graph → StateGraph with nodes/edges
-  - Instantiates hubs with registered agents
-
-**Key Files**:
-```
-internal/execution/assembler/assembler.go    # WorkflowAssembler
-internal/execution/assembler/chain.go        # Chain assembly
-internal/execution/assembler/parallel.go     # Parallel assembly
-internal/execution/assembler/conditional.go  # Conditional assembly
-internal/execution/assembler/graph.go        # Graph assembly
-internal/execution/assembler/hub.go          # Hub instantiation
-```
-
-**Dependencies**: Session 3a5 (validator), all Phase A sessions
-
-**API Reference**:
-- `go-agents-orchestration/pkg/workflows/chain.go` - ProcessChain, ChainTask
-- `go-agents-orchestration/pkg/workflows/parallel.go` - ProcessParallel, ParallelTask
-- `go-agents-orchestration/pkg/workflows/conditional.go` - ProcessConditional, Route
-- `go-agents-orchestration/pkg/state/graph.go` - NewGraph, AddNode, AddEdge
-- `go-agents-orchestration/pkg/hub/hub.go` - Hub.New, RegisterAgent
-
-#### Phase B: Execution Infrastructure
-
-##### Session 3b1: Execution Runs Domain
-
-**Status**: Pending
-
-**Scope**: Execution state tracking and cache entries
-
-**Deliverables**:
-- Migration `000011_execution_runs` with status enum
-- Migration `000012_execution_cache_entries` for debug traces
-- Status lifecycle: `pending` → `running` → `completed`/`failed`/`cancelled`
-- State JSONB for workflow execution state
-- Cache entry types: `step_input`, `step_output`, `checkpoint`, `error`
-- CRUD + Search with status/workflow filtering
-- `GET /api/runs`, `GET /api/runs/{id}`, etc.
-
-**Key Files**:
-```
-cmd/migrate/migrations/000011_execution_runs.up.sql
-cmd/migrate/migrations/000011_execution_runs.down.sql
-cmd/migrate/migrations/000012_execution_cache_entries.up.sql
-cmd/migrate/migrations/000012_execution_cache_entries.down.sql
-internal/runs/run.go
-internal/runs/cache.go              # CacheEntry entity
-internal/runs/errors.go
-internal/runs/system.go
-internal/runs/mapping.go
-internal/runs/repository.go
-internal/runs/handler.go
-internal/runs/openapi.go
-```
-
-**Dependencies**: Phase A complete (workflows must be definable)
-
-##### Session 3b2: Event Bus System
-
-**Status**: Pending
-
-**Scope**: SSE-ready pub/sub for execution events
-
-**Deliverables**:
-- `internal/execution/events/` package
-- Event types as typed structs:
-  - `RunQueued`, `RunStarted`, `RunCompleted`, `RunFailed`, `RunCancelled`
-  - `StepStarted`, `StepCompleted`, `StepFailed`
-- Topic-based subscription (per run_id)
-- Buffered channels with configurable size
-- Lifecycle integration (start/stop with server)
-- Event serialization for SSE compatibility
-
-**Key Files**:
-```
-internal/execution/events/bus.go       # EventBus system
-internal/execution/events/types.go     # Event type definitions
-internal/execution/events/subscriber.go # Subscription management
-internal/config/config.go             # Add EventsConfig
-cmd/server/runtime.go                 # Add EventBus to runtime
-```
-
-**Dependencies**: Session 3b1 (runs domain for run_id references)
-
-**Risk**: Bounded channel overflow - need backpressure strategy
-
-##### Session 3b3: Execution Queue
-
-**Status**: Pending
-
-**Scope**: Channel-based execution queue
-
-**Deliverables**:
-- `internal/execution/queue/` package
-- QueueConfig: `queue_size` (buffered channel capacity)
-- Enqueue returns immediately (non-blocking if capacity)
-- Dequeue blocks until item available or shutdown
-- Lifecycle integration (graceful drain on shutdown)
-- Queue metrics: depth, enqueued count, dequeued count
-
-**Key Files**:
-```
-internal/execution/queue/queue.go      # Queue system
-internal/execution/queue/config.go     # QueueConfig
-internal/config/config.go             # Add QueueConfig section
-cmd/server/runtime.go                 # Add Queue to runtime
-```
-
-**Dependencies**: Session 3b2 (event bus for RunQueued event)
-
-##### Session 3b4: Worker Pool
-
-**Status**: Pending
-
-**Scope**: Goroutine pool for parallel execution
-
-**Deliverables**:
-- `internal/execution/workers/` package
-- WorkerConfig: `worker_count` (number of goroutines)
-- Workers pull from queue, dispatch to executor
-- Per-run context with cancellation support
-- Graceful shutdown: wait for in-flight work or timeout
-- Worker metrics: active count, completed count
-
-**Key Files**:
-```
-internal/execution/workers/pool.go     # WorkerPool system
-internal/execution/workers/worker.go   # Individual worker logic
-internal/execution/workers/config.go   # WorkerConfig
-internal/config/config.go             # Add WorkerConfig section
-cmd/server/runtime.go                 # Add WorkerPool to runtime
-```
-
-**Dependencies**: Session 3b3 (queue to pull from)
-
-**Risk**: Graceful shutdown - must complete in-flight work
-
-#### Phase C: Workflow Execution Integration
-
-##### Session 3c1: Chain Execution
-
-**Status**: Pending
-
-**Scope**: Sequential step execution
-
-**Deliverables**:
-- `internal/execution/executor/chain.go`
-- Build ChainTask list from assembled workflow
-- Execute agent.Chat/Vision/Tools within each task
-- State accumulation between steps
-- Progress callbacks → Event Bus (StepStarted, StepCompleted)
-- Error handling with step identification
-
-**Key Files**:
-```
-internal/execution/executor/chain.go
-internal/execution/executor/executor.go  # Common executor interface
-```
-
-**Dependencies**: Session 3a6 (assembler), Session 3b4 (worker pool)
-
-**API Reference**:
-- `go-agents-orchestration/pkg/workflows/chain.go` - ProcessChain(ctx, tasks, opts)
-- `go-agents-orchestration/examples/phase-04-sequential-chains/` - Example usage
-
-##### Session 3c2: Parallel Execution
-
-**Status**: Pending
-
-**Scope**: Concurrent step execution with aggregation
-
-**Deliverables**:
-- `internal/execution/executor/parallel.go`
-- Build ParallelTask list from assembled workflow
-- Configure worker count from workflow config
-- Result aggregation via Aggregator function
-- Error handling strategies: fail-fast vs collect-all
-
-**Key Files**:
-```
-internal/execution/executor/parallel.go
-```
-
-**Dependencies**: Session 3c1 (common executor patterns)
-
-**API Reference**:
-- `go-agents-orchestration/pkg/workflows/parallel.go` - ProcessParallel(ctx, tasks, opts)
-- `go-agents-orchestration/examples/phase-05-parallel-execution/` - Example usage
-
-##### Session 3c3: Conditional Execution
-
-**Status**: Pending
-
-**Scope**: Predicate-based routing
-
-**Deliverables**:
-- `internal/execution/executor/conditional.go`
-- Predicate evaluation from edge JSONB config
-- Route dispatch based on state values
-- Support for multiple routes (first match wins)
-- Default route handling
-
-**Key Files**:
-```
-internal/execution/executor/conditional.go
-internal/execution/executor/predicate.go  # Predicate evaluation
-```
-
-**Dependencies**: Session 3c1 (common executor patterns)
-
-**API Reference**:
-- `go-agents-orchestration/pkg/workflows/conditional.go` - ProcessConditional(ctx, input, routes)
-- `go-agents-orchestration/examples/phase-07-conditional-routing/` - Example usage
-
-##### Session 3c4: Graph Execution
-
-**Status**: Pending
-
-**Scope**: Full state graph with nodes and edges
-
-**Deliverables**:
-- `internal/execution/executor/graph.go`
-- Build StateGraph from assembled workflow
-- Node types: FunctionNode, ChainNode, ParallelNode, ConditionalNode
-- Edge traversal with predicate support
-- Entry/exit point enforcement
-- Iteration limits from workflow config
-- Cycle detection and prevention
-
-**Key Files**:
-```
-internal/execution/executor/graph.go
-internal/execution/executor/nodes.go   # Node type builders
-```
-
-**Dependencies**: Sessions 3c1-3c3 (all simpler execution patterns)
-
-**API Reference**:
-- `go-agents-orchestration/pkg/state/graph.go` - NewGraph, AddNode, AddEdge, Execute
-- `go-agents-orchestration/examples/phase-02-03-state-graphs/` - Example usage
-- `go-agents-orchestration/examples/darpa-procurement/` - Complex real-world example
-
-##### Session 3c5: Hub Execution
-
-**Status**: Pending
-
-**Scope**: Multi-agent coordination during workflows
-
-**Deliverables**:
-- `internal/execution/executor/hub.go`
-- Instantiate hubs from workflow_hubs config
-- Register agents with message handlers
-- Message routing: Send, Broadcast, Publish/Subscribe
-- Cross-hub communication for agents in multiple hubs
-- Hub lifecycle: create before execution, shutdown after
-
-**Key Files**:
-```
-internal/execution/executor/hub.go
-internal/execution/executor/messaging.go  # Message handler builders
-```
-
-**Dependencies**: Session 3a4 (hubs domain), Session 3c4 (graph execution)
-
-**API Reference**:
-- `go-agents-orchestration/pkg/hub/hub.go` - Hub interface, RegisterAgent, Send, Broadcast
-- `go-agents-orchestration/pkg/messaging/message.go` - Message types
-- `go-agents-orchestration/examples/phase-01-hubs/` - Hub patterns
-
-##### Session 3c6: Checkpointing
-
-**Status**: Pending
-
-**Scope**: State persistence for recovery
-
-**Deliverables**:
-- `internal/execution/checkpoint/postgres.go` - PostgresCheckpointStore
-- Implement go-agents-orchestration CheckpointStore interface
-- Checkpoint interval from workflow config
-- State serialization to execution_cache_entries
-- `POST /api/runs/{id}/resume` endpoint
-- Resume from last checkpoint on restart
-
-**Key Files**:
-```
-internal/execution/checkpoint/postgres.go
-internal/execution/checkpoint/store.go    # Interface alignment
-internal/runs/handler.go                  # Add Resume endpoint
-internal/runs/openapi.go                  # Add Resume operation
-```
-
-**Dependencies**: Session 3b1 (cache entries table), Session 3c4 (graph execution)
-
-**API Reference**:
-- `go-agents-orchestration/pkg/state/checkpoint.go` - CheckpointStore interface
-- `go-agents-orchestration/examples/phase-06-checkpointing/` - Checkpoint/resume patterns
-
-**Risk**: Atomic state writes during concurrent execution
-
-##### Session 3c7: Cancellation
-
-**Status**: Pending
-
-**Scope**: Graceful execution termination
-
-**Deliverables**:
-- `DELETE /api/runs/{id}` cancellation endpoint
-- Context cancellation propagation: API → Worker → Orchestration
-- Status transition: `running` → `cancelled`
-- In-flight step completion (don't abort mid-step)
-- Cleanup: release resources, close hubs
-
-**Key Files**:
-```
-internal/runs/handler.go              # Add Cancel endpoint (DELETE)
-internal/runs/openapi.go              # Add Cancel operation
-internal/execution/workers/worker.go  # Cancellation handling
-internal/execution/executor/*.go      # Context propagation
-```
-
-**Dependencies**: All Phase C sessions
-
-**Risk**: Context propagation through all layers
-
-#### Phase D: Agent Tool System (Foundation)
-
-##### Session 3d1: Tool Registry
-
-**Status**: Pending
-
-**Scope**: Generic tool registration mechanism
-
-**Deliverables**:
-- `internal/tools/registry.go` - ToolRegistry system
-- Tool interface: `Name()`, `Description()`, `Schema()`, `Execute(ctx, input)`
-- Registration at startup (lifecycle OnStartup hook)
-- Tool discovery endpoint: `GET /api/tools`
-- Schema follows go-agents tool format for LLM compatibility
-
-**Key Files**:
-```
-internal/tools/registry.go
-internal/tools/tool.go              # Tool interface
-internal/tools/handler.go           # Discovery endpoint
-internal/tools/openapi.go
-cmd/server/runtime.go              # Add ToolRegistry to runtime
-```
-
-**Dependencies**: Phase A-C complete (execution infrastructure ready)
-
-**API Reference**: `go-agents/pkg/agent/tools.go` - Tool interface for LLM function calling
-
-##### Session 3d2: Tool Permissions
-
-**Status**: Pending
-
-**Scope**: Scoped access control for tools
-
-**Deliverables**:
-- Permission model: allow/deny lists per scope
-- Scope levels:
-  - **Agent-scoped**: tools available to specific agent
-  - **Hub-scoped**: tools available within hub context
-  - **Step-scoped**: tools available during step execution
-- Permission storage in workflow config JSONB
-- Permission checking before tool execution
-
-**Key Files**:
-```
-internal/tools/permissions.go
-internal/tools/scope.go            # Scope types and resolution
-```
-
-**Dependencies**: Session 3d1 (registry must exist)
-
-##### Session 3d3: Tool Interface
-
-**Status**: Pending
-
-**Scope**: Execution protocol and result handling
-
-**Deliverables**:
-- Input validation against tool schema
-- Execution context with timeout support
-- Result types: success, error, partial
-- State updates from tool results
-- Audit logging of tool invocations
-
-**Key Files**:
-```
-internal/tools/executor.go         # Tool execution logic
-internal/tools/result.go           # Result types
-internal/tools/audit.go            # Invocation logging
-```
-
-**Dependencies**: Session 3d2 (permissions checked before execution)
-
-##### Session 3d4: Domain Tools
-
-**Status**: Pending
-
-**Scope**: Expose existing domains as agent tools
-
-**Deliverables**:
-- Documents tool: `documents.list`, `documents.get`, `documents.metadata`
-- Images tool: `images.render`, `images.get`, `images.list`
-- Tool implementations using existing domain systems
-- Schema generation from domain types
-- Security: validate IDs exist, prevent path traversal
-
-**Key Files**:
-```
-internal/tools/documents.go        # Documents domain tool
-internal/tools/images.go           # Images domain tool
-internal/tools/registry.go         # Register domain tools
-```
-
-**Dependencies**: Session 3d3 (tool interface complete)
-
-**Risk**: Input validation to prevent injection attacks
+- Sample "echo" workflow (simple chain: input → transform → output)
+- Sample workflow using conditional routing
+- Integration tests covering execution, checkpoints, resume
+- ARCHITECTURE.md updates
+
+**Validation**: Integration tests pass, patterns documented.
 
 ---
 
-**Session Summary**:
-
-| Phase | Sessions | Focus |
-|-------|----------|-------|
-| A: Workflow Definition | 3a1-3a6 (6 sessions) | Domain models for workflows, steps, edges, hubs + validation + assembly |
-| B: Execution Infrastructure | 3b1-3b4 (4 sessions) | Runs domain, event bus, queue, worker pool |
-| C: Execution Integration | 3c1-3c7 (7 sessions) | Chain, parallel, conditional, graph, hub execution + checkpointing + cancellation |
-| D: Tool System | 3d1-3d4 (4 sessions) | Tool registry, permissions, interface, domain tools |
-
-**Total: 21 sessions** across 4 phases, embracing emergent complexity.
-
-**Critical File References**:
-
-| Category | Files |
-|----------|-------|
-| Existing Patterns | `internal/documents/`, `internal/images/`, `internal/agents/` |
-| Lifecycle | `internal/lifecycle/lifecycle.go`, `cmd/server/runtime.go` |
-| go-agents-orchestration | `pkg/workflows/chain.go`, `pkg/workflows/parallel.go`, `pkg/workflows/conditional.go`, `pkg/state/graph.go`, `pkg/state/checkpoint.go`, `pkg/hub/hub.go` |
-| go-agents | `pkg/agent/agent.go`, `pkg/agent/tools.go` |
-
 **Success Criteria**:
-- Execute workflow returns immediately with run_id (202 Accepted)
-- Worker pool processes queued executions
-- Update execution status throughout lifecycle
-- Cancel running execution via API
-- Track cache entries per execution run
+- Execute workflow via API, receive results
+- Real-time SSE streaming of execution progress
+- Cancel running workflow via API
+- Resume workflow from checkpoint
+- Query execution history with stages and routing decisions
 
 ### Milestone 4: Real-Time Monitoring & SSE
 
@@ -1179,7 +639,7 @@ internal/tools/registry.go         # Register domain tools
 
 ## Current Status
 
-**Phase**: Milestone 2 - Document Upload & Processing
+**Phase**: Milestone 3 - Workflow Execution Infrastructure
 
 **Completed**:
 - Session 01: Foundation architecture design (ARCHITECTURE.md)
@@ -1224,14 +684,22 @@ internal/tools/registry.go         # Register domain tools
   - TrimSlash middleware for trailing slash redirects
 
 **In Progress**:
-- Milestone 2: Document Upload & Processing
-  - Session 02a: Blob Storage Infrastructure - ✅ Completed
-  - Session 02b: Documents Domain System - ✅ Completed
-  - Session 02c: document-context Integration - ✅ Completed
+- Milestone 3: Workflow Execution Infrastructure
+  - Session 3a: Workflow Infrastructure Foundation (pending)
+
+**Recently Completed**:
+- Milestone 2: Document Upload & Processing ✅
+  - Session 02a: Blob Storage Infrastructure ✅
+  - Session 02b: Documents Domain System ✅
+  - Session 02c: document-context Integration ✅
+- Maintenance Session m01: document-context Format Support ✅
+  - Migrated format support from agent-lab shims to document-context v0.1.1
+  - Added ParseImageFormat, Open, IsSupported, SupportedFormats to document-context
+  - Improved agent config validation with Default + Merge pattern
 
 **Next Steps**:
-- Milestone 2 Review: Validate success criteria, integration testing
-- Begin Milestone 3: Async Workflow Execution Engine
+- Create milestone architecture document (`_context/milestones/m03-workflow-execution.md`)
+- Begin Session 3a: Workflow Infrastructure Foundation
 
 ## Future Phases (Beyond Milestone 8)
 

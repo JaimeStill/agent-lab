@@ -1231,3 +1231,46 @@ func (r *repository) FindByID(ctx context.Context, id uuid.UUID) (*Provider, err
 - Enables testing with mocks
 - Clear contract between layers
 - Owner defines interface, implementation is private
+
+## Command Execution Model
+
+Complex transactional operations follow a three-phase execution lifecycle that mirrors the system Cold Start / Hot Start pattern.
+
+### Command Graph Composition
+
+Commands compose as a recursive dependency graph, not monolithic mutation definitions:
+
+- Root command receives the transaction that orchestrates the full graph
+- Each command encapsulates a **single** state mutation
+- Child commands are direct dependencies of their executing parent
+- State flows DOWN through the command graph
+
+```
+Root Command (receives transaction)
+├── Single state mutation
+└── Child Commands (direct dependencies)
+    ├── Single state mutation
+    └── Child Commands...
+```
+
+### Three-Phase Execution Lifecycle
+
+| Phase | Name | Purpose |
+|-------|------|---------|
+| 1 | **Cold Start** | Pre-execution: calculations, validation, final state preparation |
+| 2 | **Hot Start** | Transaction graph execution: actual mutations within tx context |
+| 3 | **Post-Commit** | Reactions: events, notifications, observability emissions |
+
+### Key Principles
+
+- Root command receives the transaction; child commands execute within same tx
+- Reactions only fire after successful commit (not during transaction)
+- Post-Commit phase aligns with Events pattern (OnCreated, OnDeleted, etc.)
+- If any child command fails, entire transaction rolls back
+
+### Example Application
+
+When executing a workflow:
+- **Cold Start**: Resolve workflow from registry, validate params, create Run record shell
+- **Hot Start**: Execute StateGraph, Observer persists stages/decisions within tx
+- **Post-Commit**: Emit SSE events, update external systems, trigger notifications

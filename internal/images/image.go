@@ -2,7 +2,6 @@ package images
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/JaimeStill/document-context/pkg/config"
@@ -46,9 +45,9 @@ type RenderOptions struct {
 // It ensures all values are within acceptable ranges and sets
 // default values for unspecified options.
 func (o *RenderOptions) Validate() error {
-	format, err := ParseImageFormat(string(o.Format))
+	format, err := document.ParseImageFormat(string(o.Format))
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: format must be 'png' or 'jpg'", ErrInvalidRenderOption)
 	}
 	o.Format = format
 
@@ -141,19 +140,4 @@ func (o RenderOptions) ToImageConfig() config.ImageConfig {
 	}
 
 	return cfg
-}
-
-// ParseImageFormat parses a string into a supported image format.
-// Accepts "png", "jpg", "jpeg" (case-insensitive). Empty string defaults to PNG.
-func ParseImageFormat(s string) (document.ImageFormat, error) {
-	switch strings.ToLower(s) {
-	case "png":
-		return document.PNG, nil
-	case "jpg", "jpeg":
-		return document.JPEG, nil
-	case "":
-		return document.PNG, nil
-	default:
-		return "", fmt.Errorf("%w: format must be 'png' or 'jpg'", ErrInvalidRenderOption)
-	}
 }

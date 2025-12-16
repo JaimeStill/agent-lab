@@ -13,6 +13,7 @@ import (
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 	"github.com/JaimeStill/agent-lab/pkg/query"
 	"github.com/JaimeStill/agent-lab/pkg/repository"
+	"github.com/JaimeStill/document-context/pkg/document"
 	"github.com/JaimeStill/document-context/pkg/image"
 	"github.com/google/uuid"
 )
@@ -102,7 +103,7 @@ func (r *repo) Render(ctx context.Context, documentID uuid.UUID, opts RenderOpti
 		return nil, err
 	}
 
-	if !IsSupported(doc.ContentType) {
+	if !document.IsSupported(doc.ContentType) {
 		return nil, ErrUnsupportedFormat
 	}
 
@@ -125,7 +126,7 @@ func (r *repo) Render(ctx context.Context, documentID uuid.UUID, opts RenderOpti
 		return nil, fmt.Errorf("%w: %v", ErrRenderFailed, err)
 	}
 
-	openDoc, err := OpenDocument(docPath, doc.ContentType)
+	openDoc, err := document.Open(docPath, doc.ContentType)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrRenderFailed, err)
 	}
@@ -170,7 +171,7 @@ func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *repo) renderPage(ctx context.Context, documentID uuid.UUID, doc PageExtractor, renderer image.Renderer, pageNum int, opts RenderOptions) (*Image, error) {
+func (r *repo) renderPage(ctx context.Context, documentID uuid.UUID, doc document.Document, renderer image.Renderer, pageNum int, opts RenderOptions) (*Image, error) {
 	existing, err := r.findExisting(ctx, documentID, pageNum, opts)
 	if err != nil {
 		return nil, err
