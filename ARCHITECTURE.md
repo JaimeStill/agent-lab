@@ -101,6 +101,23 @@ OnShutdown() <-chan struct{}
 OnError() <-chan error
 ```
 
+**Repository Query Methods** (Return Type Determines Verb):
+
+| Verb | Returns | Use Case |
+|------|---------|----------|
+| `List` | `*PageResult[T]` | Browsing/searching collections (paginated) |
+| `Find` | `*T` | Locate single item by ID |
+| `Get` | `[]T` | Retrieve all related items (bounded, full slice) |
+
+```go
+ListRuns(ctx, page, filters) (*PageResult[Run], error)  // Paginated browsing
+FindRun(ctx, id) (*Run, error)                          // Single by ID
+GetStages(ctx, runID) ([]Stage, error)                  // All stages for a run
+GetDecisions(ctx, runID) ([]Decision, error)            // All decisions for a run
+```
+
+**Rationale**: `Get` signals "retrieve this specific bounded set" (e.g., all stages for one run), while `List` signals "browse a potentially large collection with pagination."
+
 ### 6. Configuration-Driven Initialization
 
 **Stateful Systems vs Functional Infrastructure**:

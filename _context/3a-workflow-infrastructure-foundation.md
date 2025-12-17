@@ -232,6 +232,8 @@ var runProjection = query.NewProjectionMap("public", "runs", "r").
 	Project("updated_at", "UpdatedAt")
 
 var runDefaultSort = query.SortField{Field: "CreatedAt", Descending: true}
+var stageDefaultSort = query.SortField{Field: "CreatedAt", Descending: false}
+var decisionDefaultSort = query.SortField{Field: "CreatedAt", Descending: false}
 
 func scanRun(s repository.Scanner) (Run, error) {
 	var r Run
@@ -427,6 +429,7 @@ import (
 
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 	"github.com/JaimeStill/agent-lab/pkg/query"
+	"github.com/JaimeStill/agent-lab/pkg/repository"
 	"github.com/google/uuid"
 )
 
@@ -445,120 +448,65 @@ func New(db *sql.DB, logger *slog.Logger, pagination pagination.Config) *repo {
 }
 
 func (r *repo) ListRuns(ctx context.Context, page pagination.PageRequest, filters RunFilters) (*pagination.PageResult[Run], error) {
-	page = page.Normalize(r.pagination)
+	page.Normalize(r.pagination)
 
-	countBuilder := query.NewBuilder(runProjection)
-	filters.Apply(countBuilder)
+	qb := query.NewBuilder(runProjection, runDefaultSort)
+	filters.Apply(qb)
 
-	countQuery, countArgs := countBuilder.BuildCount()
+	if len(page.Sort) > 0 {
+		qb.OrderByFields(page.Sort)
+	}
 
+	countSQL, countArgs := qb.BuildCount()
 	var total int
-	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countSQL, countArgs...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count runs: %w", err)
 	}
 
-	pageBuilder := query.NewBuilder(runProjection)
-	filters.Apply(pageBuilder)
-	pageBuilder.OrderBy(runDefaultSort)
-
-	pageQuery, pageArgs := pageBuilder.BuildPage(page)
-
-	rows, err := r.db.QueryContext(ctx, pageQuery, pageArgs...)
+	pageSQL, pageArgs := qb.BuildPage(page.Page, page.PageSize)
+	runs, err := repository.QueryMany(ctx, r.db, pageSQL, pageArgs, scanRun)
 	if err != nil {
 		return nil, fmt.Errorf("query runs: %w", err)
 	}
-	defer rows.Close()
 
-	var runs []Run
-	for rows.Next() {
-		run, err := scanRun(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan run: %w", err)
-		}
-		runs = append(runs, run)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate runs: %w", err)
-	}
-
-	return &pagination.PageResult[Run]{
-		Data:  runs,
-		Total: total,
-		Page:  page.Page,
-	}, nil
+	result := pagination.NewPageResult(runs, total, page.Page, page.PageSize)
+	return &result, nil
 }
 
 func (r *repo) FindRun(ctx context.Context, id uuid.UUID) (*Run, error) {
-	builder := query.NewBuilder(runProjection)
-	builder.WhereEquals("ID", &id)
+	q, args := query.NewBuilder(runProjection).BuildSingle("ID", id)
 
-	q, args := builder.BuildSingle()
-
-	run, err := scanRun(r.db.QueryRowContext(ctx, q, args...))
-	if err == sql.ErrNoRows {
-		return nil, ErrNotFound
-	}
+	run, err := repository.QueryOne(ctx, r.db, q, args, scanRun)
 	if err != nil {
-		return nil, fmt.Errorf("query run: %w", err)
+		return nil, repository.MapError(err, ErrNotFound, nil)
 	}
 
 	return &run, nil
 }
 
 func (r *repo) GetStages(ctx context.Context, runID uuid.UUID) ([]Stage, error) {
-	builder := query.NewBuilder(stageProjection)
-	builder.WhereEquals("RunID", &runID)
-	builder.OrderBy(query.SortField{Field: "CreatedAt", Descending: false})
+	qb := query.NewBuilder(stageProjection, stageDefaultSort)
+	qb.WhereEquals("RunID", &runID)
 
-	q, args := builder.BuildSelect()
+	q, args := qb.BuildSelect()
 
-	rows, err := r.db.QueryContext(ctx, q, args...)
+	stages, err := repository.QueryMany(ctx, r.db, q, args, scanStage)
 	if err != nil {
 		return nil, fmt.Errorf("query stages: %w", err)
-	}
-	defer rows.Close()
-
-	var stages []Stage
-	for rows.Next() {
-		stage, err := scanStage(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan stage: %w", err)
-		}
-		stages = append(stages, stage)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate stages: %w", err)
 	}
 
 	return stages, nil
 }
 
 func (r *repo) GetDecisions(ctx context.Context, runID uuid.UUID) ([]Decision, error) {
-	builder := query.NewBuilder(decisionProjection)
-	builder.WhereEquals("RunID", &runID)
-	builder.OrderBy(query.SortField{Field: "CreatedAt", Descending: false})
+	qb := query.NewBuilder(decisionProjection, decisionDefaultSort)
+	qb.WhereEquals("RunID", &runID)
 
-	q, args := builder.BuildSelect()
+	q, args := qb.BuildSelect()
 
-	rows, err := r.db.QueryContext(ctx, q, args...)
+	decisions, err := repository.QueryMany(ctx, r.db, q, args, scanDecision)
 	if err != nil {
 		return nil, fmt.Errorf("query decisions: %w", err)
-	}
-	defer rows.Close()
-
-	var decisions []Decision
-	for rows.Next() {
-		decision, err := scanDecision(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan decision: %w", err)
-		}
-		decisions = append(decisions, decision)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate decisions: %w", err)
 	}
 
 	return decisions, nil
