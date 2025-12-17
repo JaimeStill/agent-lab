@@ -20,7 +20,7 @@ func TestNewProjectionMap(t *testing.T) {
 
 func TestProjectionMap_Project(t *testing.T) {
 	pm := query.NewProjectionMap("public", "users", "u").
-		Project("id", "Id").
+		Project("id", "ID").
 		Project("email", "Email").
 		Project("created_at", "CreatedAt")
 
@@ -28,7 +28,7 @@ func TestProjectionMap_Project(t *testing.T) {
 		viewName string
 		wantCol  string
 	}{
-		{"Id", "u.id"},
+		{"ID", "u.id"},
 		{"Email", "u.email"},
 		{"CreatedAt", "u.created_at"},
 	}
@@ -45,7 +45,7 @@ func TestProjectionMap_Project(t *testing.T) {
 
 func TestProjectionMap_Column_UnknownReturnsInput(t *testing.T) {
 	pm := query.NewProjectionMap("public", "users", "u").
-		Project("id", "Id")
+		Project("id", "ID")
 
 	col := pm.Column("Unknown")
 	if col != "Unknown" {
@@ -55,7 +55,7 @@ func TestProjectionMap_Column_UnknownReturnsInput(t *testing.T) {
 
 func TestProjectionMap_Columns(t *testing.T) {
 	pm := query.NewProjectionMap("public", "users", "u").
-		Project("id", "Id").
+		Project("id", "ID").
 		Project("email", "Email")
 
 	cols := pm.Columns()
@@ -68,7 +68,7 @@ func TestProjectionMap_Columns(t *testing.T) {
 
 func TestProjectionMap_ColumnList(t *testing.T) {
 	pm := query.NewProjectionMap("public", "users", "u").
-		Project("id", "Id").
+		Project("id", "ID").
 		Project("email", "Email")
 
 	list := pm.ColumnList()

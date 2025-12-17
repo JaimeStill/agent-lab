@@ -102,7 +102,7 @@ func TestFiltersFromQuery(t *testing.T) {
 
 func newTestProjection() *query.ProjectionMap {
 	return query.NewProjectionMap("public", "documents", "d").
-		Project("id", "Id").
+		Project("id", "ID").
 		Project("name", "Name").
 		Project("content_type", "ContentType")
 }

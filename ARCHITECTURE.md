@@ -101,6 +101,23 @@ OnShutdown() <-chan struct{}
 OnError() <-chan error
 ```
 
+**Repository Query Methods** (Return Type Determines Verb):
+
+| Verb | Returns | Use Case |
+|------|---------|----------|
+| `List` | `*PageResult[T]` | Browsing/searching collections (paginated) |
+| `Find` | `*T` | Locate single item by ID |
+| `Get` | `[]T` | Retrieve all related items (bounded, full slice) |
+
+```go
+ListRuns(ctx, page, filters) (*PageResult[Run], error)  // Paginated browsing
+FindRun(ctx, id) (*Run, error)                          // Single by ID
+GetStages(ctx, runID) ([]Stage, error)                  // All stages for a run
+GetDecisions(ctx, runID) ([]Decision, error)            // All decisions for a run
+```
+
+**Rationale**: `Get` signals "retrieve this specific bounded set" (e.g., all stages for one run), while `List` signals "browse a potentially large collection with pagination."
+
 ### 6. Configuration-Driven Initialization
 
 **Stateful Systems vs Functional Infrastructure**:
@@ -237,15 +254,23 @@ internal/                 # Private API: Domain systems
 │   ├── handler.go            # Handler struct with route methods
 │   └── openapi.go            # OpenAPI schemas and operations
 │
-└── images/               # Images domain system
-    ├── image.go              # State structures + RenderOptions
-    ├── document.go           # Document interface for rendering
+├── images/               # Images domain system
+│   ├── image.go              # State structures + RenderOptions
+│   ├── document.go           # Document interface for rendering
+│   ├── errors.go             # Domain errors + HTTP status mapping
+│   ├── mapping.go            # Projection, scanner, filters, and page range parsing
+│   ├── system.go             # System interface
+│   ├── repository.go         # Repository implementation + rendering logic
+│   ├── handler.go            # Handler struct with route methods
+│   └── openapi.go            # OpenAPI schemas and operations
+│
+└── workflows/            # Workflows domain system
+    ├── run.go                # Run, Stage, Decision, WorkflowInfo types
     ├── errors.go             # Domain errors + HTTP status mapping
-    ├── mapping.go            # Projection, scanner, filters, and page range parsing
-    ├── system.go             # System interface
-    ├── repository.go         # Repository implementation + rendering logic
-    ├── handler.go            # Handler struct with route methods
-    └── openapi.go            # OpenAPI schemas and operations
+    ├── mapping.go            # Projections, scanners, filters
+    ├── registry.go           # Global workflow registry
+    ├── systems.go            # Systems struct for domain access
+    └── repository.go         # Read-only repository
 
 pkg/                      # Public API: Shared infrastructure
 ├── handlers/
@@ -286,6 +311,7 @@ tests/                    # Black-box tests
 ├── internal_providers/
 ├── internal_routes/
 ├── internal_storage/
+├── internal_workflows/
 ├── pkg_handlers/
 ├── pkg_openapi/
 ├── pkg_pagination/
@@ -1278,7 +1304,7 @@ func (p *ProjectionMap) Columns() string    // "alias.col1, alias.col2, ..."
 **Usage**:
 ```go
 var providerProjection = query.NewProjectionMap("public", "providers", "p").
-    Project("id", "Id").
+    Project("id", "ID").
     Project("name", "Name").
     Project("config", "Config")
 ```
@@ -1961,7 +1987,7 @@ Queries use repository helpers without transactions:
 
 ```go
 func (r *repo) FindByID(ctx context.Context, id uuid.UUID) (*Provider, error) {
-    q, args := query.NewBuilder(projection).BuildSingle("Id", id)
+    q, args := query.NewBuilder(projection).BuildSingle("ID", id)
 
     p, err := repository.QueryOne(ctx, r.db, q, args, scanProvider)
     if err != nil {

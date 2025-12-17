@@ -70,7 +70,7 @@ func TestFiltersFromQuery(t *testing.T) {
 
 func newTestProjection() *query.ProjectionMap {
 	return query.NewProjectionMap("public", "providers", "p").
-		Project("id", "Id").
+		Project("id", "ID").
 		Project("name", "Name").
 		Project("config", "Config")
 }

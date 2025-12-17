@@ -8,7 +8,7 @@ import (
 )
 
 var projection = query.NewProjectionMap("public", "documents", "d").
-	Project("id", "Id").
+	Project("id", "ID").
 	Project("name", "Name").
 	Project("filename", "Filename").
 	Project("content_type", "ContentType").

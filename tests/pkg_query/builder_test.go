@@ -9,9 +9,66 @@ import (
 
 func newTestProjection() *query.ProjectionMap {
 	return query.NewProjectionMap("public", "users", "u").
-		Project("id", "Id").
+		Project("id", "ID").
 		Project("name", "Name").
 		Project("email", "Email")
+}
+
+func TestBuilder_Build_NoConditions(t *testing.T) {
+	pm := newTestProjection()
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"})
+
+	sql, args := b.Build()
+
+	if !strings.Contains(sql, "SELECT u.id, u.name, u.email FROM public.users u") {
+		t.Errorf("Build() missing select clause, got %q", sql)
+	}
+
+	if !strings.Contains(sql, "ORDER BY u.name ASC") {
+		t.Errorf("Build() missing order by, got %q", sql)
+	}
+
+	if strings.Contains(sql, "LIMIT") || strings.Contains(sql, "OFFSET") {
+		t.Errorf("Build() should not have LIMIT/OFFSET, got %q", sql)
+	}
+
+	if len(args) != 0 {
+		t.Errorf("Build() args = %v, want empty", args)
+	}
+}
+
+func TestBuilder_Build_WithConditions(t *testing.T) {
+	pm := newTestProjection()
+	name := "test"
+	b := query.NewBuilder(pm, query.SortField{Field: "Name", Descending: true}).
+		WhereEquals("ID", 5).
+		WhereContains("Name", &name)
+
+	sql, args := b.Build()
+
+	if !strings.Contains(sql, "SELECT u.id, u.name, u.email FROM public.users u") {
+		t.Errorf("Build() missing select clause, got %q", sql)
+	}
+
+	if !strings.Contains(sql, "WHERE u.id = $1 AND u.name ILIKE $2") {
+		t.Errorf("Build() missing where clause, got %q", sql)
+	}
+
+	if !strings.Contains(sql, "ORDER BY u.name DESC") {
+		t.Errorf("Build() missing order by, got %q", sql)
+	}
+
+	if len(args) != 2 {
+		t.Fatalf("Build() len(args) = %d, want 2", len(args))
+	}
+
+	if args[0] != 5 {
+		t.Errorf("Build() args[0] = %v, want 5", args[0])
+	}
+
+	if args[1] != "%test%" {
+		t.Errorf("Build() args[1] = %v, want %%test%%", args[1])
+	}
 }
 
 func TestBuilder_BuildCount_NoConditions(t *testing.T) {
@@ -88,7 +145,7 @@ func TestBuilder_BuildSingle(t *testing.T) {
 	pm := newTestProjection()
 	b := query.NewBuilder(pm)
 
-	sql, args := b.BuildSingle("Id", 123)
+	sql, args := b.BuildSingle("ID", 123)
 
 	if !strings.Contains(sql, "WHERE u.id = $1") {
 		t.Errorf("BuildSingle() missing where clause, got %q", sql)
@@ -172,7 +229,7 @@ func TestBuilder_NoSortFields(t *testing.T) {
 
 func TestBuilder_WhereEquals(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereEquals("Id", 5)
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereEquals("ID", 5)
 
 	sql, args := b.BuildCount()
 
@@ -187,7 +244,7 @@ func TestBuilder_WhereEquals(t *testing.T) {
 
 func TestBuilder_WhereEquals_NilIgnored(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereEquals("Id", nil)
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereEquals("ID", nil)
 
 	sql, args := b.BuildCount()
 
@@ -249,7 +306,7 @@ func TestBuilder_WhereContains_EmptyStringIgnored(t *testing.T) {
 
 func TestBuilder_WhereIn(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereIn("Id", []any{1, 2, 3})
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereIn("ID", []any{1, 2, 3})
 
 	sql, args := b.BuildCount()
 
@@ -264,7 +321,7 @@ func TestBuilder_WhereIn(t *testing.T) {
 
 func TestBuilder_WhereIn_EmptyIgnored(t *testing.T) {
 	pm := newTestProjection()
-	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereIn("Id", []any{})
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereIn("ID", []any{})
 
 	sql, args := b.BuildCount()
 
@@ -320,7 +377,7 @@ func TestBuilder_MultipleConditions(t *testing.T) {
 	pm := newTestProjection()
 	name := "john"
 	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).
-		WhereEquals("Id", 5).
+		WhereEquals("ID", 5).
 		WhereContains("Name", &name)
 
 	sql, args := b.BuildCount()
