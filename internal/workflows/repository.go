@@ -8,6 +8,7 @@ import (
 
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 	"github.com/JaimeStill/agent-lab/pkg/query"
+	"github.com/JaimeStill/agent-lab/pkg/repository"
 	"github.com/google/uuid"
 )
 
@@ -28,34 +29,50 @@ func New(db *sql.DB, logger *slog.Logger, pagination pagination.Config) *repo {
 func (r *repo) ListRuns(ctx context.Context, page pagination.PageRequest, filters RunFilters) (*pagination.PageResult[Run], error) {
 	page.Normalize(r.pagination)
 
-	countBuilder := query.NewBuilder(runProjection)
-	filters.Apply(countBuilder)
+	qb := query.NewBuilder(runProjection, runDefaultSort)
+	filters.Apply(qb)
 
-	countQuery, countArgs := countBuilder.BuildCount()
+	if len(page.Sort) > 0 {
+		qb.OrderByFields(page.Sort)
+	}
 
+	countSql, countArgs := qb.BuildCount()
 	var total int
-	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countSql, countArgs...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count runs: %w", err)
 	}
 
-	pageBuilder := query.NewBuilder(runProjection)
-	filters.Apply(pageBuilder)
-	pageBuilder.OrderBy(runDefaultSort)
-
-	pageQuery, pageArgs := pageBuilder.BuildPage(page)
-
-	rows, err := r.db.QueryContext(ctx, pageQuery, pageArgs...)
+	pageSql, pageArgs := qb.BuildPage(page.Page, page.PageSize)
+	runs, err := repository.QueryMany(ctx, r.db, pageSql, pageArgs, scanRun)
 	if err != nil {
 		return nil, fmt.Errorf("query runs: %w", err)
 	}
-	defer rows.Close()
 
-	var runs []Run
-	for rows.Next() {
-		run, err := scanRun(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan run: %w", err)
-		}
-		runs = append(runs, run)
+	result := pagination.NewPageResult(runs, total, page.Page, page.PageSize)
+	return &result, nil
+}
+
+func (r *repo) FindRun(ctx context.Context, id uuid.UUID) (*Run, error) {
+	q, args := query.NewBuilder(runProjection).BuildSingle("ID", id)
+
+	run, err := repository.QueryOne(ctx, r.db, q, args, scanRun)
+	if err != nil {
+		return nil, repository.MapError(err, ErrNotFound, nil)
 	}
+
+	return &run, nil
+}
+
+func (r *repo) GetStages(ctx context.Context, runID uuid.UUID) ([]Stage, error) {
+	qb := query.NewBuilder(stageProjection, stageDefaultSort)
+	qb.WhereEquals("RunID", &runID)
+
+	q, args := qb.Build()
+
+	stages, err := repository.QueryMany(ctx, r.db, q, args, scanStage)
+	if err != nil {
+		return nil, fmt.Errorf("query stages: %w", err)
+	}
+
+	return stages, nil
 }

@@ -70,6 +70,21 @@ func ParseSortFields(s string) []SortField {
 	return fields
 }
 
+func (b *Builder) Build() (string, []any) {
+	where, args, _ := b.buildWhere(1)
+	orderBy := b.buildOrderBy()
+
+	sql := fmt.Sprintf(
+		"SELECT %s FROM %s%s%s",
+		b.projection.Columns(),
+		b.projection.Table(),
+		where,
+		orderBy,
+	)
+
+	return sql, args
+}
+
 // BuildCount returns a COUNT(*) query with the current conditions.
 func (b *Builder) BuildCount() (string, []any) {
 	where, args, _ := b.buildWhere(1)
