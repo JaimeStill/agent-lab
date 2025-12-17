@@ -20,6 +20,8 @@ var runProjection = query.NewProjectionMap("public", "runs", "r").
 	Project("updated_at", "UpdatedAt")
 
 var runDefaultSort = query.SortField{Field: "CreatedAt", Descending: true}
+var stageDefaultSort = query.SortField{Field: "CreatedAt", Descending: false}
+var decisionDefaultSort = query.SortField{Field: "CreatedAt", Descending: false}
 
 func scanRun(s repository.Scanner) (Run, error) {
 	var r Run
