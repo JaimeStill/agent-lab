@@ -484,17 +484,18 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - WorkflowFactory type for StateGraph and State creation
 - Thread-safe workflow registry with sync.RWMutex
 
-#### Session 3b: Observer and Checkpoint Store
+#### Session 3b: Observer and Checkpoint Store ✅
 
-**Objective**: Implement go-agents-orchestration interfaces for persistence.
+**Status**: Completed (2025-12-17)
 
-**Deliverables**:
+**Implemented**:
+- go-agents-orchestration v0.2.0 maintenance release (State public fields with JSON tags)
 - PostgresObserver implementing `observability.Observer`
 - PostgresCheckpointStore implementing `state.CheckpointStore`
-- Registration with go-agents-orchestration registries
 - Stage/decision recording from Observer events
+- Duration calculation via internal start time tracking
 
-**Validation**: Observer captures events to database, checkpoints save/load correctly.
+**Validation**: ✅ Interface compliance verified, all tests passing
 
 #### Session 3c: Workflow Execution Engine
 
@@ -694,7 +695,8 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 **In Progress**:
 - Milestone 3: Workflow Execution Infrastructure
   - Session 3a: Workflow Infrastructure Foundation ✅
-  - Session 3b: Observer and Checkpoint Store (pending)
+  - Session 3b: Observer and Checkpoint Store ✅
+  - Session 3c: Workflow Execution Engine (pending)
 
 **Recently Completed**:
 - Milestone 2: Document Upload & Processing ✅
@@ -707,7 +709,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Improved agent config validation with Default + Merge pattern
 
 **Next Steps**:
-- Begin Session 3b: Observer and Checkpoint Store
+- Begin Session 3c: Workflow Execution Engine
 
 ## Future Phases (Beyond Milestone 8)
 

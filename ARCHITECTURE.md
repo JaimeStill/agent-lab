@@ -270,7 +270,9 @@ internal/                 # Private API: Domain systems
     ├── mapping.go            # Projections, scanners, filters
     ├── registry.go           # Global workflow registry
     ├── systems.go            # Systems struct for domain access
-    └── repository.go         # Read-only repository
+    ├── repository.go         # Read-only repository
+    ├── checkpoint.go         # PostgresCheckpointStore (state.CheckpointStore impl)
+    └── observer.go           # PostgresObserver (observability.Observer impl)
 
 pkg/                      # Public API: Shared infrastructure
 ├── handlers/
