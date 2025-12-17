@@ -76,3 +76,17 @@ func (r *repo) GetStages(ctx context.Context, runID uuid.UUID) ([]Stage, error) 
 
 	return stages, nil
 }
+
+func (r *repo) GetDecisions(ctx context.Context, runID uuid.UUID) ([]Decision, error) {
+	qb := query.NewBuilder(decisionProjection, decisionDefaultSort)
+	qb.WhereEquals("RunID", &runID)
+
+	q, args := qb.Build()
+
+	decisions, err := repository.QueryMany(ctx, r.db, q, args, scanDecision)
+	if err != nil {
+		return nil, fmt.Errorf("query decisions: %w", err)
+	}
+
+	return decisions, nil
+}
