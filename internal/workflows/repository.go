@@ -18,6 +18,7 @@ type repo struct {
 	pagination pagination.Config
 }
 
+// New creates a new workflows repository.
 func New(db *sql.DB, logger *slog.Logger, pagination pagination.Config) *repo {
 	return &repo{
 		db:         db,
@@ -26,6 +27,7 @@ func New(db *sql.DB, logger *slog.Logger, pagination pagination.Config) *repo {
 	}
 }
 
+// ListRuns returns a paginated list of workflow runs.
 func (r *repo) ListRuns(ctx context.Context, page pagination.PageRequest, filters RunFilters) (*pagination.PageResult[Run], error) {
 	page.Normalize(r.pagination)
 
@@ -52,6 +54,7 @@ func (r *repo) ListRuns(ctx context.Context, page pagination.PageRequest, filter
 	return &result, nil
 }
 
+// FindRun retrieves a single run by ID.
 func (r *repo) FindRun(ctx context.Context, id uuid.UUID) (*Run, error) {
 	q, args := query.NewBuilder(runProjection).BuildSingle("ID", id)
 
@@ -63,6 +66,7 @@ func (r *repo) FindRun(ctx context.Context, id uuid.UUID) (*Run, error) {
 	return &run, nil
 }
 
+// GetStages retrieves all stages for a workflow run.
 func (r *repo) GetStages(ctx context.Context, runID uuid.UUID) ([]Stage, error) {
 	qb := query.NewBuilder(stageProjection, stageDefaultSort)
 	qb.WhereEquals("RunID", &runID)
@@ -77,6 +81,7 @@ func (r *repo) GetStages(ctx context.Context, runID uuid.UUID) ([]Stage, error) 
 	return stages, nil
 }
 
+// GetDecisions retrieves all routing decisions for a workflow run.
 func (r *repo) GetDecisions(ctx context.Context, runID uuid.UUID) ([]Decision, error) {
 	qb := query.NewBuilder(decisionProjection, decisionDefaultSort)
 	qb.WhereEquals("RunID", &runID)

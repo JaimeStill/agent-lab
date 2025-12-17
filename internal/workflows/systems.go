@@ -8,6 +8,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/images"
 )
 
+// Systems provides access to domain systems for workflow execution.
 type Systems struct {
 	Agents    agents.System
 	Documents documents.System

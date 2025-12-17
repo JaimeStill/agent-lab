@@ -7,6 +7,7 @@ import (
 	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
 )
 
+// WorkflowFactory creates a StateGraph and initial State for workflow execution.
 type WorkflowFactory func(ctx context.Context, systems *Systems, params map[string]any) (state.StateGraph, state.State, error)
 
 type workflowRegistry struct {
@@ -20,6 +21,7 @@ var registry = &workflowRegistry{
 	info:      make(map[string]WorkflowInfo),
 }
 
+// Register adds a workflow factory to the global registry.
 func Register(name string, factory WorkflowFactory, description string) {
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
@@ -27,6 +29,7 @@ func Register(name string, factory WorkflowFactory, description string) {
 	registry.info[name] = WorkflowInfo{Name: name, Description: description}
 }
 
+// Get retrieves a workflow factory by name.
 func Get(name string) (WorkflowFactory, bool) {
 	registry.mu.RLock()
 	defer registry.mu.RUnlock()
@@ -34,6 +37,7 @@ func Get(name string) (WorkflowFactory, bool) {
 	return factory, exists
 }
 
+// List returns metadata for all registered workflows.
 func List() []WorkflowInfo {
 	registry.mu.RLock()
 	defer registry.mu.RUnlock()

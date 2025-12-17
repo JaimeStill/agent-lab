@@ -463,18 +463,26 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **Development Sessions**:
 
-#### Session 3a: Workflow Infrastructure Foundation
+#### Session 3a: Workflow Infrastructure Foundation ✅
 
-**Objective**: Database schema and core types.
+**Status**: Completed (2025-12-17)
 
-**Deliverables**:
-- Migration: runs, stages, decisions, checkpoints
-- Package skeleton: `internal/workflows/`
-- Types: Run, Stage, Decision, Checkpoint
-- Registry: workflow registration and discovery
-- Repository: Run CRUD operations
+**Implemented**:
+- Database schema: runs, stages, decisions, checkpoints tables
+- Core types: Run, Stage, Decision, WorkflowInfo with status constants
+- Domain errors with HTTP status mapping
+- Mapping infrastructure: projections, scanners, filters
+- Global registry: Register, Get, List functions
+- Systems struct placeholder for Session 3c
+- Read-only repository: ListRuns, FindRun, GetStages, GetDecisions
+- Query builder Build() method for unbounded SELECT queries
 
-**Validation**: Registry accepts factories, runs persist to database.
+**Validation**: ✅ Migration runs, registry works, all tests passing
+
+**Architectural Additions**:
+- Repository Query Method Naming: List (PageResult), Find (single), Get (full slice)
+- WorkflowFactory type for StateGraph and State creation
+- Thread-safe workflow registry with sync.RWMutex
 
 #### Session 3b: Observer and Checkpoint Store
 
@@ -685,7 +693,8 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **In Progress**:
 - Milestone 3: Workflow Execution Infrastructure
-  - Session 3a: Workflow Infrastructure Foundation (pending)
+  - Session 3a: Workflow Infrastructure Foundation ✅
+  - Session 3b: Observer and Checkpoint Store (pending)
 
 **Recently Completed**:
 - Milestone 2: Document Upload & Processing ✅
@@ -698,8 +707,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Improved agent config validation with Default + Merge pattern
 
 **Next Steps**:
-- Create milestone architecture document (`_context/milestones/m03-workflow-execution.md`)
-- Begin Session 3a: Workflow Infrastructure Foundation
+- Begin Session 3b: Observer and Checkpoint Store
 
 ## Future Phases (Beyond Milestone 8)
 

@@ -75,7 +75,7 @@ var decisionProjection = query.NewProjectionMap("public", "decisions", "d").
 	Project("from_node", "FromNode").
 	Project("to_node", "ToNode").
 	Project("predicate_name", "PredicateName").
-	Project("predicate_result", "PrediateResult").
+	Project("predicate_result", "PredicateResult").
 	Project("reason", "Reason").
 	Project("created_at", "CreatedAt")
 
@@ -94,11 +94,13 @@ func scanDecision(s repository.Scanner) (Decision, error) {
 	return d, err
 }
 
+// RunFilters contains optional criteria for filtering run queries.
 type RunFilters struct {
 	WorkflowName *string
 	Status       *string
 }
 
+// RunFiltersFromQuery extracts run filters from URL query parameters.
 func RunFiltersFromQuery(values url.Values) RunFilters {
 	var f RunFilters
 
@@ -113,6 +115,7 @@ func RunFiltersFromQuery(values url.Values) RunFilters {
 	return f
 }
 
+// Apply adds filter conditions to the query builder.
 func (f RunFilters) Apply(b *query.Builder) *query.Builder {
 	return b.
 		WhereEquals("WorkflowName", f.WorkflowName).

@@ -1,3 +1,5 @@
+// Package workflows provides workflow execution infrastructure including
+// run tracking, stage observation, and decision logging.
 package workflows
 
 import (
@@ -7,8 +9,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// RunStatus represents the execution state of a workflow run.
 type RunStatus string
 
+// Run status constants.
 const (
 	StatusPending   RunStatus = "pending"
 	StatusRunning   RunStatus = "running"
@@ -17,14 +21,17 @@ const (
 	StatusCancelled RunStatus = "cancelled"
 )
 
+// StageStatus represents the execution state of a workflow stage.
 type StageStatus string
 
+// Stage status constants.
 const (
 	StageStarted   StageStatus = "started"
 	StageCompleted StageStatus = "completed"
 	StageFailed    StageStatus = "failed"
 )
 
+// Run represents a workflow execution record.
 type Run struct {
 	ID           uuid.UUID       `json:"id"`
 	WorkflowName string          `json:"workflow_name"`
@@ -38,6 +45,7 @@ type Run struct {
 	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
+// Stage represents a node execution within a workflow run.
 type Stage struct {
 	ID             uuid.UUID       `json:"id"`
 	RunID          uuid.UUID       `json:"run_id"`
@@ -51,6 +59,7 @@ type Stage struct {
 	CreatedAt      time.Time       `json:"created_at"`
 }
 
+// Decision represents a routing decision made during workflow execution.
 type Decision struct {
 	ID              uuid.UUID `json:"id"`
 	RunID           uuid.UUID `json:"run_id"`
@@ -59,9 +68,10 @@ type Decision struct {
 	PredicateName   *string   `json:"predicate_name,omitempty"`
 	PredicateResult *bool     `json:"predicate_result,omitempty"`
 	Reason          *string   `json:"reason,omitempty"`
-	CreatedAt       time.Time `json:"creatd_at"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
+// WorkflowInfo provides metadata about a registered workflow.
 type WorkflowInfo struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`

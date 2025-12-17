@@ -254,15 +254,23 @@ internal/                 # Private API: Domain systems
 │   ├── handler.go            # Handler struct with route methods
 │   └── openapi.go            # OpenAPI schemas and operations
 │
-└── images/               # Images domain system
-    ├── image.go              # State structures + RenderOptions
-    ├── document.go           # Document interface for rendering
+├── images/               # Images domain system
+│   ├── image.go              # State structures + RenderOptions
+│   ├── document.go           # Document interface for rendering
+│   ├── errors.go             # Domain errors + HTTP status mapping
+│   ├── mapping.go            # Projection, scanner, filters, and page range parsing
+│   ├── system.go             # System interface
+│   ├── repository.go         # Repository implementation + rendering logic
+│   ├── handler.go            # Handler struct with route methods
+│   └── openapi.go            # OpenAPI schemas and operations
+│
+└── workflows/            # Workflows domain system
+    ├── run.go                # Run, Stage, Decision, WorkflowInfo types
     ├── errors.go             # Domain errors + HTTP status mapping
-    ├── mapping.go            # Projection, scanner, filters, and page range parsing
-    ├── system.go             # System interface
-    ├── repository.go         # Repository implementation + rendering logic
-    ├── handler.go            # Handler struct with route methods
-    └── openapi.go            # OpenAPI schemas and operations
+    ├── mapping.go            # Projections, scanners, filters
+    ├── registry.go           # Global workflow registry
+    ├── systems.go            # Systems struct for domain access
+    └── repository.go         # Read-only repository
 
 pkg/                      # Public API: Shared infrastructure
 ├── handlers/
@@ -303,6 +311,7 @@ tests/                    # Black-box tests
 ├── internal_providers/
 ├── internal_routes/
 ├── internal_storage/
+├── internal_workflows/
 ├── pkg_handlers/
 ├── pkg_openapi/
 ├── pkg_pagination/

@@ -14,6 +14,63 @@ func newTestProjection() *query.ProjectionMap {
 		Project("email", "Email")
 }
 
+func TestBuilder_Build_NoConditions(t *testing.T) {
+	pm := newTestProjection()
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"})
+
+	sql, args := b.Build()
+
+	if !strings.Contains(sql, "SELECT u.id, u.name, u.email FROM public.users u") {
+		t.Errorf("Build() missing select clause, got %q", sql)
+	}
+
+	if !strings.Contains(sql, "ORDER BY u.name ASC") {
+		t.Errorf("Build() missing order by, got %q", sql)
+	}
+
+	if strings.Contains(sql, "LIMIT") || strings.Contains(sql, "OFFSET") {
+		t.Errorf("Build() should not have LIMIT/OFFSET, got %q", sql)
+	}
+
+	if len(args) != 0 {
+		t.Errorf("Build() args = %v, want empty", args)
+	}
+}
+
+func TestBuilder_Build_WithConditions(t *testing.T) {
+	pm := newTestProjection()
+	name := "test"
+	b := query.NewBuilder(pm, query.SortField{Field: "Name", Descending: true}).
+		WhereEquals("ID", 5).
+		WhereContains("Name", &name)
+
+	sql, args := b.Build()
+
+	if !strings.Contains(sql, "SELECT u.id, u.name, u.email FROM public.users u") {
+		t.Errorf("Build() missing select clause, got %q", sql)
+	}
+
+	if !strings.Contains(sql, "WHERE u.id = $1 AND u.name ILIKE $2") {
+		t.Errorf("Build() missing where clause, got %q", sql)
+	}
+
+	if !strings.Contains(sql, "ORDER BY u.name DESC") {
+		t.Errorf("Build() missing order by, got %q", sql)
+	}
+
+	if len(args) != 2 {
+		t.Fatalf("Build() len(args) = %d, want 2", len(args))
+	}
+
+	if args[0] != 5 {
+		t.Errorf("Build() args[0] = %v, want 5", args[0])
+	}
+
+	if args[1] != "%test%" {
+		t.Errorf("Build() args[1] = %v, want %%test%%", args[1])
+	}
+}
+
 func TestBuilder_BuildCount_NoConditions(t *testing.T) {
 	pm := newTestProjection()
 	b := query.NewBuilder(pm, query.SortField{Field: "Name"})

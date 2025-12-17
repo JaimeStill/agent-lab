@@ -44,7 +44,7 @@ CREATE TABLE decisions (
 
 CREATE INDEX idx_decisions_run_id ON decisions(run_id);
 
-CREATE TABLE checkopoints (
+CREATE TABLE checkpoints (
   run_id TEXT PRIMARY KEY,
   state_data JSONB NOT NULL,
   checkpoint_node TEXT NOT NULL,
