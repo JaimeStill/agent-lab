@@ -14,7 +14,32 @@ The Command Execution Model has been added to:
 
 ---
 
-## Phase 1: Database Migration
+## Phase 1: Query Builder Extension
+
+### File: `pkg/query/builder.go`
+
+Add the `Build()` method after `BuildSingleOrNull()`:
+
+```go
+func (b *Builder) Build() (string, []any) {
+	where, args, _ := b.buildWhere(1)
+	orderBy := b.buildOrderBy()
+
+	sql := fmt.Sprintf(
+		"SELECT %s FROM %s%s%s",
+		b.projection.Columns(),
+		b.projection.Table(),
+		where,
+		orderBy,
+	)
+
+	return sql, args
+}
+```
+
+---
+
+## Phase 2: Database Migration
 
 ### File: `cmd/migrate/migrations/000006_workflows.up.sql`
 
@@ -94,7 +119,7 @@ DROP TABLE IF EXISTS checkpoints;
 
 ---
 
-## Phase 2: Core Types
+## Phase 3: Core Types
 
 ### File: `internal/workflows/run.go`
 
@@ -171,7 +196,7 @@ type WorkflowInfo struct {
 
 ---
 
-## Phase 3: Domain Errors
+## Phase 4: Domain Errors
 
 ### File: `internal/workflows/errors.go`
 
@@ -205,7 +230,7 @@ func MapHTTPStatus(err error) int {
 
 ---
 
-## Phase 4: Mapping Infrastructure
+## Phase 5: Mapping Infrastructure
 
 ### File: `internal/workflows/mapping.go`
 
@@ -334,7 +359,7 @@ func (f RunFilters) Apply(b *query.Builder) *query.Builder {
 
 ---
 
-## Phase 5: Registry
+## Phase 6: Registry
 
 ### File: `internal/workflows/registry.go`
 
@@ -389,7 +414,7 @@ func List() []WorkflowInfo {
 
 ---
 
-## Phase 6: Systems Struct
+## Phase 7: Systems Struct
 
 ### File: `internal/workflows/systems.go`
 
@@ -414,7 +439,7 @@ type Systems struct {
 
 ---
 
-## Phase 7: Repository (Read Operations)
+## Phase 8: Repository (Read Operations)
 
 ### File: `internal/workflows/repository.go`
 
@@ -488,7 +513,7 @@ func (r *repo) GetStages(ctx context.Context, runID uuid.UUID) ([]Stage, error) 
 	qb := query.NewBuilder(stageProjection, stageDefaultSort)
 	qb.WhereEquals("RunID", &runID)
 
-	q, args := qb.BuildSelect()
+	q, args := qb.Build()
 
 	stages, err := repository.QueryMany(ctx, r.db, q, args, scanStage)
 	if err != nil {
@@ -502,7 +527,7 @@ func (r *repo) GetDecisions(ctx context.Context, runID uuid.UUID) ([]Decision, e
 	qb := query.NewBuilder(decisionProjection, decisionDefaultSort)
 	qb.WhereEquals("RunID", &runID)
 
-	q, args := qb.BuildSelect()
+	q, args := qb.Build()
 
 	decisions, err := repository.QueryMany(ctx, r.db, q, args, scanDecision)
 	if err != nil {
