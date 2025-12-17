@@ -188,6 +188,7 @@ Session closeout ensures documentation stays aligned with the codebase and captu
 |----------|-----------------|
 | **README.md** | Only critical user-facing changes (new commands, setup steps). Be very conservative. |
 | **ARCHITECTURE.md** | Align with latest codebase - add implemented patterns, update examples |
+| **Milestone architecture doc** | Update if session revealed new patterns, decisions, or scope adjustments for remaining sessions |
 | **web-service-architecture.md** | Move verified patterns from conceptual to validated section. Add new patterns discovered. |
 | **service-design.md** | Remove concepts that have been integrated into the codebase |
 | **PROJECT.md** | Update session status. Evaluate remaining sessions for adjustments (scope changes, dependencies, reordering) |

@@ -308,11 +308,13 @@ type Executor interface {
 
 ### Session 3a: Workflow Infrastructure Foundation
 
+**Status**: Completed
+
 **Objective**: Database schema and core types.
 
 **Files**:
-- `cmd/migrate/migrations/000005_workflows.up.sql`
-- `cmd/migrate/migrations/000005_workflows.down.sql`
+- `cmd/migrate/migrations/000006_workflows.up.sql`
+- `cmd/migrate/migrations/000006_workflows.down.sql`
 - `internal/workflows/run.go` - Run, Stage, Decision types
 - `internal/workflows/errors.go` - Domain errors
 - `internal/workflows/projection.go` - Query projections
@@ -323,7 +325,11 @@ type Executor interface {
 
 ### Session 3b: Observer and Checkpoint Store
 
+**Status**: Completed
+
 **Objective**: Implement go-agents-orchestration interfaces for persistence.
+
+**Dependency**: Requires go-agents-orchestration v0.2.0 (State public fields with JSON tags).
 
 **Files**:
 - `internal/workflows/observer.go` - PostgresObserver
