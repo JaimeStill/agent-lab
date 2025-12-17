@@ -1278,7 +1278,7 @@ func (p *ProjectionMap) Columns() string    // "alias.col1, alias.col2, ..."
 **Usage**:
 ```go
 var providerProjection = query.NewProjectionMap("public", "providers", "p").
-    Project("id", "Id").
+    Project("id", "ID").
     Project("name", "Name").
     Project("config", "Config")
 ```
@@ -1961,7 +1961,7 @@ Queries use repository helpers without transactions:
 
 ```go
 func (r *repo) FindByID(ctx context.Context, id uuid.UUID) (*Provider, error) {
-    q, args := query.NewBuilder(projection).BuildSingle("Id", id)
+    q, args := query.NewBuilder(projection).BuildSingle("ID", id)
 
     p, err := repository.QueryOne(ctx, r.db, q, args, scanProvider)
     if err != nil {

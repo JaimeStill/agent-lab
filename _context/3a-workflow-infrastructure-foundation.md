@@ -128,39 +128,39 @@ const (
 
 type Run struct {
 	ID           uuid.UUID       `json:"id"`
-	WorkflowName string          `json:"workflowName"`
+	WorkflowName string          `json:"workflow_name"`
 	Status       RunStatus       `json:"status"`
 	Params       json.RawMessage `json:"params,omitempty"`
 	Result       json.RawMessage `json:"result,omitempty"`
-	ErrorMessage *string         `json:"errorMessage,omitempty"`
-	StartedAt    *time.Time      `json:"startedAt,omitempty"`
-	CompletedAt  *time.Time      `json:"completedAt,omitempty"`
-	CreatedAt    time.Time       `json:"createdAt"`
-	UpdatedAt    time.Time       `json:"updatedAt"`
+	ErrorMessage *string         `json:"error_message,omitempty"`
+	StartedAt    *time.Time      `json:"started_at,omitempty"`
+	CompletedAt  *time.Time      `json:"completed_at,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
 type Stage struct {
 	ID             uuid.UUID       `json:"id"`
-	RunID          uuid.UUID       `json:"runId"`
-	NodeName       string          `json:"nodeName"`
+	RunID          uuid.UUID       `json:"run_id"`
+	NodeName       string          `json:"node_name"`
 	Iteration      int             `json:"iteration"`
 	Status         StageStatus     `json:"status"`
-	InputSnapshot  json.RawMessage `json:"inputSnapshot,omitempty"`
-	OutputSnapshot json.RawMessage `json:"outputSnapshot,omitempty"`
-	DurationMs     *int            `json:"durationMs,omitempty"`
-	ErrorMessage   *string         `json:"errorMessage,omitempty"`
-	CreatedAt      time.Time       `json:"createdAt"`
+	InputSnapshot  json.RawMessage `json:"input_snapshot,omitempty"`
+	OutputSnapshot json.RawMessage `json:"output_snapshot,omitempty"`
+	DurationMs     *int            `json:"duration_ms,omitempty"`
+	ErrorMessage   *string         `json:"error_message,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
 }
 
 type Decision struct {
 	ID              uuid.UUID `json:"id"`
-	RunID           uuid.UUID `json:"runId"`
-	FromNode        string    `json:"fromNode"`
-	ToNode          *string   `json:"toNode,omitempty"`
-	PredicateName   *string   `json:"predicateName,omitempty"`
-	PredicateResult *bool     `json:"predicateResult,omitempty"`
+	RunID           uuid.UUID `json:"run_id"`
+	FromNode        string    `json:"from_node"`
+	ToNode          *string   `json:"to_node,omitempty"`
+	PredicateName   *string   `json:"predicate_name,omitempty"`
+	PredicateResult *bool     `json:"predicate_result,omitempty"`
 	Reason          *string   `json:"reason,omitempty"`
-	CreatedAt       time.Time `json:"createdAt"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type WorkflowInfo struct {
@@ -220,7 +220,7 @@ import (
 )
 
 var runProjection = query.NewProjectionMap("public", "runs", "r").
-	Project("id", "Id").
+	Project("id", "ID").
 	Project("workflow_name", "WorkflowName").
 	Project("status", "Status").
 	Project("params", "Params").
@@ -251,7 +251,7 @@ func scanRun(s repository.Scanner) (Run, error) {
 }
 
 var stageProjection = query.NewProjectionMap("public", "stages", "s").
-	Project("id", "Id").
+	Project("id", "ID").
 	Project("run_id", "RunID").
 	Project("node_name", "NodeName").
 	Project("iteration", "Iteration").
@@ -280,7 +280,7 @@ func scanStage(s repository.Scanner) (Stage, error) {
 }
 
 var decisionProjection = query.NewProjectionMap("public", "decisions", "d").
-	Project("id", "Id").
+	Project("id", "ID").
 	Project("run_id", "RunID").
 	Project("from_node", "FromNode").
 	Project("to_node", "ToNode").
@@ -491,7 +491,7 @@ func (r *repo) ListRuns(ctx context.Context, page pagination.PageRequest, filter
 
 func (r *repo) FindRun(ctx context.Context, id uuid.UUID) (*Run, error) {
 	builder := query.NewBuilder(runProjection)
-	builder.WhereEquals("Id", &id)
+	builder.WhereEquals("ID", &id)
 
 	q, args := builder.BuildSingle()
 

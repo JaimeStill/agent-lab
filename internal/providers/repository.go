@@ -59,7 +59,7 @@ func (r *repo) List(ctx context.Context, page pagination.PageRequest, filters Fi
 }
 
 func (r *repo) Find(ctx context.Context, id uuid.UUID) (*Provider, error) {
-	q, args := query.NewBuilder(projection).BuildSingle("Id", id)
+	q, args := query.NewBuilder(projection).BuildSingle("ID", id)
 
 	p, err := repository.QueryOne(ctx, r.db, q, args, scanProvider)
 	if err != nil {

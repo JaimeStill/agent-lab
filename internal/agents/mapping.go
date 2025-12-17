@@ -9,7 +9,7 @@ import (
 
 var projection = query.
 	NewProjectionMap("public", "agents", "a").
-	Project("id", "Id").
+	Project("id", "ID").
 	Project("name", "Name").
 	Project("config", "Config").
 	Project("created_at", "CreatedAt").

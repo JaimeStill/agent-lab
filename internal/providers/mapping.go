@@ -8,7 +8,7 @@ import (
 )
 
 var projection = query.NewProjectionMap("public", "providers", "p").
-	Project("id", "Id").
+	Project("id", "ID").
 	Project("name", "Name").
 	Project("config", "Config").
 	Project("created_at", "CreatedAt").
