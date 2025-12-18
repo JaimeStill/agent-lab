@@ -431,12 +431,58 @@ func (r *repo) UpdateRunCompleted(ctx context.Context, id uuid.UUID, status RunS
 
 ### Phase 3: Update WorkflowFactory Signature
 
+#### 3.1 Rename Systems to Runtime
+
+**File**: `/home/jaime/code/agent-lab/internal/workflows/systems.go` → `runtime.go`
+
+Rename the file and update the struct name:
+
+```go
+package workflows
+
+import (
+	"log/slog"
+
+	"github.com/JaimeStill/agent-lab/internal/agents"
+	"github.com/JaimeStill/agent-lab/internal/documents"
+	"github.com/JaimeStill/agent-lab/internal/images"
+)
+
+type Runtime struct {
+	agents    agents.System
+	documents documents.System
+	images    images.System
+	logger    *slog.Logger
+}
+
+func NewRuntime(
+	agents agents.System,
+	documents documents.System,
+	images images.System,
+	logger *slog.Logger,
+) *Runtime {
+	return &Runtime{
+		agents:    agents,
+		documents: documents,
+		images:    images,
+		logger:    logger,
+	}
+}
+
+func (r *Runtime) Agents() agents.System    { return r.agents }
+func (r *Runtime) Documents() documents.System { return r.documents }
+func (r *Runtime) Images() images.System    { return r.images }
+func (r *Runtime) Logger() *slog.Logger     { return r.logger }
+```
+
+#### 3.2 Update Factory Signature
+
 **File**: `/home/jaime/code/agent-lab/internal/workflows/registry.go`
 
 Update the factory type to receive a pre-configured graph:
 
 ```go
-type WorkflowFactory func(ctx context.Context, graph state.StateGraph, systems *Systems, params map[string]any) (state.State, error)
+type WorkflowFactory func(ctx context.Context, graph state.StateGraph, runtime *Runtime, params map[string]any) (state.State, error)
 ```
 
 Update `Register` function signature:
@@ -503,7 +549,7 @@ import (
 
 type executor struct {
 	repo         *repo
-	systems      *Systems
+	runtime      *Runtime
 	db           *sql.DB
 	logger       *slog.Logger
 	activeRuns   map[uuid.UUID]context.CancelFunc
@@ -512,13 +558,13 @@ type executor struct {
 
 func NewSystem(
 	db *sql.DB,
-	systems *Systems,
+	runtime *Runtime,
 	logger *slog.Logger,
 	pagination pagination.Config,
 ) System {
 	return &executor{
 		repo:       New(db, logger, pagination),
-		systems:    systems,
+		runtime:    runtime,
 		db:         db,
 		logger:     logger.With("system", "workflows"),
 		activeRuns: make(map[uuid.UUID]context.CancelFunc),
@@ -577,7 +623,7 @@ func (e *executor) Execute(ctx context.Context, name string, params map[string]a
 		return e.finalizeRun(ctx, run.ID, StatusFailed, nil, err)
 	}
 
-	initialState, err := factory(execCtx, graph, e.systems, params)
+	initialState, err := factory(execCtx, graph, e.runtime, params)
 	if err != nil {
 		return e.finalizeRun(ctx, run.ID, StatusFailed, nil, err)
 	}
@@ -661,7 +707,7 @@ func (e *executor) Resume(ctx context.Context, runID uuid.UUID) (*Run, error) {
 		return e.finalizeRun(ctx, run.ID, StatusFailed, nil, err)
 	}
 
-	_, err = factory(execCtx, graph, e.systems, params)
+	_, err = factory(execCtx, graph, e.runtime, params)
 	if err != nil {
 		return e.finalizeRun(ctx, run.ID, StatusFailed, nil, err)
 	}
@@ -748,12 +794,7 @@ func NewDomain(runtime *Runtime) *Domain {
 		runtime.Pagination,
 	)
 
-	systems := &workflows.Systems{
-		Agents:    agentsSys,
-		Documents: docs,
-		Images:    imagesSys,
-		Logger:    runtime.Logger,
-	}
+	workflowRuntime := workflows.NewRuntime(agentsSys, docs, imagesSys, runtime.Logger)
 
 	return &Domain{
 		Providers: providers.New(
@@ -766,7 +807,7 @@ func NewDomain(runtime *Runtime) *Domain {
 		Images:    imagesSys,
 		Workflows: workflows.NewSystem(
 			runtime.Database.Connection(),
-			systems,
+			workflowRuntime,
 			runtime.Logger,
 			runtime.Pagination,
 		),
@@ -811,6 +852,7 @@ go test ./tests/...
 | go-agents-orchestration | `CHANGELOG.md` | v0.3.0 entry |
 | agent-lab | `internal/workflows/repository.go` | Add write methods |
 | agent-lab | `internal/workflows/registry.go` | Update factory signature |
+| agent-lab | `internal/workflows/systems.go` → `runtime.go` | Rename file and struct |
 | agent-lab | `internal/workflows/system.go` | New file |
 | agent-lab | `internal/workflows/executor.go` | New file |
 | agent-lab | `cmd/server/domain.go` | Add Workflows to Domain |

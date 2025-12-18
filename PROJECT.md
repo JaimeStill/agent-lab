@@ -497,18 +497,26 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **Validation**: ✅ Interface compliance verified, all tests passing
 
-#### Session 3c: Workflow Execution Engine
+#### Session 3c: Workflow Execution Engine ✅
 
-**Objective**: Connect components to execute workflows.
+**Status**: Completed (2025-12-18)
 
-**Deliverables**:
-- Executor: combines registry + observer + checkpoint store
-- Dependencies struct for domain access (agents, documents, images)
-- Run lifecycle: pending → running → completed/failed/cancelled
-- Context cancellation propagation for workflow abort
-- SSE event channel for streaming progress
+**Implemented**:
+- go-agents-orchestration v0.3.0 release (NewGraphWithDeps, thread-safe registries, config Merge methods)
+- Runtime struct (renamed from Systems) with constructor and getters
+- Repository write methods: CreateRun, UpdateRunStarted, UpdateRunCompleted
+- Updated WorkflowFactory signature: factory receives pre-configured graph
+- System interface for workflows domain
+- Executor implementation with three-phase lifecycle (Cold Start → Hot Start → Post-Commit)
+- Active run tracking with context cancellation
+- Resume capability from failed/cancelled runs
 
-**Validation**: Execute test workflow, verify stages/decisions recorded, cancellation works.
+**Validation**: ✅ All tests passing, go vet clean
+
+**Architectural Additions**:
+- Runtime as a Pattern: naming convention for "runtime dependencies a system needs"
+- Three-Phase Executor Lifecycle: Cold Start (create run), Hot Start (execute), Post-Commit (finalize)
+- Hardcoded GraphConfig policy: executor owns checkpointing policy for database-backed workflows
 
 #### Session 3d: API Endpoints
 
@@ -696,9 +704,14 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Milestone 3: Workflow Execution Infrastructure
   - Session 3a: Workflow Infrastructure Foundation ✅
   - Session 3b: Observer and Checkpoint Store ✅
-  - Session 3c: Workflow Execution Engine (pending)
+  - Session 3c: Workflow Execution Engine ✅
+  - Session 3d: API Endpoints (pending)
 
 **Recently Completed**:
+- Session 3c: Workflow Execution Engine ✅
+  - go-agents-orchestration v0.3.0 release
+  - Runtime pattern, System interface, Executor implementation
+  - Repository write methods, active run tracking
 - Milestone 2: Document Upload & Processing ✅
   - Session 02a: Blob Storage Infrastructure ✅
   - Session 02b: Documents Domain System ✅
@@ -709,7 +722,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Improved agent config validation with Default + Merge pattern
 
 **Next Steps**:
-- Begin Session 3c: Workflow Execution Engine
+- Begin Session 3d: API Endpoints
 
 ## Future Phases (Beyond Milestone 8)
 

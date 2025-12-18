@@ -269,7 +269,7 @@ internal/                 # Private API: Domain systems
     ├── errors.go             # Domain errors + HTTP status mapping
     ├── mapping.go            # Projections, scanners, filters
     ├── registry.go           # Global workflow registry
-    ├── systems.go            # Systems struct for domain access
+    ├── runtime.go            # Runtime struct for domain access
     ├── repository.go         # Read-only repository
     ├── checkpoint.go         # PostgresCheckpointStore (state.CheckpointStore impl)
     └── observer.go           # PostgresObserver (observability.Observer impl)
@@ -382,6 +382,23 @@ func (c *Coordinator) Shutdown(timeout time.Duration) error
 ## Runtime/Domain System Separation (cmd/server)
 
 The server uses a two-tier system separation pattern that clearly distinguishes between infrastructure (Runtime) and business logic (Domain).
+
+### Runtime as a Pattern
+
+**Principle**: `Runtime` is the naming convention for "runtime dependencies a system needs" at any level of the architecture.
+
+A Runtime struct aggregates the dependencies that a component requires at execution time. This pattern applies beyond just the server:
+
+| Component | Runtime Contains | Purpose |
+|-----------|------------------|---------|
+| Server | Database, Storage, Logger, Pagination | Infrastructure for HTTP service |
+| Workflows | Agents, Documents, Images, Logger | Domain systems for workflow execution |
+
+**Key Characteristics**:
+- Aggregates dependencies needed at execution time
+- Injected via constructor, not resolved globally
+- Clear naming distinguishes from the component's own `System` interface
+- Enables testing through dependency injection
 
 ### System Categories
 

@@ -21,9 +21,9 @@ Workflows are Go functions registered at startup by name. No workflow definition
 
 **Pattern**:
 ```go
-type WorkflowFactory func(ctx context.Context, systems *Systems, params map[string]any) (state.StateGraph, state.State, error)
+type WorkflowFactory func(ctx context.Context, graph state.StateGraph, runtime *Runtime, params map[string]any) (state.State, error)
 
-registry.Register("classify-document", classifyDocumentFactory)
+registry.Register("classify-document", classifyDocumentFactory, "Classifies documents using vision analysis")
 ```
 
 ### 2. Observer-Based Visibility
@@ -88,15 +88,21 @@ HTTP Request → Handler → Executor → StateGraph (go-agents-orchestration)
 
 ### Integration with Existing Domains
 
-Workflows access existing domains through a Systems struct:
+Workflows access existing domains through a Runtime struct:
 
 ```go
-type Systems struct {
-    Agents    agents.System
-    Documents documents.System
-    Images    images.System
-    Logger    *slog.Logger
+type Runtime struct {
+    agents    agents.System
+    documents documents.System
+    images    images.System
+    logger    *slog.Logger
 }
+
+func NewRuntime(agents, documents, images, logger) *Runtime
+func (r *Runtime) Agents() agents.System
+func (r *Runtime) Documents() documents.System
+func (r *Runtime) Images() images.System
+func (r *Runtime) Logger() *slog.Logger
 ```
 
 This enables workflow nodes to:
@@ -284,13 +290,11 @@ type CheckpointStore interface {
 ### Workflow Registry
 
 ```go
-type WorkflowFactory func(ctx context.Context, systems *Systems, params map[string]any) (state.StateGraph, state.State, error)
+type WorkflowFactory func(ctx context.Context, graph state.StateGraph, runtime *Runtime, params map[string]any) (state.State, error)
 
-type Registry interface {
-    Register(name string, factory WorkflowFactory)
-    Get(name string) (WorkflowFactory, bool)
-    List() []WorkflowInfo
-}
+func Register(name string, factory WorkflowFactory, description string)
+func Get(name string) (WorkflowFactory, bool)
+func List() []WorkflowInfo
 ```
 
 ### Executor
@@ -337,12 +341,19 @@ type Executor interface {
 
 ### Session 3c: Workflow Execution Engine
 
+**Status**: Completed
+
 **Objective**: Connect components to execute workflows.
 
+**Dependency**: Requires go-agents-orchestration v0.3.0 (NewGraphWithDeps, thread-safe registries, config Merge methods).
+
 **Files**:
-- `internal/workflows/executor.go` - Execution coordination
-- `internal/workflows/systems.go` - Domain access struct
+- `internal/workflows/executor.go` - Execution coordination with three-phase lifecycle
+- `internal/workflows/runtime.go` - Runtime struct (renamed from systems.go)
 - `internal/workflows/system.go` - System interface
+- `internal/workflows/repository.go` - Added write methods (CreateRun, UpdateRunStarted, UpdateRunCompleted)
+- `internal/workflows/registry.go` - Updated WorkflowFactory signature
+- `cmd/server/domain.go` - Workflows wired into Domain
 
 ### Session 3d: API Endpoints
 
