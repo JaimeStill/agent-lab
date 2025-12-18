@@ -9,8 +9,8 @@ import (
 )
 
 func TestRegister_And_Get(t *testing.T) {
-	factory := func(ctx context.Context, systems *workflows.Systems, params map[string]any) (state.StateGraph, state.State, error) {
-		return nil, state.State{}, nil
+	factory := func(ctx context.Context, graph state.StateGraph, runtime *workflows.Runtime, params map[string]any) (state.State, error) {
+		return state.State{}, nil
 	}
 
 	workflows.Register("test-workflow", factory, "A test workflow")

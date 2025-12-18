@@ -8,7 +8,7 @@ import (
 )
 
 // WorkflowFactory creates a StateGraph and initial State for workflow execution.
-type WorkflowFactory func(ctx context.Context, systems *Systems, params map[string]any) (state.StateGraph, state.State, error)
+type WorkflowFactory func(ctx context.Context, graph state.StateGraph, runtime *Runtime, params map[string]any) (state.State, error)
 
 type workflowRegistry struct {
 	factories map[string]WorkflowFactory

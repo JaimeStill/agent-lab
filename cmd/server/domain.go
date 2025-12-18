@@ -5,6 +5,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/documents"
 	"github.com/JaimeStill/agent-lab/internal/images"
 	"github.com/JaimeStill/agent-lab/internal/providers"
+	"github.com/JaimeStill/agent-lab/internal/workflows"
 )
 
 type Domain struct {
@@ -12,34 +13,56 @@ type Domain struct {
 	Agents    agents.System
 	Documents documents.System
 	Images    images.System
+	Workflows workflows.System
 }
 
 func NewDomain(runtime *Runtime) *Domain {
-	docs := documents.New(
+	providersSys := providers.New(
+		runtime.Database.Connection(),
+		runtime.Logger,
+		runtime.Pagination,
+	)
+
+	agentsSys := agents.New(
+		runtime.Database.Connection(),
+		runtime.Logger,
+		runtime.Pagination,
+	)
+
+	documentsSys := documents.New(
 		runtime.Database.Connection(),
 		runtime.Storage,
 		runtime.Logger,
 		runtime.Pagination,
 	)
 
+	imagesSys := images.New(
+		documentsSys,
+		runtime.Database.Connection(),
+		runtime.Storage,
+		runtime.Logger,
+		runtime.Pagination,
+	)
+
+	workflowRuntime := workflows.NewRuntime(
+		agentsSys,
+		documentsSys,
+		imagesSys,
+		runtime.Logger,
+	)
+
+	workflowsSys := workflows.NewSystem(
+		workflowRuntime,
+		runtime.Database.Connection(),
+		runtime.Logger,
+		runtime.Pagination,
+	)
+
 	return &Domain{
-		Providers: providers.New(
-			runtime.Database.Connection(),
-			runtime.Logger,
-			runtime.Pagination,
-		),
-		Agents: agents.New(
-			runtime.Database.Connection(),
-			runtime.Logger,
-			runtime.Pagination,
-		),
-		Documents: docs,
-		Images: images.New(
-			docs,
-			runtime.Database.Connection(),
-			runtime.Storage,
-			runtime.Logger,
-			runtime.Pagination,
-		),
+		Providers: providersSys,
+		Agents:    agentsSys,
+		Documents: documentsSys,
+		Images:    imagesSys,
+		Workflows: workflowsSys,
 	}
 }
