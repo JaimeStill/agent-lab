@@ -9,6 +9,22 @@ import (
 	"github.com/google/uuid"
 )
 
+type ExecutionEventType string
+
+const (
+	EventStageStart    ExecutionEventType = "stage.start"
+	EventStageComplete ExecutionEventType = "stage.complete"
+	EventDecision      ExecutionEventType = "decision"
+	EventError         ExecutionEventType = "error"
+	EventComplete      ExecutionEventType = "complete"
+)
+
+type ExecutionEvent struct {
+	Type      ExecutionEventType `json:"type"`
+	Timestamp time.Time          `json:"timestamp"`
+	Data      map[string]any     `json:"data"`
+}
+
 // RunStatus represents the execution state of a workflow run.
 type RunStatus string
 
@@ -75,4 +91,31 @@ type Decision struct {
 type WorkflowInfo struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+}
+
+// NodeStartData represents the data payload for node start events
+// from go-agents-orchestration's observability.Event.
+type NodeStartData struct {
+	Node          string         `json:"node"`
+	Iteration     int            `json:"iteration"`
+	InputSnapshot map[string]any `json:"input_snapshot,omitempty"`
+}
+
+// NodeCompleteData represents the data payload for node complete events
+// from go-agents-orchestration's observability.Event.
+type NodeCompleteData struct {
+	Node           string         `json:"node"`
+	Iteration      int            `json:"iteration"`
+	OutputSnapshot map[string]any `json:"output_snapshot,omitempty"`
+	Error          bool           `json:"error,omitempty"`
+	ErrorMessage   string         `json:"error_message,omitempty"`
+}
+
+// EdgeTransitionData represents the data payload for edge transition events
+// from go-agents-orchestration's observability.Event.
+type EdgeTransitionData struct {
+	From            string `json:"from"`
+	To              string `json:"to"`
+	PredicateName   string `json:"predicate_name,omitempty"`
+	PredicateResult bool   `json:"predicate_result"`
 }

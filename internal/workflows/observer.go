@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/JaimeStill/agent-lab/pkg/decode"
 	"github.com/JaimeStill/go-agents-orchestration/pkg/observability"
 	"github.com/google/uuid"
 )
@@ -55,20 +56,20 @@ func (o *PostgresObserver) OnEvent(ctx context.Context, event observability.Even
 }
 
 func (o *PostgresObserver) handleNodeStart(ctx context.Context, event observability.Event) {
-	nodeName, _ := event.Data["node"].(string)
-	iteration, _ := event.Data["iteration"].(int)
-	inputSnapshot, _ := event.Data["input_snapshot"].(map[string]any)
+	data, err := decode.FromMap[NodeStartData](event.Data)
+	if err != nil {
+		o.logger.Error("failed to decode node start data", "error", err)
+		return
+	}
 
-	key := fmt.Sprintf("%s:%d", nodeName, iteration)
+	key := fmt.Sprintf("%s:%d", data.Node, data.Iteration)
 	o.startTimes[key] = event.Timestamp
 
 	var inputData []byte
-	if inputSnapshot != nil {
-		data, err := json.Marshal(inputSnapshot)
+	if data.InputSnapshot != nil {
+		inputData, err = json.Marshal(data.InputSnapshot)
 		if err != nil {
-			o.logger.Error("failed to marshal input snapshot", "error", err, "node", nodeName)
-		} else {
-			inputData = data
+			o.logger.Error("failed to marshal input snapshot", "error", err, "node", data.Node)
 		}
 	}
 
@@ -77,24 +78,25 @@ func (o *PostgresObserver) handleNodeStart(ctx context.Context, event observabil
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
-	_, err := o.db.ExecContext(ctx, query, o.runID, nodeName, iteration, StageStarted, inputData, event.Timestamp)
+	_, err = o.db.ExecContext(ctx, query, o.runID, data.Node, data.Iteration, StageStarted, inputData, event.Timestamp)
 	if err != nil {
-		o.logger.Error("failed to insert stage", "error", err, "node", nodeName)
+		o.logger.Error("failed to insert stage", "error", err, "node", data.Node)
 	}
 }
 
 func (o *PostgresObserver) handleNodeComplete(ctx context.Context, event observability.Event) {
-	nodeName, _ := event.Data["node"].(string)
-	iteration, _ := event.Data["iteration"].(int)
-	hasError, _ := event.Data["error"].(bool)
-	outputSnapshot, _ := event.Data["output_snapshot"].(map[string]any)
+	data, err := decode.FromMap[NodeCompleteData](event.Data)
+	if err != nil {
+		o.logger.Error("failed to decode node complete data", "error", err)
+		return
+	}
 
 	status := StageCompleted
-	if hasError {
+	if data.Error {
 		status = StageFailed
 	}
 
-	key := fmt.Sprintf("%s:%d", nodeName, iteration)
+	key := fmt.Sprintf("%s:%d", data.Node, data.Iteration)
 	var durationMs *int
 	if startTime, ok := o.startTimes[key]; ok {
 		duration := int(event.Timestamp.Sub(startTime).Milliseconds())
@@ -103,12 +105,10 @@ func (o *PostgresObserver) handleNodeComplete(ctx context.Context, event observa
 	}
 
 	var outputData []byte
-	if outputSnapshot != nil {
-		data, err := json.Marshal(outputSnapshot)
+	if data.OutputSnapshot != nil {
+		outputData, err = json.Marshal(data.OutputSnapshot)
 		if err != nil {
-			o.logger.Error("failed to marshal output snapshot", "error", err, "node", nodeName)
-		} else {
-			outputData = data
+			o.logger.Error("failed to marshal output snapshot", "error", err, "node", data.Node)
 		}
 	}
 
@@ -118,21 +118,22 @@ func (o *PostgresObserver) handleNodeComplete(ctx context.Context, event observa
 		WHERE run_id = $4 AND node_name = $5 AND iteration = $6
 	`
 
-	_, err := o.db.ExecContext(ctx, query, status, durationMs, outputData, o.runID, nodeName, iteration)
+	_, err = o.db.ExecContext(ctx, query, status, durationMs, outputData, o.runID, data.Node, data.Iteration)
 	if err != nil {
-		o.logger.Error("failed to update stage", "error", err, "node", nodeName)
+		o.logger.Error("failed to update stage", "error", err, "node", data.Node)
 	}
 }
 
 func (o *PostgresObserver) handleEdgeTransition(ctx context.Context, event observability.Event) {
-	fromNode, _ := event.Data["from"].(string)
-	toNode, _ := event.Data["to"].(string)
-	predicateName, _ := event.Data["predicate_name"].(string)
-	predicateResult, _ := event.Data["predicate_result"].(bool)
+	data, err := decode.FromMap[EdgeTransitionData](event.Data)
+	if err != nil {
+		o.logger.Error("failed to decode edge transition data", "error", err)
+		return
+	}
 
 	var predNamePtr *string
-	if predicateName != "" {
-		predNamePtr = &predicateName
+	if data.PredicateName != "" {
+		predNamePtr = &data.PredicateName
 	}
 
 	const query = `
@@ -140,8 +141,8 @@ func (o *PostgresObserver) handleEdgeTransition(ctx context.Context, event obser
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
-	_, err := o.db.ExecContext(ctx, query, o.runID, fromNode, toNode, predNamePtr, predicateResult, event.Timestamp)
+	_, err = o.db.ExecContext(ctx, query, o.runID, data.From, data.To, predNamePtr, data.PredicateResult, event.Timestamp)
 	if err != nil {
-		o.logger.Error("failed to insert decision", "error", err, "from", fromNode, "to", toNode)
+		o.logger.Error("failed to insert decision", "error", err, "from", data.From, "to", data.To)
 	}
 }

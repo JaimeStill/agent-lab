@@ -68,4 +68,7 @@ func (r *routes) registerGroup(mux *http.ServeMux, group Group) {
 		pattern := group.Prefix + route.Pattern
 		mux.HandleFunc(route.Method+" "+pattern, route.Handler)
 	}
+	for _, child := range group.Children {
+		r.registerGroup(mux, child)
+	}
 }
