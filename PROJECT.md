@@ -727,6 +727,14 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Migrated format support from agent-lab shims to document-context v0.1.1
   - Added ParseImageFormat, Open, IsSupported, SupportedFormats to document-context
   - Improved agent config validation with Default + Merge pattern
+- Maintenance Session m02: go-agents-orchestration v0.2.0 ✅
+  - State struct public fields with JSON tags for checkpoint serialization
+  - Edge.Name field for predicate identification
+  - Enhanced observer events with state snapshots
+- Maintenance Session m03: Native MultiObserver Support ✅
+  - Added MultiObserver to go-agents-orchestration v0.3.1
+  - Migrated shim from agent-lab to library
+  - Enables broadcasting events to multiple observers
 
 **Next Steps**:
 - Begin Session 3e: Sample Workflow and Integration Tests

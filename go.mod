@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	github.com/JaimeStill/document-context v0.1.1
 	github.com/JaimeStill/go-agents v0.3.0
-	github.com/JaimeStill/go-agents-orchestration v0.3.0
+	github.com/JaimeStill/go-agents-orchestration v0.3.1
 	github.com/docker/go-units v0.5.0
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/google/uuid v1.6.0

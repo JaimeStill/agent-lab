@@ -10,6 +10,7 @@ import (
 
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 	"github.com/JaimeStill/go-agents-orchestration/pkg/config"
+	"github.com/JaimeStill/go-agents-orchestration/pkg/observability"
 	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
 	"github.com/google/uuid"
 )
@@ -224,7 +225,7 @@ func (e *executor) executeStreamAsync(ctx context.Context, runID uuid.UUID, fact
 	}
 
 	postgresObs := NewPostgresObserver(e.db, runID, e.logger)
-	multiObs := NewMultiObserver(postgresObs, streamingObs)
+	multiObs := observability.NewMultiObserver(postgresObs, streamingObs)
 	checkpointStore := NewPostgresCheckpointStore(e.db, e.logger)
 
 	cfg := workflowGraphConfig(runID.String())

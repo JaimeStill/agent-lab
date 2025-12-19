@@ -9,24 +9,6 @@ import (
 	"github.com/JaimeStill/go-agents-orchestration/pkg/observability"
 )
 
-// MultiObserver broadcasts events to multiple observers.
-// It implements observability.Observer and forwards events to all wrapped observers.
-type MultiObserver struct {
-	observers []observability.Observer
-}
-
-// NewMultiObserver creates a MultiObserver that broadcasts to all provided observers.
-func NewMultiObserver(observers ...observability.Observer) *MultiObserver {
-	return &MultiObserver{observers: observers}
-}
-
-// OnEvent forwards the event to all wrapped observers.
-func (m *MultiObserver) OnEvent(ctx context.Context, event observability.Event) {
-	for _, obs := range m.observers {
-		obs.OnEvent(ctx, event)
-	}
-}
-
 // StreamingObserver converts graph execution events to ExecutionEvents
 // and sends them to a buffered channel for SSE streaming.
 type StreamingObserver struct {
