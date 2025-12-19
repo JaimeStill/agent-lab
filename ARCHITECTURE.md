@@ -174,6 +174,50 @@ func NewService(cfg *Config) (*Service, error) {
 - Configuration is ephemeral - discarded after initialization
 - Clear, straightforward pattern
 
+### 7. Go File Structure Convention
+
+Go files follow a consistent structural order:
+
+1. **Package declaration and imports** - Standard Go requirements
+2. **Constants** - Package-level constants immediately after imports
+3. **Global variables** - Package-level variables after constants
+4. **Pure types** - Types without methods (structs used as data containers)
+5. **Types with methods** - Structs that have associated methods
+6. **Functions** - Package-level functions
+
+**Example**:
+```go
+package workflows
+
+import (
+    "context"
+    "time"
+)
+
+const defaultStreamBufferSize = 100
+
+var ErrWorkflowNotFound = errors.New("workflow not found")
+
+type ExecuteRequest struct {
+    Params map[string]any `json:"params"`
+}
+
+type Handler struct {
+    sys    System
+    logger *slog.Logger
+}
+
+func NewHandler(sys System, logger *slog.Logger) *Handler {
+    return &Handler{sys: sys, logger: logger}
+}
+
+func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
+    // ...
+}
+```
+
+**Rationale**: This ordering ensures predictable file structure, making it easy to locate different types of declarations when navigating unfamiliar code.
+
 ## System Architecture
 
 ### Directory Structure

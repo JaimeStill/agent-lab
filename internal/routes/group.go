@@ -12,6 +12,7 @@ type Group struct {
 	Tags        []string
 	Description string
 	Routes      []Route
+	Children    []Group
 }
 
 // Route represents an HTTP route with method, pattern, and handler.
