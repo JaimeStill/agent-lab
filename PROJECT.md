@@ -518,20 +518,24 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Three-Phase Executor Lifecycle: Cold Start (create run), Hot Start (execute), Post-Commit (finalize)
 - Hardcoded GraphConfig policy: executor owns checkpointing policy for database-backed workflows
 
-#### Session 3d: API Endpoints
+#### Session 3d: API Endpoints ✅
 
-**Objective**: HTTP interface for execution and inspection.
+**Status**: Completed (2025-12-19)
 
-**Deliverables**:
+**Implemented**:
 - Handler with routes following agents/handler.go pattern
-- OpenAPI specification
+- OpenAPI specification with all operations and schemas
 - Execute endpoint (sync completion)
-- Execute/stream endpoint (SSE progress)
+- Execute/stream endpoint (SSE progress with MultiObserver pattern)
 - Cancel endpoint (abort running workflow)
 - List runs, get run details, stages, decisions endpoints
 - Resume endpoint
+- Route Children pattern for hierarchical route groups
+- `pkg/decode` package for map[string]any to struct conversion
+- StreamingObserver and MultiObserver implementations
+- Go file structure convention documented
 
-**Validation**: Full API workflow via curl/tests, SSE streaming works.
+**Validation**: ✅ All endpoints implemented, SSE streaming works, 34 new tests passing
 
 #### Session 3e: Sample Workflow and Integration Tests
 
@@ -705,13 +709,16 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Session 3a: Workflow Infrastructure Foundation ✅
   - Session 3b: Observer and Checkpoint Store ✅
   - Session 3c: Workflow Execution Engine ✅
-  - Session 3d: API Endpoints (pending)
+  - Session 3d: API Endpoints ✅
+  - Session 3e: Sample Workflow and Integration Tests (pending)
 
 **Recently Completed**:
-- Session 3c: Workflow Execution Engine ✅
-  - go-agents-orchestration v0.3.0 release
-  - Runtime pattern, System interface, Executor implementation
-  - Repository write methods, active run tracking
+- Session 3d: API Endpoints ✅
+  - HTTP handlers for all 9 workflow endpoints
+  - SSE streaming with MultiObserver pattern
+  - Route Children for hierarchical route groups
+  - `pkg/decode` for typed event data decoding
+  - Go file structure convention documented
 - Milestone 2: Document Upload & Processing ✅
   - Session 02a: Blob Storage Infrastructure ✅
   - Session 02b: Documents Domain System ✅
@@ -722,7 +729,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Improved agent config validation with Default + Merge pattern
 
 **Next Steps**:
-- Begin Session 3d: API Endpoints
+- Begin Session 3e: Sample Workflow and Integration Tests
 
 ## Future Phases (Beyond Milestone 8)
 

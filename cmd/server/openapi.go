@@ -65,7 +65,7 @@ func generateSpec(
 	}
 
 	for _, group := range rs.Groups() {
-		processGroup(spec, group)
+		processGroup(spec, "", group)
 	}
 
 	for _, route := range rs.Routes() {
@@ -79,13 +79,14 @@ func generateSpec(
 	return spec
 }
 
-func processGroup(spec *openapi.Spec, group routes.Group) {
+func processGroup(spec *openapi.Spec, parentPrefix string, group routes.Group) {
+	fullPrefix := parentPrefix + group.Prefix
 	for _, route := range group.Routes {
 		if route.OpenAPI == nil {
 			continue
 		}
 
-		path := group.Prefix + route.Pattern
+		path := fullPrefix + route.Pattern
 		op := route.OpenAPI
 
 		if len(op.Tags) == 0 {
@@ -96,7 +97,7 @@ func processGroup(spec *openapi.Spec, group routes.Group) {
 	}
 
 	for _, child := range group.Children {
-		processGroup(spec, child)
+		processGroup(spec, fullPrefix, child)
 	}
 }
 

@@ -9,36 +9,45 @@ import (
 	"github.com/JaimeStill/go-agents-orchestration/pkg/observability"
 )
 
+// MultiObserver broadcasts events to multiple observers.
+// It implements observability.Observer and forwards events to all wrapped observers.
 type MultiObserver struct {
 	observers []observability.Observer
 }
 
+// NewMultiObserver creates a MultiObserver that broadcasts to all provided observers.
 func NewMultiObserver(observers ...observability.Observer) *MultiObserver {
 	return &MultiObserver{observers: observers}
 }
 
+// OnEvent forwards the event to all wrapped observers.
 func (m *MultiObserver) OnEvent(ctx context.Context, event observability.Event) {
 	for _, obs := range m.observers {
 		obs.OnEvent(ctx, event)
 	}
 }
 
+// StreamingObserver converts graph execution events to ExecutionEvents
+// and sends them to a buffered channel for SSE streaming.
 type StreamingObserver struct {
 	events chan ExecutionEvent
 	mu     sync.Mutex
 	closed bool
 }
 
+// NewStreamingObserver creates a StreamingObserver with the specified buffer size.
 func NewStreamingObserver(bufferSize int) *StreamingObserver {
 	return &StreamingObserver{
 		events: make(chan ExecutionEvent, bufferSize),
 	}
 }
 
+// Events returns a read-only channel for consuming execution events.
 func (o *StreamingObserver) Events() <-chan ExecutionEvent {
 	return o.events
 }
 
+// Close closes the event channel. Safe to call multiple times.
 func (o *StreamingObserver) Close() {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -48,6 +57,7 @@ func (o *StreamingObserver) Close() {
 	}
 }
 
+// OnEvent handles observability events and converts them to ExecutionEvents.
 func (o *StreamingObserver) OnEvent(ctx context.Context, event observability.Event) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -74,6 +84,7 @@ func (o *StreamingObserver) OnEvent(ctx context.Context, event observability.Eve
 	}
 }
 
+// SendComplete sends a completion event with the workflow result.
 func (o *StreamingObserver) SendComplete(result map[string]any) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -90,6 +101,7 @@ func (o *StreamingObserver) SendComplete(result map[string]any) {
 	}
 }
 
+// SendError sends an error event with the error message and optional node name.
 func (o *StreamingObserver) SendError(err error, nodeName string) {
 	o.mu.Lock()
 	defer o.mu.Unlock()

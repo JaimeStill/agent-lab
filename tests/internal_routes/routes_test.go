@@ -151,3 +151,122 @@ func TestBuild_EmptySystem(t *testing.T) {
 		t.Errorf("Expected status %d for nonexistent route, got %d", http.StatusNotFound, rec.Code)
 	}
 }
+
+func TestRegisterGroup_WithChildren(t *testing.T) {
+	sys := routes.New(testLogger())
+
+	group := routes.Group{
+		Prefix: "/api/parent",
+		Routes: []routes.Route{
+			{
+				Method:  "GET",
+				Pattern: "",
+				Handler: func(w http.ResponseWriter, r *http.Request) {
+					w.Write([]byte("parent"))
+				},
+			},
+		},
+		Children: []routes.Group{
+			{
+				Prefix: "/child",
+				Routes: []routes.Route{
+					{
+						Method:  "GET",
+						Pattern: "",
+						Handler: func(w http.ResponseWriter, r *http.Request) {
+							w.Write([]byte("child"))
+						},
+					},
+					{
+						Method:  "GET",
+						Pattern: "/{id}",
+						Handler: func(w http.ResponseWriter, r *http.Request) {
+							w.Write([]byte("child-" + r.PathValue("id")))
+						},
+					},
+				},
+			},
+		},
+	}
+
+	sys.RegisterGroup(group)
+	handler := sys.Build()
+
+	tests := []struct {
+		name     string
+		method   string
+		path     string
+		wantBody string
+	}{
+		{"parent route", "GET", "/api/parent", "parent"},
+		{"child route", "GET", "/api/parent/child", "child"},
+		{"child route with id", "GET", "/api/parent/child/123", "child-123"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Errorf("Expected status %d, got %d", http.StatusOK, rec.Code)
+			}
+
+			if rec.Body.String() != tt.wantBody {
+				t.Errorf("Expected body %q, got %q", tt.wantBody, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestRegisterGroup_NestedChildren(t *testing.T) {
+	sys := routes.New(testLogger())
+
+	group := routes.Group{
+		Prefix: "/api",
+		Routes: []routes.Route{
+			{
+				Method:  "GET",
+				Pattern: "/root",
+				Handler: func(w http.ResponseWriter, r *http.Request) {
+					w.Write([]byte("root"))
+				},
+			},
+		},
+		Children: []routes.Group{
+			{
+				Prefix: "/level1",
+				Children: []routes.Group{
+					{
+						Prefix: "/level2",
+						Routes: []routes.Route{
+							{
+								Method:  "GET",
+								Pattern: "/deep",
+								Handler: func(w http.ResponseWriter, r *http.Request) {
+									w.Write([]byte("deeply-nested"))
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	sys.RegisterGroup(group)
+	handler := sys.Build()
+
+	req := httptest.NewRequest("GET", "/api/level1/level2/deep", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	if rec.Body.String() != "deeply-nested" {
+		t.Errorf("Expected body %q, got %q", "deeply-nested", rec.Body.String())
+	}
+}

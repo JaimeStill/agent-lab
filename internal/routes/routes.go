@@ -57,18 +57,19 @@ func (r *routes) Build() http.Handler {
 	}
 
 	for _, group := range r.groups {
-		r.registerGroup(mux, group)
+		r.registerGroup(mux, "", group)
 	}
 
 	return mux
 }
 
-func (r *routes) registerGroup(mux *http.ServeMux, group Group) {
+func (r *routes) registerGroup(mux *http.ServeMux, parentPrefix string, group Group) {
+	fullPrefix := parentPrefix + group.Prefix
 	for _, route := range group.Routes {
-		pattern := group.Prefix + route.Pattern
+		pattern := fullPrefix + route.Pattern
 		mux.HandleFunc(route.Method+" "+pattern, route.Handler)
 	}
 	for _, child := range group.Children {
-		r.registerGroup(mux, child)
+		r.registerGroup(mux, fullPrefix, child)
 	}
 }

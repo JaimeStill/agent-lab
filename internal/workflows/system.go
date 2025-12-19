@@ -16,6 +16,7 @@ type System interface {
 	GetDecisions(ctx context.Context, runID uuid.UUID) ([]Decision, error)
 	ListWorkflows() []WorkflowInfo
 	Execute(ctx context.Context, name string, params map[string]any) (*Run, error)
+	ExecuteStream(ctx context.Context, name string, params map[string]any) (<-chan ExecutionEvent, *Run, error)
 	Cancel(ctx context.Context, runID uuid.UUID) error
 	Resume(ctx context.Context, runID uuid.UUID) (*Run, error)
 }

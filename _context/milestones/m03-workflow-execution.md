@@ -141,6 +141,78 @@ When executing a workflow:
 
 Commands avoid defining all mutations directly - they compose through child commands that handle their own single mutation.
 
+## Streaming Infrastructure (Session 3d)
+
+### MultiObserver Pattern
+
+SSE streaming requires events to be both persisted to database AND streamed to clients. The MultiObserver wraps multiple observers and broadcasts events to all:
+
+```go
+type MultiObserver struct {
+    observers []observability.Observer
+}
+
+func (m *MultiObserver) OnEvent(ctx context.Context, event observability.Event) {
+    for _, obs := range m.observers {
+        obs.OnEvent(ctx, event)
+    }
+}
+```
+
+### StreamingObserver
+
+Converts library observability events to domain ExecutionEvents and sends to a buffered channel:
+
+```go
+type StreamingObserver struct {
+    events chan ExecutionEvent
+    mu     sync.Mutex
+    closed bool
+}
+```
+
+Key behaviors:
+- Non-blocking sends (drops if buffer full)
+- Thread-safe close (idempotent)
+- Converts EventNodeStart → stage.start, EventNodeComplete → stage.complete, etc.
+
+### SSE Event Flow
+
+```
+Handler.ExecuteStream()
+        │
+        ▼
+System.ExecuteStream() → creates StreamingObserver, spawns goroutine
+        │
+        ▼
+executeStreamAsync() [goroutine]
+        │
+        ├── Creates PostgresObserver (persists)
+        ├── Creates MultiObserver(postgresObs, streamingObs)
+        │
+        ▼
+StateGraph.Execute() ──events──▶ MultiObserver
+                                       │
+                      ┌────────────────┴────────────────┐
+                      ▼                                 ▼
+              PostgresObserver                  StreamingObserver
+              (stages + decisions)              (chan ExecutionEvent)
+                                                       │
+                                                       ▼
+                                              Handler SSE loop
+                                              (event: type\ndata: json\n\n)
+```
+
+### ExecutionEvent Types
+
+| Type | Source | Purpose |
+|------|--------|---------|
+| stage.start | EventNodeStart | Node began execution |
+| stage.complete | EventNodeComplete | Node finished successfully |
+| decision | EventEdgeTransition | Routing decision made |
+| error | Node error or execution failure | Error occurred |
+| complete | Execution finished | Final result available |
+
 ## Database Schema
 
 ### runs

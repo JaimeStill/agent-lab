@@ -373,7 +373,7 @@ func (h *Handler) Routes() routes.Group {
 		},
 		Children: []routes.Group{
 			{
-				Prefix:      "/api/runs",
+				Prefix:      "/runs",
 				Tags:        []string{"Runs"},
 				Description: "Workflow run inspection and control",
 				Routes: []routes.Route{

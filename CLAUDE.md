@@ -311,6 +311,54 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for testing patterns and table-driven t
 
 **Testing:** Use `go test ./tests/...` for running tests.
 
+## Go File Structure
+
+Go files should be organized in the following order (when each type of element is present):
+
+1. **package** - Package declaration
+2. **imports** - Import statements
+3. **constants** - `const` blocks
+4. **global variables** - `var` blocks
+5. **interfaces** - Interface definitions
+6. **pure types / enums** - Types without methods (structs used as data, type aliases, enums)
+7. **structures + methods** - Structs with their associated methods grouped together
+8. **functions** - Standalone functions
+
+**Example:**
+```go
+package workflows
+
+import (
+    "context"
+    "time"
+)
+
+const defaultBufferSize = 100
+
+var ErrNotFound = errors.New("not found")
+
+type System interface {
+    Execute(ctx context.Context) error
+}
+
+type ExecuteRequest struct {
+    Params map[string]any `json:"params,omitempty"`
+}
+
+type Handler struct {
+    sys    System
+    logger *slog.Logger
+}
+
+func NewHandler(sys System, logger *slog.Logger) *Handler {
+    return &Handler{sys: sys, logger: logger}
+}
+
+func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
+    // ...
+}
+```
+
 ## Directory Conventions
 
 **Hidden Directories (`.` prefix)**: Hidden from AI unless explicitly directed (e.g., `.admin`)

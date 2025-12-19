@@ -10,6 +10,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/lifecycle"
 	"github.com/JaimeStill/agent-lab/internal/providers"
 	"github.com/JaimeStill/agent-lab/internal/routes"
+	"github.com/JaimeStill/agent-lab/internal/workflows"
 	"github.com/JaimeStill/agent-lab/pkg/openapi"
 	"github.com/JaimeStill/agent-lab/web/docs"
 )
@@ -45,6 +46,13 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 	)
 	r.RegisterGroup(imagesHandler.Routes())
 
+	workflowHandler := workflows.NewHandler(
+		domain.Workflows,
+		runtime.Logger,
+		runtime.Pagination,
+	)
+	r.RegisterGroup(workflowHandler.Routes())
+
 	r.RegisterRoute(routes.Route{
 		Method:  "GET",
 		Pattern: "/healthz",
@@ -79,6 +87,7 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 	components.AddSchemas(providers.Spec.Schemas())
 	components.AddSchemas(documents.Spec.Schemas())
 	components.AddSchemas(images.Spec.Schemas())
+	components.AddSchemas(workflows.Spec.Schemas())
 
 	specBytes, err := loadOrGenerateSpec(cfg, r, components)
 	if err != nil {
