@@ -54,6 +54,7 @@ func (h *Handler) Routes() routes.Group {
 					{Method: "GET", Pattern: "/{id}", Handler: h.FindRun, OpenAPI: Spec.FindRun},
 					{Method: "GET", Pattern: "/{id}/stages", Handler: h.GetStages, OpenAPI: Spec.GetStages},
 					{Method: "GET", Pattern: "/{id}/decisions", Handler: h.GetDecisions, OpenAPI: Spec.GetDecisions},
+					{Method: "DELETE", Pattern: "/{id}", Handler: h.DeleteRun, OpenAPI: Spec.DeleteRun},
 					{Method: "POST", Pattern: "/{id}/cancel", Handler: h.Cancel, OpenAPI: Spec.Cancel},
 					{Method: "POST", Pattern: "/{id}/resume", Handler: h.Resume, OpenAPI: Spec.Resume},
 				},
@@ -221,4 +222,20 @@ func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handlers.RespondJSON(w, http.StatusOK, run)
+}
+
+// DeleteRun removes a workflow run and its related data.
+func (h *Handler) DeleteRun(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := h.sys.DeleteRun(r.Context(), id); err != nil {
+		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

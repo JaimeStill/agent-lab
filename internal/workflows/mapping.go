@@ -25,18 +25,28 @@ var decisionDefaultSort = query.SortField{Field: "CreatedAt", Descending: false}
 
 func scanRun(s repository.Scanner) (Run, error) {
 	var r Run
+	var params, result *[]byte
 	err := s.Scan(
 		&r.ID,
 		&r.WorkflowName,
 		&r.Status,
-		&r.Params,
-		&r.Result,
+		&params,
+		&result,
 		&r.ErrorMessage,
 		&r.StartedAt,
 		&r.CompletedAt,
 		&r.CreatedAt,
 		&r.UpdatedAt,
 	)
+
+	if params != nil {
+		r.Params = *params
+	}
+
+	if result != nil {
+		r.Result = *result
+	}
+
 	return r, err
 }
 
@@ -54,18 +64,29 @@ var stageProjection = query.NewProjectionMap("public", "stages", "s").
 
 func scanStage(s repository.Scanner) (Stage, error) {
 	var st Stage
+
+	var input, output *[]byte
 	err := s.Scan(
 		&st.ID,
 		&st.RunID,
 		&st.NodeName,
 		&st.Iteration,
 		&st.Status,
-		&st.InputSnapshot,
-		&st.OutputSnapshot,
+		&input,
+		&output,
 		&st.DurationMs,
 		&st.ErrorMessage,
 		&st.CreatedAt,
 	)
+
+	if input != nil {
+		st.InputSnapshot = *input
+	}
+
+	if output != nil {
+		st.OutputSnapshot = *output
+	}
+
 	return st, err
 }
 

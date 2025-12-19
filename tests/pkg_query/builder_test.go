@@ -407,6 +407,57 @@ func TestBuilder_MultipleConditions(t *testing.T) {
 	}
 }
 
+func TestBuilder_WhereEquals_NilPointerIgnored(t *testing.T) {
+	pm := newTestProjection()
+
+	var nilString *string
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereEquals("Name", nilString)
+
+	sql, args := b.BuildCount()
+
+	if strings.Contains(sql, "WHERE") {
+		t.Errorf("BuildCount() should not have WHERE for nil pointer, got %q", sql)
+	}
+
+	if len(args) != 0 {
+		t.Errorf("BuildCount() args = %v, want empty", args)
+	}
+}
+
+func TestBuilder_WhereNullable_NilPointerIsNull(t *testing.T) {
+	pm := newTestProjection()
+
+	var nilString *string
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereNullable("Name", nilString)
+
+	sql, args := b.BuildCount()
+
+	if !strings.Contains(sql, "WHERE u.name IS NULL") {
+		t.Errorf("BuildCount() should have IS NULL for nil pointer, got %q", sql)
+	}
+
+	if len(args) != 0 {
+		t.Errorf("BuildCount() args = %v, want empty", args)
+	}
+}
+
+func TestBuilder_WhereNullable_NonNilValue(t *testing.T) {
+	pm := newTestProjection()
+
+	name := "test"
+	b := query.NewBuilder(pm, query.SortField{Field: "Name"}).WhereNullable("Name", &name)
+
+	sql, args := b.BuildCount()
+
+	if !strings.Contains(sql, "WHERE u.name = $1") {
+		t.Errorf("BuildCount() should have equality for non-nil value, got %q", sql)
+	}
+
+	if len(args) != 1 {
+		t.Errorf("BuildCount() len(args) = %d, want 1", len(args))
+	}
+}
+
 func TestParseSortFields(t *testing.T) {
 	tests := []struct {
 		name   string

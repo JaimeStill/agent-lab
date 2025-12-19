@@ -1,7 +1,6 @@
 package agents
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -10,8 +9,6 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/routes"
 	"github.com/JaimeStill/agent-lab/pkg/handlers"
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
-	"github.com/JaimeStill/go-agents/pkg/agent"
-	agtconfig "github.com/JaimeStill/go-agents/pkg/config"
 	"github.com/JaimeStill/go-agents/pkg/response"
 	"github.com/google/uuid"
 )
@@ -175,15 +172,9 @@ func (h *Handler) Chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agt, err := h.constructAgent(r.Context(), id, req.Token)
+	resp, err := h.sys.Chat(r.Context(), id, req.Prompt, req.Options, req.Token)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	resp, err := agt.Chat(r.Context(), req.Prompt, options(req.Options))
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
 	}
 
@@ -204,15 +195,9 @@ func (h *Handler) ChatStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agt, err := h.constructAgent(r.Context(), id, req.Token)
+	stream, err := h.sys.ChatStream(r.Context(), id, req.Prompt, req.Options, req.Token)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	stream, err := agt.ChatStream(r.Context(), req.Prompt, options(req.Options))
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
 	}
 
@@ -233,15 +218,9 @@ func (h *Handler) Vision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agt, err := h.constructAgent(r.Context(), id, form.Token)
+	resp, err := h.sys.Vision(r.Context(), id, form.Prompt, form.Images, form.Options, form.Token)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	resp, err := agt.Vision(r.Context(), form.Prompt, form.Images, options(form.Options))
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
 	}
 
@@ -262,13 +241,7 @@ func (h *Handler) VisionStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agt, err := h.constructAgent(r.Context(), id, form.Token)
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	stream, err := agt.VisionStream(r.Context(), form.Prompt, form.Images, options(form.Options))
+	stream, err := h.sys.VisionStream(r.Context(), id, form.Prompt, form.Images, form.Options, form.Token)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
@@ -291,13 +264,7 @@ func (h *Handler) Tools(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agt, err := h.constructAgent(r.Context(), id, req.Token)
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	resp, err := agt.Tools(r.Context(), req.Prompt, req.Tools, options(req.Options))
+	resp, err := h.sys.Tools(r.Context(), id, req.Prompt, req.Tools, req.Options, req.Token)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
@@ -320,56 +287,13 @@ func (h *Handler) Embed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	agt, err := h.constructAgent(r.Context(), id, req.Token)
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	resp, err := agt.Embed(r.Context(), req.Input, options(req.Options))
+	resp, err := h.sys.Embed(r.Context(), id, req.Input, req.Options, req.Token)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(fmt.Errorf("%w: %v", ErrExecution, err)), err)
 		return
 	}
 
 	handlers.RespondJSON(w, http.StatusOK, resp)
-}
-
-func (h *Handler) constructAgent(ctx context.Context, id uuid.UUID, token string) (agent.Agent, error) {
-	record, err := h.sys.Find(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg := agtconfig.DefaultAgentConfig()
-
-	var storedCfg agtconfig.AgentConfig
-	if err := json.Unmarshal(record.Config, &storedCfg); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
-	}
-
-	cfg.Merge(&storedCfg)
-
-	if token != "" {
-		if cfg.Provider.Options == nil {
-			cfg.Provider.Options = make(map[string]any)
-		}
-		cfg.Provider.Options["token"] = token
-	}
-
-	agt, err := agent.New(&cfg)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
-	}
-
-	return agt, nil
-}
-
-func options(opts map[string]any) map[string]any {
-	if len(opts) == 0 {
-		return nil
-	}
-	return opts
 }
 
 func (h *Handler) writeSSEStream(w http.ResponseWriter, r *http.Request, stream <-chan *response.StreamingChunk) {

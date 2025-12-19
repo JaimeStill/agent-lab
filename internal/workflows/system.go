@@ -14,6 +14,7 @@ type System interface {
 	FindRun(ctx context.Context, id uuid.UUID) (*Run, error)
 	GetStages(ctx context.Context, runID uuid.UUID) ([]Stage, error)
 	GetDecisions(ctx context.Context, runID uuid.UUID) ([]Decision, error)
+	DeleteRun(ctx context.Context, id uuid.UUID) error
 	ListWorkflows() []WorkflowInfo
 	Execute(ctx context.Context, name string, params map[string]any) (*Run, error)
 	ExecuteStream(ctx context.Context, name string, params map[string]any) (<-chan ExecutionEvent, *Run, error)
