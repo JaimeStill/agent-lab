@@ -1,4 +1,4 @@
-# Maintenance Session: go-agents-orchestration v0.2.0
+# Maintenance Session 02: go-agents-orchestration v0.2.0
 
 **Status**: Ready for Release
 **Date**: 2025-12-17

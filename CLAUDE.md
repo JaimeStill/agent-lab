@@ -203,7 +203,7 @@ Maintenance sessions differ from development sessions - they focus on cleanup, r
 - Pre-milestone cleanup to reduce technical debt
 - Cross-repository version coordination
 
-**Session ID Format**: `m##` (e.g., `m01`, `m02`)
+**Session ID Format**: `m##` (e.g., `m01`, `m02`). Check _context/sessions to determine the current sequence number.
 
 **Workflow**:
 

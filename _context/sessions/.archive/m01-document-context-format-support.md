@@ -1,4 +1,4 @@
-# Maintenance Session m01: document-context Format Support
+# Maintenance Session 01: document-context Format Support
 
 ## Overview
 

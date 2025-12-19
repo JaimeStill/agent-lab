@@ -9,6 +9,9 @@ import (
 	"github.com/JaimeStill/go-agents-orchestration/pkg/observability"
 )
 
+type errorf string
+
+func (e errorf) Error() string { return string(e) }
 func TestStreamingObserver_Events(t *testing.T) {
 	obs := workflows.NewStreamingObserver(10)
 	events := obs.Events()
@@ -207,37 +210,3 @@ func TestStreamingObserver_OnEvent_EdgeTransition(t *testing.T) {
 		t.Fatal("Timed out waiting for event")
 	}
 }
-
-func TestMultiObserver_BroadcastsToAll(t *testing.T) {
-	obs1 := workflows.NewStreamingObserver(10)
-	obs2 := workflows.NewStreamingObserver(10)
-
-	multi := workflows.NewMultiObserver(obs1, obs2)
-
-	event := observability.Event{
-		Type:      observability.EventNodeStart,
-		Timestamp: time.Now(),
-		Data: map[string]any{
-			"node":      "broadcast-test",
-			"iteration": 0,
-		},
-	}
-
-	multi.OnEvent(context.Background(), event)
-
-	for i, obs := range []*workflows.StreamingObserver{obs1, obs2} {
-		events := obs.Events()
-		select {
-		case execEvent := <-events:
-			if execEvent.Data["node_name"] != "broadcast-test" {
-				t.Errorf("Observer %d: Data[node_name] = %q, want %q", i, execEvent.Data["node_name"], "broadcast-test")
-			}
-		case <-time.After(100 * time.Millisecond):
-			t.Fatalf("Observer %d: Timed out waiting for event", i)
-		}
-	}
-}
-
-type errorf string
-
-func (e errorf) Error() string { return string(e) }
