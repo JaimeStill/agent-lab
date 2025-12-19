@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
+	"github.com/JaimeStill/go-agents/pkg/agent"
+	"github.com/JaimeStill/go-agents/pkg/response"
 	"github.com/google/uuid"
 )
 
@@ -31,4 +33,26 @@ type System interface {
 	// Delete removes an agent configuration by ID.
 	// Returns ErrNotFound if the agent does not exist.
 	Delete(ctx context.Context, id uuid.UUID) error
+
+	// Chat executes a chat completion using the agent configuration.
+	// The opts map supports "system_prompt" to override the stored prompt.
+	// Token overrides the stored API token if provided.
+	Chat(ctx context.Context, id uuid.UUID, prompt string, opts map[string]any, token string) (*response.ChatResponse, error)
+
+	// ChatStream executes a streaming chat completion.
+	// Returns a channel that receives chunks as they arrive.
+	ChatStream(ctx context.Context, id uuid.UUID, prompt string, opts map[string]any, token string) (<-chan *response.StreamingChunk, error)
+
+	// Vision executes a vision completion with image analysis.
+	// Images should be base64-encoded data URIs.
+	Vision(ctx context.Context, id uuid.UUID, prompt string, images []string, opts map[string]any, token string) (*response.ChatResponse, error)
+
+	// VisionStream executes a streaming vision completion.
+	VisionStream(ctx context.Context, id uuid.UUID, prompt string, images []string, opts map[string]any, token string) (<-chan *response.StreamingChunk, error)
+
+	// Tools executes a tool-use completion with function calling.
+	Tools(ctx context.Context, id uuid.UUID, prompt string, tools []agent.Tool, opts map[string]any, token string) (*response.ToolsResponse, error)
+
+	// Embed generates embeddings for the input text.
+	Embed(ctx context.Context, id uuid.UUID, input string, opts map[string]any, token string) (*response.EmbeddingsResponse, error)
 }

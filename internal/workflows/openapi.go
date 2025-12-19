@@ -10,6 +10,7 @@ type spec struct {
 	FindRun       *openapi.Operation
 	GetStages     *openapi.Operation
 	GetDecisions  *openapi.Operation
+	DeleteRun     *openapi.Operation
 	Cancel        *openapi.Operation
 	Resume        *openapi.Operation
 }
@@ -112,6 +113,18 @@ var Spec = spec{
 		},
 		Responses: map[int]*openapi.Response{
 			200: openapi.ResponseJSON("Decision list", "DecisionList"),
+			400: openapi.ResponseRef("BadRequest"),
+			404: openapi.ResponseRef("NotFound"),
+		},
+	},
+	DeleteRun: &openapi.Operation{
+		Summary:     "Delete workflow run",
+		Description: "Deletes a workflow run and its related data (stages, decisions, checkpoints)",
+		Parameters: []*openapi.Parameter{
+			openapi.PathParam("id", "Run ID"),
+		},
+		Responses: map[int]*openapi.Response{
+			204: {Description: "Run deleted"},
 			400: openapi.ResponseRef("BadRequest"),
 			404: openapi.ResponseRef("NotFound"),
 		},

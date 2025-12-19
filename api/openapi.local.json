@@ -1360,6 +1360,418 @@
         }
       }
     },
+    "/api/workflows": {
+      "get": {
+        "summary": "List registered workflows",
+        "description": "Returns all workflows registered in the system",
+        "tags": [
+          "Workflows"
+        ],
+        "responses": {
+          "200": {
+            "description": "List of workflows",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowInfoList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workflows/runs": {
+      "get": {
+        "summary": "List workflow runs",
+        "description": "Returns paginated list of workflow runs with optional filters",
+        "tags": [
+          "Runs"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Items per page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "workflow_name",
+            "in": "query",
+            "description": "Filter by workflow name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by status",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPageResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workflows/runs/{id}": {
+      "get": {
+        "summary": "Get run details",
+        "description": "Returns details for a specific workflow run",
+        "tags": [
+          "Runs"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Run ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete workflow run",
+        "description": "Deletes a workflow run and its related data (stages, decisions, checkpoints)",
+        "tags": [
+          "Runs"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Run ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Run deleted"
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/workflows/runs/{id}/cancel": {
+      "post": {
+        "summary": "Cancel workflow run",
+        "description": "Cancels an active workflow run",
+        "tags": [
+          "Runs"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Run ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Run cancelled"
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "",
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/workflows/runs/{id}/decisions": {
+      "get": {
+        "summary": "Get run decisions",
+        "description": "Returns routing decisions for a workflow run",
+        "tags": [
+          "Runs"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Run ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decision list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/workflows/runs/{id}/resume": {
+      "post": {
+        "summary": "Resume workflow run",
+        "description": "Resumes a failed or cancelled workflow run from checkpoint",
+        "tags": [
+          "Runs"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Run ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumed run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "",
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/workflows/runs/{id}/stages": {
+      "get": {
+        "summary": "Get run stages",
+        "description": "Returns execution stages for a workflow run",
+        "tags": [
+          "Runs"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Run ID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stage list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StageList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/workflows/{name}/execute": {
+      "post": {
+        "summary": "Execute workflow",
+        "description": "Executes a workflow synchronously and returns the result",
+        "tags": [
+          "Workflows"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "Workflow name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Workflow execution result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/workflows/{name}/execute/stream": {
+      "post": {
+        "summary": "Execute workflow with streaming",
+        "description": "Executes a workflow and streams progress events via SSE",
+        "tags": [
+          "Workflows"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "description": "Workflow name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecuteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "SSE event stream",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "summary": "Health check endpoint",
@@ -1506,6 +1918,44 @@
           "config"
         ]
       },
+      "Decision": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "from_node": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "predicate_name": {
+            "type": "string"
+          },
+          "predicate_result": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "to_node": {
+            "type": "string"
+          }
+        }
+      },
+      "DecisionList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Decision"
+        }
+      },
       "Document": {
         "type": "object",
         "properties": {
@@ -1597,6 +2047,37 @@
           "embedding": {
             "type": "array",
             "description": "Embedding vector"
+          }
+        }
+      },
+      "ExecuteRequest": {
+        "type": "object",
+        "properties": {
+          "params": {
+            "type": "object",
+            "description": "Workflow parameters"
+          }
+        }
+      },
+      "ExecutionEvent": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "stage.start",
+              "stage.complete",
+              "decision",
+              "error",
+              "complete"
+            ]
           }
         }
       },
@@ -1835,6 +2316,125 @@
           }
         }
       },
+      "Run": {
+        "type": "object",
+        "properties": {
+          "completed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "error_message": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "params": {
+            "type": "object"
+          },
+          "result": {
+            "type": "object"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workflow_name": {
+            "type": "string"
+          }
+        }
+      },
+      "RunPageResult": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Run"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          }
+        }
+      },
+      "Stage": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "error_message": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "input_snapshot": {
+            "type": "object"
+          },
+          "iteration": {
+            "type": "integer"
+          },
+          "node_name": {
+            "type": "string"
+          },
+          "output_snapshot": {
+            "type": "object"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "started",
+              "completed",
+              "failed"
+            ]
+          }
+        }
+      },
+      "StageList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Stage"
+        }
+      },
       "ToolsRequest": {
         "type": "object",
         "properties": {
@@ -1903,6 +2503,23 @@
           "name",
           "config"
         ]
+      },
+      "WorkflowInfo": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "WorkflowInfoList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/WorkflowInfo"
+        }
       }
     },
     "responses": {

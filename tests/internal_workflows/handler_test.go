@@ -93,6 +93,7 @@ func TestHandler_Routes_Children(t *testing.T) {
 		{"GET", "/{id}"},
 		{"GET", "/{id}/stages"},
 		{"GET", "/{id}/decisions"},
+		{"DELETE", "/{id}"},
 		{"POST", "/{id}/cancel"},
 		{"POST", "/{id}/resume"},
 	}

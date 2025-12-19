@@ -12,6 +12,7 @@ import (
 	"github.com/JaimeStill/agent-lab/pkg/repository"
 	"github.com/JaimeStill/go-agents/pkg/agent"
 	agtconfig "github.com/JaimeStill/go-agents/pkg/config"
+	"github.com/JaimeStill/go-agents/pkg/response"
 	"github.com/google/uuid"
 )
 
@@ -126,6 +127,124 @@ func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
 
 	r.logger.Info("agent deleted", "id", id)
 	return nil
+}
+
+func (r *repo) Chat(ctx context.Context, id uuid.UUID, prompt string, opts map[string]any, token string) (*response.ChatResponse, error) {
+	agt, err := r.constructAgent(ctx, id, token, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := agt.Chat(ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrExecution, err)
+	}
+
+	return resp, nil
+}
+
+func (r *repo) ChatStream(ctx context.Context, id uuid.UUID, prompt string, opts map[string]any, token string) (<-chan *response.StreamingChunk, error) {
+	agt, err := r.constructAgent(ctx, id, token, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	stream, err := agt.ChatStream(ctx, prompt)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrExecution, err)
+	}
+
+	return stream, nil
+}
+
+func (r *repo) Vision(ctx context.Context, id uuid.UUID, prompt string, images []string, opts map[string]any, token string) (*response.ChatResponse, error) {
+	agt, err := r.constructAgent(ctx, id, token, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := agt.Vision(ctx, prompt, images)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrExecution, err)
+	}
+
+	return resp, nil
+}
+
+func (r *repo) VisionStream(ctx context.Context, id uuid.UUID, prompt string, images []string, opts map[string]any, token string) (<-chan *response.StreamingChunk, error) {
+	agt, err := r.constructAgent(ctx, id, token, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	stream, err := agt.VisionStream(ctx, prompt, images)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrExecution, err)
+	}
+
+	return stream, nil
+}
+
+func (r *repo) Tools(ctx context.Context, id uuid.UUID, prompt string, tools []agent.Tool, opts map[string]any, token string) (*response.ToolsResponse, error) {
+	agt, err := r.constructAgent(ctx, id, token, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := agt.Tools(ctx, prompt, tools)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrExecution, err)
+	}
+
+	return resp, nil
+}
+
+func (r *repo) Embed(ctx context.Context, id uuid.UUID, input string, opts map[string]any, token string) (*response.EmbeddingsResponse, error) {
+	agt, err := r.constructAgent(ctx, id, token, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := agt.Embed(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrExecution, err)
+	}
+
+	return resp, nil
+}
+
+func (r *repo) constructAgent(ctx context.Context, id uuid.UUID, token string, opts map[string]any) (agent.Agent, error) {
+	record, err := r.Find(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := agtconfig.DefaultAgentConfig()
+
+	var storedCfg agtconfig.AgentConfig
+	if err := json.Unmarshal(record.Config, &storedCfg); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+	}
+
+	cfg.Merge(&storedCfg)
+
+	if systemPrompt, ok := opts["system_prompt"].(string); ok && systemPrompt != "" {
+		cfg.SystemPrompt = systemPrompt
+	}
+
+	if token != "" {
+		if cfg.Provider.Options == nil {
+			cfg.Provider.Options = make(map[string]any)
+		}
+		cfg.Provider.Options["token"] = token
+	}
+
+	agt, err := agent.New(&cfg)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrInvalidConfig, err)
+	}
+
+	return agt, nil
 }
 
 func (r *repo) validateConfig(config json.RawMessage) error {

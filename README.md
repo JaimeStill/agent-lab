@@ -83,6 +83,82 @@ go test ./tests/... -v
 go test ./tests/... -cover
 ```
 
+## Sample Workflows
+
+agent-lab includes sample workflows that demonstrate live agent integration. Test these via the Scalar API documentation at `http://localhost:8080/docs`.
+
+### Prerequisites
+
+1. Ensure the server is running
+2. Create an agent profile via `POST /api/agents` (or use an existing one)
+3. Note the agent's UUID for use in workflow params
+
+### Available Workflows
+
+List registered workflows:
+```
+GET /api/workflows
+```
+
+### Summarize Workflow
+
+Single-node workflow that summarizes input text using an AI agent.
+
+**Endpoint**: `POST /api/workflows/summarize/execute`
+
+**Request Body** (for Scalar interface):
+```json
+{
+  "params": {
+    "agent_id": "<AGENT_UUID>",
+    "text": "The quick brown fox jumps over the lazy dog. This sentence contains every letter of the alphabet and is commonly used for typing practice."
+  }
+}
+```
+
+**Optional Parameters**:
+- `system_prompt` - Override the default summarization prompt
+- `token` - Runtime API token override
+
+### Reasoning Workflow
+
+Multi-node workflow that performs step-by-step reasoning: analyze → reason → conclude.
+
+**Endpoint**: `POST /api/workflows/reasoning/execute`
+
+**Request Body** (for Scalar interface):
+```json
+{
+  "params": {
+    "agent_id": "<AGENT_UUID>",
+    "problem": "If all roses are flowers and some flowers fade quickly, can we conclude that some roses fade quickly?"
+  }
+}
+```
+
+**Optional Parameters**:
+- `analyze_system_prompt` - Override the analyze node prompt
+- `reason_system_prompt` - Override the reason node prompt
+- `conclude_system_prompt` - Override the conclude node prompt
+- `token` - Runtime API token override
+
+### Viewing Results
+
+**List all runs**:
+```
+GET /api/workflows/runs
+```
+
+**Get a specific run**:
+```
+GET /api/workflows/runs/{run_id}
+```
+
+**View execution stages** (for multi-node workflows):
+```
+GET /api/workflows/runs/{run_id}/stages
+```
+
 ## Documentation
 
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Technical specifications and design patterns

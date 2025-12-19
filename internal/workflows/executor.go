@@ -59,6 +59,10 @@ func (e *executor) GetDecisions(ctx context.Context, runID uuid.UUID) ([]Decisio
 	return e.repo.GetDecisions(ctx, runID)
 }
 
+func (e *executor) DeleteRun(ctx context.Context, id uuid.UUID) error {
+	return e.repo.DeleteRun(ctx, id)
+}
+
 func (e *executor) ListWorkflows() []WorkflowInfo {
 	return List()
 }

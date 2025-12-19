@@ -537,17 +537,22 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **Validation**: ✅ All endpoints implemented, SSE streaming works, 34 new tests passing
 
-#### Session 3e: Sample Workflow and Integration Tests
+#### Session 3e: Sample Workflows ✅
 
-**Objective**: Validate infrastructure with working example.
+**Status**: Completed (2025-12-19)
 
-**Deliverables**:
-- Sample "echo" workflow (simple chain: input → transform → output)
-- Sample workflow using conditional routing
-- Integration tests covering execution, checkpoints, resume
-- ARCHITECTURE.md updates
+**Implemented**:
+- Agent System capability methods (Chat, ChatStream, Vision, VisionStream, Tools, Embed)
+- System prompt override via `opts["system_prompt"]` (stored config as fallback)
+- Handler delegation to System for capability execution
+- Sample workflows package (`internal/workflows/samples/`)
+- Summarize workflow (single-node, text summarization)
+- Reasoning workflow (multi-node: analyze → reason → conclude)
+- Query builder `isNil()` fix for nil pointer detection
+- Nullable JSON scan fix for runs/stages tables
+- DeleteRun endpoint for run cleanup
 
-**Validation**: Integration tests pass, patterns documented.
+**Validation**: ✅ Both workflows execute with live LLM calls, stages recorded, all tests passing
 
 ---
 
@@ -660,7 +665,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 ## Current Status
 
-**Phase**: Milestone 3 - Workflow Execution Infrastructure
+**Phase**: Milestone 3 Complete - Planning Milestone 4
 
 **Completed**:
 - Session 01: Foundation architecture design (ARCHITECTURE.md)
@@ -704,21 +709,13 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Self-hosted Scalar UI at `/docs` endpoint
   - TrimSlash middleware for trailing slash redirects
 
-**In Progress**:
-- Milestone 3: Workflow Execution Infrastructure
+**Recently Completed**:
+- Milestone 3: Workflow Execution Infrastructure ✅
   - Session 3a: Workflow Infrastructure Foundation ✅
   - Session 3b: Observer and Checkpoint Store ✅
   - Session 3c: Workflow Execution Engine ✅
   - Session 3d: API Endpoints ✅
-  - Session 3e: Sample Workflow and Integration Tests (pending)
-
-**Recently Completed**:
-- Session 3d: API Endpoints ✅
-  - HTTP handlers for all 9 workflow endpoints
-  - SSE streaming with MultiObserver pattern
-  - Route Children for hierarchical route groups
-  - `pkg/decode` for typed event data decoding
-  - Go file structure convention documented
+  - Session 3e: Sample Workflows ✅
 - Milestone 2: Document Upload & Processing ✅
   - Session 02a: Blob Storage Infrastructure ✅
   - Session 02b: Documents Domain System ✅
@@ -737,7 +734,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Enables broadcasting events to multiple observers
 
 **Next Steps**:
-- Begin Session 3e: Sample Workflow and Integration Tests
+- Begin Milestone 4: Real-Time Monitoring & SSE
 
 ## Future Phases (Beyond Milestone 8)
 

@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -156,7 +157,7 @@ func (b *Builder) WhereContains(field string, value *string) *Builder {
 
 // WhereEquals adds an equality condition. Nil values are ignored.
 func (b *Builder) WhereEquals(field string, value any) *Builder {
-	if value == nil {
+	if isNil(value) {
 		return b
 	}
 	col := b.projection.Column(field)
@@ -186,7 +187,7 @@ func (b *Builder) WhereIn(field string, values []any) *Builder {
 
 func (b *Builder) WhereNullable(column string, val any) *Builder {
 	col := b.projection.Column(column)
-	if val == nil {
+	if isNil(val) {
 		b.conditions = append(b.conditions, condition{
 			clause: col + " IS NULL",
 			args:   nil,
@@ -267,4 +268,21 @@ func (b *Builder) buildWhere(startParam int) (string, []any, int) {
 	}
 
 	return " WHERE " + strings.Join(clauses, " AND "), args, paramIdx
+}
+
+// isNil checks if a value is nil, handling both untyped nil and nil pointers
+// passed as interface values. This is necessary because a nil *string passed
+// as any is not equal to untyped nil (the interface has type *string but nil value).
+func isNil(value any) bool {
+	if value == nil {
+		return true
+	}
+
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func, reflect.Interface:
+		return v.IsNil()
+	}
+
+	return false
 }
