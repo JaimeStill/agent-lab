@@ -585,23 +585,113 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 ### Milestone 4: classify-docs Workflow Integration
 
-**Objective**: Implement document classification workflow using go-agents-orchestration.
+**Objective**: Implement document classification workflow with parallel processing and A/B testing capability.
+
+**Architecture Document**: `_context/milestones/m04-classify-docs.md`
+
+**Key Decisions**:
+
+1. **Workflow Profiles** - Database-stored configurations for workflow stages (agents, prompts). Named "profiles" for clean API design (`/api/profiles`).
+
+2. **Workflow Directory Separation** - Move workflow definitions from `internal/workflows/samples/` to top-level `workflows/` directory. Infrastructure stays in `internal/workflows/`.
+
+3. **Parallel Detection** - Use go-agents-orchestration's `ProcessParallel` for concurrent page analysis with automatic worker pool sizing.
+
+4. **Numeric Clarity Scoring** - 0.0-1.0 scale with threshold-based enhancement triggering (< 0.7).
+
+**Database Schema** (2 tables):
+- `profiles` - Named configurations per workflow (workflow_name, name, is_default)
+- `profile_stages` - Per-stage configuration (profile_id, stage_name, agent_id, system_prompt, options)
+
+**API Endpoints**:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/profiles` | Create workflow profile |
+| GET | `/api/profiles` | List profiles (filter by workflow_name) |
+| GET | `/api/profiles/{id}` | Get profile with stages |
+| PUT | `/api/profiles/{id}` | Update profile metadata |
+| DELETE | `/api/profiles/{id}` | Delete profile and stages |
+| POST | `/api/profiles/{id}/stages` | Add/update stage config |
+| DELETE | `/api/profiles/{id}/stages/{stage}` | Remove stage config |
+
+**Development Sessions**:
+
+#### Session 4a: Profiles Infrastructure & Workflow Migration
 
 **Deliverables**:
-- System prompt management (storage in workflows table)
-- Sequential workflow implementation using `ProcessChain`
-- Per-page classification with vision API
-- Confidence scoring algorithm (0.0-1.0 scale with semantic meaning)
-- Marking detection and spatial combination logic
-- Classification result aggregation across pages
-- Validation against 27-document test set
+- Database migration for profiles and profile_stages tables
+- Profile domain: types, repository, handler, OpenAPI
+- Move existing workflows to `workflows/` directory
+- Update Runtime with profiles system access
+
+**Key Files**:
+- `cmd/migrate/migrations/000007_profiles.up.sql`
+- `internal/profiles/` (new domain)
+- `workflows/summarize/summarize.go` (moved)
+- `workflows/reasoning/reasoning.go` (moved)
+
+**Validation**: Create profile via API, verify stages stored; existing workflows still execute
+
+#### Session 4b: classify-docs Types and Detection Stage
+
+**Deliverables**:
+- Type definitions (PageDetection, MarkingInfo, FilterSuggestion, etc.)
+- Detection system prompt and response parser
+- Init node (load profile, document, render images)
+- Detect node using ProcessParallel
+
+**Key Files**:
+- `workflows/classify/types.go`
+- `workflows/classify/prompts.go`
+- `workflows/classify/detection.go`
+- `workflows/classify/classify.go` (factory skeleton)
+
+**Validation**: Execute workflow through detect stage, verify parallel execution
+
+#### Session 4c: Enhancement, Classification, and Scoring
+
+**Deliverables**:
+- Enhancement conditional node (re-render low-clarity pages)
+- Classification node and prompt
+- Scoring node with weighted factors
+- Complete workflow graph assembly
+
+**Key Files**:
+- `workflows/classify/enhance.go`
+- `workflows/classify/classification.go`
+- `workflows/classify/scoring.go`
+- `workflows/classify/classify.go` (complete)
+
+**Validation**: Full workflow execution with multi-page document
+
+#### Session 4d: Testing and Refinement
+
+**Deliverables**:
+- Unit tests for parsers and helpers
+- Integration tests with real LLM calls
+- Default profile seeding migration
+- Validation against test document set
+
+**Key Files**:
+- `tests/internal_profiles/`
+- `tests/workflows_classify/`
+- `cmd/migrate/migrations/000008_seed_classify_profile.up.sql`
+
+**Validation**: Achieve baseline accuracy on test documents
+
+---
 
 **Success Criteria**:
-- Execute classification workflow on test document
-- Achieve baseline 96.3% accuracy (matching prototype)
-- Confidence scores reflect tangible factors (marking clarity, consistency, spatial distribution)
-- Execution trace shows per-page analysis progression
-- Results include detected markings with positions
+- Workflow profiles CRUD via API
+- Existing workflows moved to `workflows/` and functioning
+- classify-docs workflow registered and executable
+- Parallel page detection with ProcessParallel
+- Conditional enhancement for low-clarity pages
+- Classification with alternatives when ambiguous
+- Confidence scoring with weighted factors (0.0-1.0)
+- A/B testing capability via profile_id parameter
+- Baseline accuracy: match 96.3% prototype
 
 ### Milestone 5: Workflow Lab Interface
 
@@ -735,7 +825,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Enables broadcasting events to multiple observers
 
 **Next Steps**:
-- Begin Milestone 4: classify-docs Workflow Integration (primary goal)
+- Begin Session 4a: Profiles Infrastructure & Workflow Migration
 
 ## Future Phases (Beyond Milestone 7)
 
