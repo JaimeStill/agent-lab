@@ -74,6 +74,7 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 	var req ExecuteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
+		return
 	}
 
 	run, err := h.sys.Execute(r.Context(), name, req.Params)

@@ -46,9 +46,9 @@ agent-lab enables organizations to:
 - OpenAPI specification with Scalar interactive interface
 
 **Enterprise Ready**:
-- RBAC with resource ownership and sharing (Phase 8)
+- RBAC with resource ownership and sharing (Phase 7)
 - Audit logging for compliance requirements
-- Azure cloud integration (Phase 8)
+- Azure cloud integration (Phase 7)
 - Air-gap deployable with embedded assets
 
 ### Technology Principles
@@ -125,9 +125,9 @@ agent-lab will enable experimentation with:
 ### Deployment
 
 - **Development**: Docker Compose (PostgreSQL 17 + agent-lab service)
-- **Production**: Kubernetes (Phase 8)
+- **Production**: Kubernetes (Phase 7)
 - **External Dependencies**: PostgreSQL 17, ImageMagick 7+
-- **Cloud Platform**: Azure (Phase 8)
+- **Cloud Platform**: Azure (Phase 7)
 
 ## Architecture Principles
 
@@ -563,26 +563,27 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Resume workflow from checkpoint
 - Query execution history with stages and routing decisions
 
-### Milestone 4: Real-Time Monitoring & SSE
+### ~~Milestone 4: Real-Time Monitoring & SSE~~ (Absorbed)
 
-**Objective**: Enable real-time observability of workflow execution.
+**Status**: Absorbed into Milestone 3 and Milestone 5
 
-**Deliverables**:
-- SSE streaming endpoint (`GET /api/runs/{id}/stream`)
-- Event publishing from workflow execution (step_started, step_completed, confidence_scored)
-- Selective event persistence (`execution_events` table)
-- Execution history API (`GET /api/runs`, filtering and pagination)
-- Run details endpoint (`GET /api/runs/{id}` with trace data)
+**Rationale**: During Milestone 3 review, we identified that M3's SSE streaming implementation fulfilled M4's backend requirements. The remaining items are either minor (heartbeat) or frontend-focused (client JS).
+
+**Deliverables Completed in M3:**
+- ✅ SSE streaming endpoint (`POST /api/workflows/{name}/execute/stream`)
+- ✅ Event publishing (stage.start, stage.complete, decision, error, complete)
+- ✅ Event persistence (stages + decisions tables)
+- ✅ Execution history API (`GET /api/workflows/runs` with filters)
+- ✅ Run details endpoint (`GET /api/workflows/runs/{id}`)
+
+**Deferred to M5 (Workflow Lab Interface):**
 - Client-side EventSource integration (vanilla JS)
+- Heartbeat mechanism (if needed)
+- Reconnect to running workflow (if needed)
 
-**Success Criteria**:
-- Client establishes SSE connection, receives real-time events
-- Heartbeat keeps connection alive (30-second interval)
-- Stream closes on execution completion
-- Persisted events queryable via history API
-- Execution trace shows step-by-step progression
+---
 
-### Milestone 5: classify-docs Workflow Integration
+### Milestone 4: classify-docs Workflow Integration
 
 **Objective**: Implement document classification workflow using go-agents-orchestration.
 
@@ -602,7 +603,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Execution trace shows per-page analysis progression
 - Results include detected markings with positions
 
-### Milestone 6: Workflow Lab Interface
+### Milestone 5: Workflow Lab Interface
 
 **Objective**: Build web interface for workflow monitoring and iteration.
 
@@ -623,17 +624,17 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Adjust agent options and filter overrides, re-execute
 - Complete iteration cycle in < 5 minutes
 
-### Milestone 7: Operational Features
+### Milestone 6: Operational Features
 
 **Objective**: Enable production-ready bulk processing and operations.
 
 **Deliverables**:
 - Bulk document processing (`POST /api/workflows/{id}/execute/bulk`)
 - Execution history filtering and search (status, date range, workflow)
-- RBAC foundations (ownership model, defer authentication to Phase 8)
+- RBAC foundations (ownership model, defer authentication to Phase 7)
 - Audit logging (execution events, user actions)
 - Result export API (JSON, JSONL, CSV formats)
-- Webhook support for completion notifications (Phase 7+)
+- Webhook support for completion notifications (Phase 6+)
 
 **Success Criteria**:
 - Submit batch of documents for classification
@@ -642,7 +643,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Export results in multiple formats
 - Audit log captures all significant actions
 
-### Milestone 8: Production Deployment
+### Milestone 7: Production Deployment
 
 **Objective**: Deploy to Azure with production integrations.
 
@@ -665,7 +666,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 ## Current Status
 
-**Phase**: Milestone 3 Complete - Planning Milestone 4
+**Phase**: Milestone 3 Complete - Planning Milestone 4 (classify-docs)
 
 **Completed**:
 - Session 01: Foundation architecture design (ARCHITECTURE.md)
@@ -734,9 +735,9 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Enables broadcasting events to multiple observers
 
 **Next Steps**:
-- Begin Milestone 4: Real-Time Monitoring & SSE
+- Begin Milestone 4: classify-docs Workflow Integration (primary goal)
 
-## Future Phases (Beyond Milestone 8)
+## Future Phases (Beyond Milestone 7)
 
 ### Multi-Workflow Support
 
