@@ -2398,6 +2398,10 @@
           "params": {
             "type": "object",
             "description": "Workflow parameters"
+          },
+          "token": {
+            "type": "string",
+            "description": "Auth token for agent API calls (not persisted)"
           }
         }
       },

@@ -334,9 +334,14 @@ workflows/                # Workflow definitions (top-level, not internal)
 ├── summarize/
 │   ├── profile.go            # DefaultProfile() for summarize workflow
 │   └── summarize.go          # Workflow factory and nodes
-└── reasoning/
-    ├── profile.go            # DefaultProfile() for reasoning workflow
-    └── reasoning.go          # Workflow factory and nodes
+├── reasoning/
+│   ├── profile.go            # DefaultProfile() for reasoning workflow
+│   └── reasoning.go          # Workflow factory and nodes
+└── classify/
+    ├── errors.go             # Domain errors
+    ├── parse.go              # LLM response parsing (JSON + markdown fallback)
+    ├── profile.go            # DefaultProfile() with detection system prompt
+    └── classify.go           # Types, workflow factory, init/detect nodes
 
 pkg/                      # Public API: Shared infrastructure
 ├── handlers/
@@ -1682,6 +1687,45 @@ func (h *Handler) constructAgent(ctx context.Context, id uuid.UUID, token string
 - Stored config uses placeholder value (e.g., `"token": "token"`) for validation
 - Real token injected into `Provider.Options["token"]` before agent construction
 
+### Secure Workflow Token Pattern
+
+For workflow execution, tokens (e.g., JWT tokens for Azure) must be available during execution but never persisted to the database. The `ExecuteRequest` separates token from params:
+
+```go
+type ExecuteRequest struct {
+    Params map[string]any `json:"params,omitempty"`
+    Token  string         `json:"token,omitempty"`  // Not persisted
+}
+```
+
+**Executor Implementation**:
+```go
+func (e *executor) Execute(ctx context.Context, name string, params map[string]any, token string) (*Run, error) {
+    // params persisted to workflow_runs.params
+    run, err := e.repo.CreateRun(ctx, name, params)
+
+    // token injected into state, NOT persisted
+    if token != "" {
+        initialState = initialState.Set("token", token)
+    }
+
+    // Workflow nodes access via s.Get("token")
+}
+```
+
+**Security Guarantees**:
+- Token NOT stored in `workflow_runs.params` column
+- Token NOT returned in API responses when querying run history
+- Token available in workflow state during execution only
+- Supports expiring JWT tokens (e.g., Azure AD/Entra ID)
+
+**Usage in Workflows**:
+```go
+// In workflow node
+agentID, token, err := workflows.ExtractAgentParams(s, stage)
+// token comes from state, falls back to stage.AgentID's stored token
+```
+
 ### SSE Streaming Pattern
 
 Server-Sent Events for streaming responses:
@@ -2283,6 +2327,7 @@ tests/
 ├── internal_routes/      # Routes package tests
 ├── internal_storage/     # Storage system tests
 ├── internal_workflows/   # Workflows domain tests
+├── workflows_classify/   # Classify workflow tests
 ├── pkg_handlers/         # HTTP handlers tests
 ├── pkg_openapi/          # OpenAPI package tests
 ├── pkg_pagination/       # Pagination package tests

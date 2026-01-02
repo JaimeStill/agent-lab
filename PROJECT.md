@@ -637,21 +637,22 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **Validation**: ✓ Profile CRUD, stage upsert, both profile scenarios (system_prompt only, agent_id configured)
 
-#### Session 4b: classify-docs Types and Detection Stage
+#### Session 4b: classify-docs Types and Detection Stage ✓
 
 **Deliverables**:
-- Type definitions (PageDetection, MarkingInfo, FilterSuggestion, etc.)
-- Detection system prompt and response parser
+- Type definitions (PageImage, PageDetection, MarkingInfo, FilterSuggestion)
+- Detection system prompt and JSON response parser
 - Init node (load profile, document, render images)
 - Detect node using ProcessParallel
+- Secure token handling (token in request body, not persisted)
 
 **Key Files**:
-- `workflows/classify/types.go`
-- `workflows/classify/prompts.go`
-- `workflows/classify/detection.go`
-- `workflows/classify/classify.go` (factory skeleton)
+- `workflows/classify/errors.go`
+- `workflows/classify/parse.go`
+- `workflows/classify/profile.go`
+- `workflows/classify/classify.go`
 
-**Validation**: Execute workflow through detect stage, verify parallel execution
+**Validation**: ✓ Workflow executes through detect stage, parallel execution verified, token security implemented
 
 #### Session 4c: Enhancement, Classification, and Scoring
 
@@ -760,7 +761,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 ## Current Status
 
-**Phase**: Milestone 3 Complete - Planning Milestone 4 (classify-docs)
+**Phase**: Milestone 4 In Progress - Session 4b Complete
 
 **Completed**:
 - Session 01: Foundation architecture design (ARCHITECTURE.md)
@@ -828,8 +829,16 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Migrated shim from agent-lab to library
   - Enables broadcasting events to multiple observers
 
+**Recently Completed**:
+- Session 4a: Profiles Infrastructure & Workflow Migration ✓
+- Session 4b: classify-docs Types and Detection Stage ✓
+  - Types: PageImage, PageDetection, MarkingInfo, FilterSuggestion
+  - Init and Detect nodes with ProcessParallel
+  - Secure token handling (not persisted to database)
+  - JSON response parsing with markdown fallback
+
 **Next Steps**:
-- Begin Session 4b: classify-docs Types and Detection Stage
+- Begin Session 4c: Enhancement, Classification, and Scoring
 
 ## Future Phases (Beyond Milestone 7)
 

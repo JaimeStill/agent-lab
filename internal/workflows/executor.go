@@ -67,7 +67,7 @@ func (e *executor) ListWorkflows() []WorkflowInfo {
 	return List()
 }
 
-func (e *executor) Execute(ctx context.Context, name string, params map[string]any) (*Run, error) {
+func (e *executor) Execute(ctx context.Context, name string, params map[string]any, token string) (*Run, error) {
 	factory, exists := Get(name)
 	if !exists {
 		return nil, ErrWorkflowNotFound
@@ -103,6 +103,9 @@ func (e *executor) Execute(ctx context.Context, name string, params map[string]a
 	}
 
 	initialState.RunID = run.ID.String()
+	if token != "" {
+		initialState = initialState.Set("token", token)
+	}
 
 	finalState, err := graph.Execute(execCtx, initialState)
 	if err != nil {
@@ -117,7 +120,7 @@ func (e *executor) Execute(ctx context.Context, name string, params map[string]a
 	return e.repo.UpdateRunCompleted(ctx, run.ID, StatusCompleted, finalState.Data, nil)
 }
 
-func (e *executor) ExecuteStream(ctx context.Context, name string, params map[string]any) (<-chan ExecutionEvent, *Run, error) {
+func (e *executor) ExecuteStream(ctx context.Context, name string, params map[string]any, token string) (<-chan ExecutionEvent, *Run, error) {
 	factory, exists := Get(name)
 	if !exists {
 		return nil, nil, ErrWorkflowNotFound
@@ -130,7 +133,7 @@ func (e *executor) ExecuteStream(ctx context.Context, name string, params map[st
 
 	streamingObs := NewStreamingObserver(defaultStreamBufferSize)
 
-	go e.executeStreamAsync(ctx, run.ID, factory, params, streamingObs)
+	go e.executeStreamAsync(ctx, run.ID, factory, params, token, streamingObs)
 
 	return streamingObs.Events(), run, nil
 }
@@ -214,7 +217,7 @@ func (e *executor) Resume(ctx context.Context, runID uuid.UUID) (*Run, error) {
 	return e.repo.UpdateRunCompleted(ctx, run.ID, StatusCompleted, finalState.Data, nil)
 }
 
-func (e *executor) executeStreamAsync(ctx context.Context, runID uuid.UUID, factory WorkflowFactory, params map[string]any, streamingObs *StreamingObserver) {
+func (e *executor) executeStreamAsync(ctx context.Context, runID uuid.UUID, factory WorkflowFactory, params map[string]any, token string, streamingObs *StreamingObserver) {
 	defer streamingObs.Close()
 
 	execCtx, cancel := context.WithCancel(ctx)
@@ -249,6 +252,9 @@ func (e *executor) executeStreamAsync(ctx context.Context, runID uuid.UUID, fact
 	}
 
 	initialState.RunID = runID.String()
+	if token != "" {
+		initialState = initialState.Set("token", token)
+	}
 
 	finalState, err := graph.Execute(execCtx, initialState)
 	if err != nil {

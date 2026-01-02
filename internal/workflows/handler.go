@@ -15,6 +15,7 @@ import (
 // ExecuteRequest represents the request body for workflow execution.
 type ExecuteRequest struct {
 	Params map[string]any `json:"params,omitempty"`
+	Token  string         `json:"token,omitempty"`
 }
 
 // Handler provides HTTP handlers for workflow operations.
@@ -77,7 +78,7 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	run, err := h.sys.Execute(r.Context(), name, req.Params)
+	run, err := h.sys.Execute(r.Context(), name, req.Params, req.Token)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
 		return
@@ -95,7 +96,7 @@ func (h *Handler) ExecuteStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	events, run, err := h.sys.ExecuteStream(r.Context(), name, req.Params)
+	events, run, err := h.sys.ExecuteStream(r.Context(), name, req.Params, req.Token)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
 		return

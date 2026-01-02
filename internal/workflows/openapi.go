@@ -235,6 +235,7 @@ func (spec) Schemas() map[string]*openapi.Schema {
 			Type: "object",
 			Properties: map[string]*openapi.Schema{
 				"params": {Type: "object", Description: "Workflow parameters"},
+				"token":  {Type: "string", Description: "Auth token for agent API calls (not persisted)"},
 			},
 		},
 		"ExecutionEvent": {
