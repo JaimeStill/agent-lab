@@ -6,6 +6,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/agents"
 	"github.com/JaimeStill/agent-lab/internal/documents"
 	"github.com/JaimeStill/agent-lab/internal/images"
+	"github.com/JaimeStill/agent-lab/internal/profiles"
 )
 
 // Runtime aggregates runtime dependencies for workflow execution.
@@ -15,6 +16,7 @@ type Runtime struct {
 	agents    agents.System
 	documents documents.System
 	images    images.System
+	profiles  profiles.System
 	logger    *slog.Logger
 }
 
@@ -23,12 +25,14 @@ func NewRuntime(
 	agents agents.System,
 	documents documents.System,
 	images images.System,
+	profiles profiles.System,
 	logger *slog.Logger,
 ) *Runtime {
 	return &Runtime{
 		agents:    agents,
 		documents: documents,
 		images:    images,
+		profiles:  profiles,
 		logger:    logger,
 	}
 }
@@ -41,6 +45,8 @@ func (r *Runtime) Documents() documents.System { return r.documents }
 
 // Images returns the images system for image operations.
 func (r *Runtime) Images() images.System { return r.images }
+
+func (r *Runtime) Profiles() profiles.System { return r.profiles }
 
 // Logger returns the logger for workflow logging.
 func (r *Runtime) Logger() *slog.Logger { return r.logger }

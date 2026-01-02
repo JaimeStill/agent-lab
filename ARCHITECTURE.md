@@ -308,15 +308,35 @@ internal/                 # Private API: Domain systems
 │   ├── handler.go            # Handler struct with route methods
 │   └── openapi.go            # OpenAPI schemas and operations
 │
+├── profiles/             # Profiles domain system (workflow configurations)
+│   ├── profile.go            # Profile, ProfileStage, ProfileWithStages types
+│   ├── errors.go             # Domain errors + HTTP status mapping
+│   ├── mapping.go            # Projection, scanner, and filters
+│   ├── system.go             # System interface
+│   ├── repository.go         # Repository implementation
+│   ├── handler.go            # Handler struct with route methods
+│   └── openapi.go            # OpenAPI schemas and operations
+│
 └── workflows/            # Workflows domain system
     ├── run.go                # Run, Stage, Decision, WorkflowInfo types
     ├── errors.go             # Domain errors + HTTP status mapping
     ├── mapping.go            # Projections, scanners, filters
     ├── registry.go           # Global workflow registry
-    ├── runtime.go            # Runtime struct for domain access
+    ├── runtime.go            # Runtime struct for domain access (agents, docs, images, profiles)
+    ├── profile.go            # Profile loading helpers (LoadProfile, ExtractAgentParams)
+    ├── system.go             # System interface
     ├── repository.go         # Read-only repository
     ├── checkpoint.go         # PostgresCheckpointStore (state.CheckpointStore impl)
     └── observer.go           # PostgresObserver (observability.Observer impl)
+
+workflows/                # Workflow definitions (top-level, not internal)
+├── init.go                   # Import aggregator for all workflow packages
+├── summarize/
+│   ├── profile.go            # DefaultProfile() for summarize workflow
+│   └── summarize.go          # Workflow factory and nodes
+└── reasoning/
+    ├── profile.go            # DefaultProfile() for reasoning workflow
+    └── reasoning.go          # Workflow factory and nodes
 
 pkg/                      # Public API: Shared infrastructure
 ├── handlers/
@@ -354,6 +374,7 @@ tests/                    # Black-box tests
 ├── internal_images/
 ├── internal_lifecycle/
 ├── internal_middleware/
+├── internal_profiles/
 ├── internal_providers/
 ├── internal_routes/
 ├── internal_storage/
@@ -436,7 +457,7 @@ A Runtime struct aggregates the dependencies that a component requires at execut
 | Component | Runtime Contains | Purpose |
 |-----------|------------------|---------|
 | Server | Database, Storage, Logger, Pagination | Infrastructure for HTTP service |
-| Workflows | Agents, Documents, Images, Logger | Domain systems for workflow execution |
+| Workflows | Agents, Documents, Images, Profiles, Logger | Domain systems for workflow execution |
 
 **Key Characteristics**:
 - Aggregates dependencies needed at execution time
@@ -512,6 +533,8 @@ type Domain struct {
     Agents    agents.System
     Documents documents.System
     Images    images.System
+    Profiles  profiles.System
+    Workflows workflows.System
 }
 
 func NewDomain(runtime *Runtime) *Domain {
@@ -522,25 +545,40 @@ func NewDomain(runtime *Runtime) *Domain {
         runtime.Pagination,
     )
 
+    agentsSys := agents.New(
+        runtime.Database.Connection(),
+        runtime.Logger,
+        runtime.Pagination,
+    )
+
+    imagesSys := images.New(
+        docs,
+        runtime.Database.Connection(),
+        runtime.Storage,
+        runtime.Logger,
+        runtime.Pagination,
+    )
+
+    profilesSys := profiles.New(
+        runtime.Database.Connection(),
+        runtime.Logger,
+        runtime.Pagination,
+    )
+
+    // Workflow runtime aggregates domain systems needed for execution
+    workflowRuntime := workflows.NewRuntime(agentsSys, docs, imagesSys, profilesSys, runtime.Logger)
+
     return &Domain{
         Providers: providers.New(
             runtime.Database.Connection(),
             runtime.Logger,
             runtime.Pagination,
         ),
-        Agents: agents.New(
-            runtime.Database.Connection(),
-            runtime.Logger,
-            runtime.Pagination,
-        ),
+        Agents:    agentsSys,
         Documents: docs,
-        Images: images.New(
-            docs,  // Domain dependency first
-            runtime.Database.Connection(),
-            runtime.Storage,
-            runtime.Logger,
-            runtime.Pagination,
-        ),
+        Images:    imagesSys,
+        Profiles:  profilesSys,
+        Workflows: workflows.NewSystem(workflowRuntime, runtime.Database.Connection(), runtime.Logger, runtime.Pagination),
     }
 }
 ```
@@ -2240,9 +2278,11 @@ tests/
 ├── internal_images/      # Images domain tests
 ├── internal_lifecycle/   # Lifecycle coordinator tests
 ├── internal_middleware/  # Middleware package tests
+├── internal_profiles/    # Profiles domain tests
 ├── internal_providers/   # Providers domain tests
 ├── internal_routes/      # Routes package tests
 ├── internal_storage/     # Storage system tests
+├── internal_workflows/   # Workflows domain tests
 ├── pkg_handlers/         # HTTP handlers tests
 ├── pkg_openapi/          # OpenAPI package tests
 ├── pkg_pagination/       # Pagination package tests

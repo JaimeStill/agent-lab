@@ -11,7 +11,7 @@ import (
 func TestNewRuntime(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	runtime := workflows.NewRuntime(nil, nil, nil, logger)
+	runtime := workflows.NewRuntime(nil, nil, nil, nil, logger)
 
 	if runtime == nil {
 		t.Fatal("NewRuntime() returned nil")
@@ -21,7 +21,7 @@ func TestNewRuntime(t *testing.T) {
 func TestRuntime_Getters(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	runtime := workflows.NewRuntime(nil, nil, nil, logger)
+	runtime := workflows.NewRuntime(nil, nil, nil, nil, logger)
 
 	if runtime.Agents() != nil {
 		t.Error("Agents() should return nil when initialized with nil")
@@ -33,6 +33,10 @@ func TestRuntime_Getters(t *testing.T) {
 
 	if runtime.Images() != nil {
 		t.Error("Images() should return nil when initialized with nil")
+	}
+
+	if runtime.Profiles() != nil {
+		t.Error("Profiles() should return nil when initialized with nil")
 	}
 
 	if runtime.Logger() != logger {

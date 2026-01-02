@@ -8,6 +8,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/documents"
 	"github.com/JaimeStill/agent-lab/internal/images"
 	"github.com/JaimeStill/agent-lab/internal/lifecycle"
+	"github.com/JaimeStill/agent-lab/internal/profiles"
 	"github.com/JaimeStill/agent-lab/internal/providers"
 	"github.com/JaimeStill/agent-lab/internal/routes"
 	"github.com/JaimeStill/agent-lab/internal/workflows"
@@ -45,6 +46,13 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 		runtime.Pagination,
 	)
 	r.RegisterGroup(imagesHandler.Routes())
+
+	profilesHandler := profiles.NewHandler(
+		domain.Profiles,
+		runtime.Logger,
+		runtime.Pagination,
+	)
+	r.RegisterGroup(profilesHandler.Routes())
 
 	workflowHandler := workflows.NewHandler(
 		domain.Workflows,
@@ -87,6 +95,7 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 	components.AddSchemas(providers.Spec.Schemas())
 	components.AddSchemas(documents.Spec.Schemas())
 	components.AddSchemas(images.Spec.Schemas())
+	components.AddSchemas(profiles.Spec.Schemas())
 	components.AddSchemas(workflows.Spec.Schemas())
 
 	specBytes, err := loadOrGenerateSpec(cfg, r, components)

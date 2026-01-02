@@ -1094,6 +1094,327 @@
         }
       }
     },
+    "/api/profiles": {
+      "get": {
+        "summary": "List profiles",
+        "description": "Returns a paginated list of workflow profiles with optional filtering",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-indexed)",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Results per page",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search query (matches name)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "description": "Comma-separated sort fields. Prefix with - for descending",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workflow_name",
+            "in": "query",
+            "description": "Filter by workflow name",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilePageResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create profile",
+        "description": "Creates a new workflow profile",
+        "tags": [
+          "Profiles"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProfileCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "description": "",
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/api/profiles/{id}": {
+      "get": {
+        "summary": "Get profile",
+        "description": "Returns a profile with all its stage configurations",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Profile UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Profile with stages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileWithStages"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update profile",
+        "description": "Updates profile metadata (name, description)",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Profile UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "",
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete profile",
+        "description": "Deletes a profile and all its stage configurations",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Profile UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Profile deleted"
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/profiles/{id}/stages": {
+      "post": {
+        "summary": "Set stage configuration",
+        "description": "Creates or updates a stage configuration for a profile (upsert)",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Profile UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProfileStageCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stage configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileStage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/profiles/{id}/stages/{stage}": {
+      "delete": {
+        "summary": "Delete stage configuration",
+        "description": "Removes a stage configuration from a profile",
+        "tags": [
+          "Profiles"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Profile UUID",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "stage",
+            "in": "path",
+            "required": true,
+            "description": "Stage name",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Stage deleted"
+          },
+          "400": {
+            "description": "",
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "description": "",
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/providers": {
       "get": {
         "summary": "List providers",
@@ -1901,6 +2222,27 @@
           "config"
         ]
       },
+      "CreateProfileCommand": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "example": "Optimized for brief summaries"
+          },
+          "name": {
+            "type": "string",
+            "example": "concise-v1"
+          },
+          "workflow_name": {
+            "type": "string",
+            "example": "summarize"
+          }
+        },
+        "required": [
+          "workflow_name",
+          "name"
+        ]
+      },
       "CreateProviderCommand": {
         "type": "object",
         "properties": {
@@ -2195,6 +2537,110 @@
           }
         }
       },
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workflow_name": {
+            "type": "string"
+          }
+        }
+      },
+      "ProfilePageResult": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Profile"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total_count": {
+            "type": "integer"
+          },
+          "total_pages": {
+            "type": "integer"
+          }
+        }
+      },
+      "ProfileStage": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "options": {
+            "type": "object",
+            "description": "Stage-specific options (JSON)"
+          },
+          "profile_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "stage_name": {
+            "type": "string"
+          },
+          "system_prompt": {
+            "type": "string"
+          }
+        }
+      },
+      "ProfileWithStages": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileStage"
+            }
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "workflow_name": {
+            "type": "string"
+          }
+        }
+      },
       "Provider": {
         "type": "object",
         "properties": {
@@ -2386,6 +2832,31 @@
           }
         }
       },
+      "SetProfileStageCommand": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Override agent for this stage"
+          },
+          "options": {
+            "type": "object",
+            "description": "Additional stage options"
+          },
+          "stage_name": {
+            "type": "string",
+            "example": "summarize"
+          },
+          "system_prompt": {
+            "type": "string",
+            "description": "System prompt for this stage"
+          }
+        },
+        "required": [
+          "stage_name"
+        ]
+      },
       "Stage": {
         "type": "object",
         "properties": {
@@ -2482,6 +2953,20 @@
           "name": {
             "type": "string",
             "description": "New display name"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateProfileCommand": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
           }
         },
         "required": [

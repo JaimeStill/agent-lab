@@ -1,4 +1,4 @@
-package samples
+package reasoning
 
 import (
 	"context"
@@ -6,16 +6,21 @@ import (
 
 	"github.com/JaimeStill/agent-lab/internal/workflows"
 	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
-	"github.com/google/uuid"
 )
 
 func init() {
-	workflows.Register("reasoning", reasoningFactory, "Multi-step reasoning workflow that analyzes problems")
+	workflows.Register("reasoning", factory, "Multi-step reasoning workflow that analyzes problems")
 }
 
-func reasoningFactory(ctx context.Context, graph state.StateGraph, runtime *workflows.Runtime, params map[string]any) (state.State, error) {
+func factory(ctx context.Context, graph state.StateGraph, runtime *workflows.Runtime, params map[string]any) (state.State, error) {
+	profile, err := workflows.LoadProfile(ctx, runtime, params, DefaultProfile())
+	if err != nil {
+		return state.State{}, err
+	}
+
 	analyzeNode := state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
-		agentID, token, err := extractAgentParams(s)
+		stage := profile.Stage("analyze")
+		agentID, token, err := workflows.ExtractAgentParams(s, stage)
 		if err != nil {
 			return s, err
 		}
@@ -25,29 +30,24 @@ func reasoningFactory(ctx context.Context, graph state.StateGraph, runtime *work
 			return s, fmt.Errorf("problem is required")
 		}
 
-		systemPrompt := "You are an analytical assistant. Break down problems into their key components and identify the important elements."
-		if sp, ok := s.Get("analyze_system_prompt"); ok {
-			if spStr, ok := sp.(string); ok && spStr != "" {
-				systemPrompt = spStr
-			}
-		}
-
 		opts := map[string]any{
-			"system_prompt": systemPrompt,
+			"system_prompt": *stage.SystemPrompt,
 		}
 
 		prompt := fmt.Sprintf("Analyze this problem and identify its key components:\n\n%s", problem)
 
 		resp, err := runtime.Agents().Chat(ctx, agentID, prompt, opts, token)
 		if err != nil {
-			return s, fmt.Errorf("analyze failed: %w", err)
+			return s, fmt.Errorf("analzye failed: %w", err)
 		}
 
 		return s.Set("analysis", resp.Content()), nil
 	})
 
 	reasonNode := state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
-		agentID, token, err := extractAgentParams(s)
+		stage := profile.Stage("reason")
+
+		agentID, token, err := workflows.ExtractAgentParams(s, stage)
 		if err != nil {
 			return s, err
 		}
@@ -57,15 +57,8 @@ func reasoningFactory(ctx context.Context, graph state.StateGraph, runtime *work
 			return s, fmt.Errorf("analysis not found in state")
 		}
 
-		systemPrompt := "You are a logical reasoning assistant. Think step-by-step and explain your reasoning clearly."
-		if sp, ok := s.Get("reason_system_prompt"); ok {
-			if spStr, ok := sp.(string); ok && spStr != "" {
-				systemPrompt = spStr
-			}
-		}
-
 		opts := map[string]any{
-			"system_prompt": systemPrompt,
+			"system_prompt": *stage.SystemPrompt,
 		}
 
 		prompt := fmt.Sprintf("Given this analysis:\n\n%s\n\nWhat are the logical steps to solve this problem?", analysis)
@@ -79,7 +72,9 @@ func reasoningFactory(ctx context.Context, graph state.StateGraph, runtime *work
 	})
 
 	concludeNode := state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
-		agentID, token, err := extractAgentParams(s)
+		stage := profile.Stage("conclude")
+
+		agentID, token, err := workflows.ExtractAgentParams(s, stage)
 		if err != nil {
 			return s, err
 		}
@@ -89,15 +84,8 @@ func reasoningFactory(ctx context.Context, graph state.StateGraph, runtime *work
 			return s, fmt.Errorf("reasoning not found in state")
 		}
 
-		systemPrompt := "You are a concise assistant. Provide clear, direct conclusions based on the reasoning provided."
-		if sp, ok := s.Get("conclude_system_prompt"); ok {
-			if spStr, ok := sp.(string); ok && spStr != "" {
-				systemPrompt = spStr
-			}
-		}
-
 		opts := map[string]any{
-			"system_prompt": systemPrompt,
+			"system_prompt": *stage.SystemPrompt,
 		}
 
 		prompt := fmt.Sprintf("Based on this reasoning:\n\n%s\n\nWhat is the conclusion?", reasoning)
@@ -144,21 +132,4 @@ func reasoningFactory(ctx context.Context, graph state.StateGraph, runtime *work
 	}
 
 	return initialState, nil
-}
-
-func extractAgentParams(s state.State) (uuid.UUID, string, error) {
-	agentIDStr, ok := s.Get("agent_id")
-	if !ok {
-		return uuid.Nil, "", fmt.Errorf("agent_id is required")
-	}
-
-	agentID, err := uuid.Parse(agentIDStr.(string))
-	if err != nil {
-		return uuid.Nil, "", fmt.Errorf("invalid agent_id: %w", err)
-	}
-
-	token, _ := s.Get("token")
-	tokenStr, _ := token.(string)
-
-	return agentID, tokenStr, nil
 }
