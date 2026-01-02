@@ -617,21 +617,25 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **Development Sessions**:
 
-#### Session 4a: Profiles Infrastructure & Workflow Migration
+#### Session 4a: Profiles Infrastructure & Workflow Migration ✓
 
 **Deliverables**:
 - Database migration for profiles and profile_stages tables
 - Profile domain: types, repository, handler, OpenAPI
 - Move existing workflows to `workflows/` directory
 - Update Runtime with profiles system access
+- Profile resolution: explicit profile_id → DB profile, else → hardcoded default
+- Stage AgentID override support (stage.AgentID takes precedence over params)
 
 **Key Files**:
 - `cmd/migrate/migrations/000007_profiles.up.sql`
 - `internal/profiles/` (new domain)
-- `workflows/summarize/summarize.go` (moved)
-- `workflows/reasoning/reasoning.go` (moved)
+- `internal/workflows/profile.go` (shared helpers)
+- `workflows/init.go` (single import aggregation)
+- `workflows/summarize/` (profile.go + summarize.go)
+- `workflows/reasoning/` (profile.go + reasoning.go)
 
-**Validation**: Create profile via API, verify stages stored; existing workflows still execute
+**Validation**: ✓ Profile CRUD, stage upsert, both profile scenarios (system_prompt only, agent_id configured)
 
 #### Session 4b: classify-docs Types and Detection Stage
 
@@ -825,7 +829,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Enables broadcasting events to multiple observers
 
 **Next Steps**:
-- Begin Session 4a: Profiles Infrastructure & Workflow Migration
+- Begin Session 4b: classify-docs Types and Detection Stage
 
 ## Future Phases (Beyond Milestone 7)
 

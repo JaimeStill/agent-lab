@@ -6,7 +6,7 @@ import (
 
 	"github.com/JaimeStill/agent-lab/internal/config"
 	"github.com/JaimeStill/agent-lab/internal/routes"
-	_ "github.com/JaimeStill/agent-lab/internal/workflows/samples"
+	_ "github.com/JaimeStill/agent-lab/workflows"
 )
 
 // Server coordinates the lifecycle of all subsystems.

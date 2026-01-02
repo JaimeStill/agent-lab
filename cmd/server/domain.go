@@ -4,6 +4,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/agents"
 	"github.com/JaimeStill/agent-lab/internal/documents"
 	"github.com/JaimeStill/agent-lab/internal/images"
+	"github.com/JaimeStill/agent-lab/internal/profiles"
 	"github.com/JaimeStill/agent-lab/internal/providers"
 	"github.com/JaimeStill/agent-lab/internal/workflows"
 )
@@ -13,6 +14,7 @@ type Domain struct {
 	Agents    agents.System
 	Documents documents.System
 	Images    images.System
+	Profiles  profiles.System
 	Workflows workflows.System
 }
 
@@ -44,10 +46,17 @@ func NewDomain(runtime *Runtime) *Domain {
 		runtime.Pagination,
 	)
 
+	profilesSys := profiles.New(
+		runtime.Database.Connection(),
+		runtime.Logger,
+		runtime.Pagination,
+	)
+
 	workflowRuntime := workflows.NewRuntime(
 		agentsSys,
 		documentsSys,
 		imagesSys,
+		profilesSys,
 		runtime.Logger,
 	)
 
@@ -63,6 +72,7 @@ func NewDomain(runtime *Runtime) *Domain {
 		Agents:    agentsSys,
 		Documents: documentsSys,
 		Images:    imagesSys,
+		Profiles:  profilesSys,
 		Workflows: workflowsSys,
 	}
 }

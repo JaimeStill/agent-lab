@@ -288,12 +288,14 @@ Request:
 
 ## Session Breakdown
 
-### Session 4a: Profiles Infrastructure & Workflow Migration
+### Session 4a: Profiles Infrastructure & Workflow Migration ✓
 
 - Database migration for profiles and profile_stages tables
 - Profile domain: types, repository, handler, OpenAPI
 - Move workflows to `workflows/` directory
 - Update Runtime with profiles system access
+- Profile resolution helpers (`LoadProfile`, `ExtractAgentParams`)
+- Stage AgentID override support
 
 ### Session 4b: classify-docs Types and Detection Stage
 

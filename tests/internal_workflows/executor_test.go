@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	"github.com/JaimeStill/agent-lab/internal/workflows"
-	_ "github.com/JaimeStill/agent-lab/internal/workflows/samples"
+	_ "github.com/JaimeStill/agent-lab/workflows"
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 )
 
 func TestNewSystem(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	runtime := workflows.NewRuntime(nil, nil, nil, logger)
+	runtime := workflows.NewRuntime(nil, nil, nil, nil, logger)
 	paginationCfg := pagination.Config{
 		DefaultPageSize: 20,
 		MaxPageSize:     100,
@@ -27,7 +27,7 @@ func TestNewSystem(t *testing.T) {
 
 func TestNewSystem_ImplementsInterface(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	runtime := workflows.NewRuntime(nil, nil, nil, logger)
+	runtime := workflows.NewRuntime(nil, nil, nil, nil, logger)
 	paginationCfg := pagination.Config{
 		DefaultPageSize: 20,
 		MaxPageSize:     100,
@@ -38,7 +38,7 @@ func TestNewSystem_ImplementsInterface(t *testing.T) {
 
 func TestExecutor_ListWorkflows(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	runtime := workflows.NewRuntime(nil, nil, nil, logger)
+	runtime := workflows.NewRuntime(nil, nil, nil, nil, logger)
 	paginationCfg := pagination.Config{
 		DefaultPageSize: 20,
 		MaxPageSize:     100,
@@ -52,7 +52,7 @@ func TestExecutor_ListWorkflows(t *testing.T) {
 	}
 }
 
-func TestSampleWorkflows_Registered(t *testing.T) {
+func TestWorkflows_Registered(t *testing.T) {
 	infos := workflows.List()
 
 	workflowNames := make(map[string]bool)
@@ -85,7 +85,7 @@ func TestSampleWorkflows_Registered(t *testing.T) {
 	}
 }
 
-func TestSampleWorkflows_Info(t *testing.T) {
+func TestWorkflows_Info(t *testing.T) {
 	infos := workflows.List()
 
 	infoMap := make(map[string]workflows.WorkflowInfo)
