@@ -654,7 +654,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **Validation**: ✓ Workflow executes through detect stage, parallel execution verified, token security implemented
 
-#### Session 4c: Enhancement, Classification, and Scoring
+#### Session 4c: Enhancement, Classification, and Scoring ✓
 
 **Deliverables**:
 - Enhancement conditional node (re-render low-clarity pages)
@@ -663,27 +663,39 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - Complete workflow graph assembly
 
 **Key Files**:
-- `workflows/classify/enhance.go`
-- `workflows/classify/classification.go`
-- `workflows/classify/scoring.go`
-- `workflows/classify/classify.go` (complete)
+- `workflows/classify/classify.go` (types, nodes, factory, helpers)
+- `workflows/classify/profile.go` (system prompts, DefaultProfile)
+- `workflows/classify/parse.go` (generic parser, classification/scoring parsers)
+- `workflows/classify/errors.go` (new error types)
 
-**Validation**: Full workflow execution with multi-page document
+**Validation**: ✓ Full workflow execution with Azure GPT-5-mini, tested with challenging faded-marking document
 
-#### Session 4d: Testing and Refinement
+#### Session 4d: Optimization and Accuracy Improvements
 
 **Deliverables**:
+- Runtime optimization (~50s for 1-page document is too long)
+- Detection accuracy improvements for faded markings
 - Unit tests for parsers and helpers
 - Integration tests with real LLM calls
 - Default profile seeding migration
 - Validation against test document set
+
+**Optimization Focus**:
+- Investigate Vision API latency and parallel processing efficiency
+- Consider caching strategies for repeated analysis
+
+**Accuracy Improvements**:
+- Lower default clarity threshold (e.g., 0.8) to trigger enhancement more aggressively
+- Trigger enhancement if ANY marking has `faded: true`, regardless of clarity score
+- Add faded marking count as enhancement decision factor
+- Tune system prompts for better faded marking detection
 
 **Key Files**:
 - `tests/internal_profiles/`
 - `tests/workflows_classify/`
 - `cmd/migrate/migrations/000008_seed_classify_profile.up.sql`
 
-**Validation**: Achieve baseline accuracy on test documents
+**Validation**: Achieve baseline accuracy on test documents, runtime < 30s for single-page documents
 
 ---
 
@@ -761,7 +773,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 ## Current Status
 
-**Phase**: Milestone 4 In Progress - Session 4b Complete
+**Phase**: Milestone 4 In Progress - Session 4c Complete
 
 **Completed**:
 - Session 01: Foundation architecture design (ARCHITECTURE.md)
@@ -836,9 +848,16 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Init and Detect nodes with ProcessParallel
   - Secure token handling (not persisted to database)
   - JSON response parsing with markdown fallback
+- Session 4c: Enhancement, Classification, and Scoring ✓
+  - Complete workflow graph: init → detect → enhance? → classify → score
+  - Conditional edge routing for enhancement
+  - Intelligent merge strategy for enhanced detections
+  - 6-factor confidence scoring with ACCEPT/REVIEW/REJECT recommendations
+  - Generic parseResponse pattern, workflow node extraction pattern
+  - Validated with Azure GPT-5-mini on challenging faded-marking document
 
 **Next Steps**:
-- Begin Session 4c: Enhancement, Classification, and Scoring
+- Begin Session 4d: Optimization and Accuracy Improvements
 
 ## Future Phases (Beyond Milestone 7)
 

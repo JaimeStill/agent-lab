@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/JaimeStill/agent-lab/internal/profiles"
 	"github.com/JaimeStill/agent-lab/internal/workflows"
 	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
 )
@@ -18,95 +19,15 @@ func factory(ctx context.Context, graph state.StateGraph, runtime *workflows.Run
 		return state.State{}, err
 	}
 
-	analyzeNode := state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
-		stage := profile.Stage("analyze")
-		agentID, token, err := workflows.ExtractAgentParams(s, stage)
-		if err != nil {
-			return s, err
-		}
-
-		problem, ok := s.Get("problem")
-		if !ok {
-			return s, fmt.Errorf("problem is required")
-		}
-
-		opts := map[string]any{
-			"system_prompt": *stage.SystemPrompt,
-		}
-
-		prompt := fmt.Sprintf("Analyze this problem and identify its key components:\n\n%s", problem)
-
-		resp, err := runtime.Agents().Chat(ctx, agentID, prompt, opts, token)
-		if err != nil {
-			return s, fmt.Errorf("analzye failed: %w", err)
-		}
-
-		return s.Set("analysis", resp.Content()), nil
-	})
-
-	reasonNode := state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
-		stage := profile.Stage("reason")
-
-		agentID, token, err := workflows.ExtractAgentParams(s, stage)
-		if err != nil {
-			return s, err
-		}
-
-		analysis, ok := s.Get("analysis")
-		if !ok {
-			return s, fmt.Errorf("analysis not found in state")
-		}
-
-		opts := map[string]any{
-			"system_prompt": *stage.SystemPrompt,
-		}
-
-		prompt := fmt.Sprintf("Given this analysis:\n\n%s\n\nWhat are the logical steps to solve this problem?", analysis)
-
-		resp, err := runtime.Agents().Chat(ctx, agentID, prompt, opts, token)
-		if err != nil {
-			return s, fmt.Errorf("reason failed: %w", err)
-		}
-
-		return s.Set("reasoning", resp.Content()), nil
-	})
-
-	concludeNode := state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
-		stage := profile.Stage("conclude")
-
-		agentID, token, err := workflows.ExtractAgentParams(s, stage)
-		if err != nil {
-			return s, err
-		}
-
-		reasoning, ok := s.Get("reasoning")
-		if !ok {
-			return s, fmt.Errorf("reasoning not found in state")
-		}
-
-		opts := map[string]any{
-			"system_prompt": *stage.SystemPrompt,
-		}
-
-		prompt := fmt.Sprintf("Based on this reasoning:\n\n%s\n\nWhat is the conclusion?", reasoning)
-
-		resp, err := runtime.Agents().Chat(ctx, agentID, prompt, opts, token)
-		if err != nil {
-			return s, fmt.Errorf("conclude failed: %w", err)
-		}
-
-		return s.Set("conclusion", resp.Content()), nil
-	})
-
-	if err := graph.AddNode("analyze", analyzeNode); err != nil {
+	if err := graph.AddNode("analyze", analyzeNode(profile, runtime)); err != nil {
 		return state.State{}, err
 	}
 
-	if err := graph.AddNode("reason", reasonNode); err != nil {
+	if err := graph.AddNode("reason", reasonNode(profile, runtime)); err != nil {
 		return state.State{}, err
 	}
 
-	if err := graph.AddNode("conclude", concludeNode); err != nil {
+	if err := graph.AddNode("conclude", concludeNode(profile, runtime)); err != nil {
 		return state.State{}, err
 	}
 
@@ -132,4 +53,90 @@ func factory(ctx context.Context, graph state.StateGraph, runtime *workflows.Run
 	}
 
 	return initialState, nil
+}
+
+func analyzeNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime) state.StateNode {
+	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+		stage := profile.Stage("analyze")
+		agentID, token, err := workflows.ExtractAgentParams(s, stage)
+		if err != nil {
+			return s, err
+		}
+
+		problem, ok := s.Get("problem")
+		if !ok {
+			return s, fmt.Errorf("problem is required")
+		}
+
+		opts := map[string]any{
+			"system_prompt": *stage.SystemPrompt,
+		}
+
+		prompt := fmt.Sprintf("Analyze this problem and identify its key components:\n\n%s", problem)
+
+		resp, err := runtime.Agents().Chat(ctx, agentID, prompt, opts, token)
+		if err != nil {
+			return s, fmt.Errorf("analyze failed: %w", err)
+		}
+
+		return s.Set("analysis", resp.Content()), nil
+	})
+}
+
+func reasonNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime) state.StateNode {
+	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+		stage := profile.Stage("reason")
+
+		agentID, token, err := workflows.ExtractAgentParams(s, stage)
+		if err != nil {
+			return s, err
+		}
+
+		analysis, ok := s.Get("analysis")
+		if !ok {
+			return s, fmt.Errorf("analysis not found in state")
+		}
+
+		opts := map[string]any{
+			"system_prompt": *stage.SystemPrompt,
+		}
+
+		prompt := fmt.Sprintf("Given this analysis:\n\n%s\n\nWhat are the logical steps to solve this problem?", analysis)
+
+		resp, err := runtime.Agents().Chat(ctx, agentID, prompt, opts, token)
+		if err != nil {
+			return s, fmt.Errorf("reason failed: %w", err)
+		}
+
+		return s.Set("reasoning", resp.Content()), nil
+	})
+}
+
+func concludeNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime) state.StateNode {
+	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+		stage := profile.Stage("conclude")
+
+		agentID, token, err := workflows.ExtractAgentParams(s, stage)
+		if err != nil {
+			return s, err
+		}
+
+		reasoning, ok := s.Get("reasoning")
+		if !ok {
+			return s, fmt.Errorf("reasoning not found in state")
+		}
+
+		opts := map[string]any{
+			"system_prompt": *stage.SystemPrompt,
+		}
+
+		prompt := fmt.Sprintf("Based on this reasoning:\n\n%s\n\nWhat is the conclusion?", reasoning)
+
+		resp, err := runtime.Agents().Chat(ctx, agentID, prompt, opts, token)
+		if err != nil {
+			return s, fmt.Errorf("conclude failed: %w", err)
+		}
+
+		return s.Set("conclusion", resp.Content()), nil
+	})
 }

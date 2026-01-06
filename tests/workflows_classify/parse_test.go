@@ -175,3 +175,241 @@ func TestParseDetectionResponse_WhitespaceHandling(t *testing.T) {
 		t.Errorf("PageNumber = %d, want 1", result.PageNumber)
 	}
 }
+
+func TestParseClassificationResponse_DirectJSON(t *testing.T) {
+	input := `{
+		"classification": "SECRET",
+		"alternative_readings": [
+			{"classification": "CONFIDENTIAL", "probability": 0.2, "reason": "Some markings unclear"}
+		],
+		"marking_summary": ["SECRET", "NOFORN"],
+		"rationale": "Consistent SECRET markings across all pages"
+	}`
+
+	result, err := classify.ParseClassificationResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.Classification != "SECRET" {
+		t.Errorf("Classification = %q, want %q", result.Classification, "SECRET")
+	}
+
+	if len(result.AlternativeReadings) != 1 {
+		t.Fatalf("AlternativeReadings length = %d, want 1", len(result.AlternativeReadings))
+	}
+
+	if result.AlternativeReadings[0].Classification != "CONFIDENTIAL" {
+		t.Errorf("alternative classification = %q, want %q", result.AlternativeReadings[0].Classification, "CONFIDENTIAL")
+	}
+
+	if len(result.MarkingSummary) != 2 {
+		t.Errorf("MarkingSummary length = %d, want 2", len(result.MarkingSummary))
+	}
+}
+
+func TestParseClassificationResponse_MarkdownCodeBlock(t *testing.T) {
+	input := "Here is the classification:\n\n```json\n" + `{
+		"classification": "TOP SECRET",
+		"marking_summary": ["TOP SECRET"],
+		"rationale": "Clear TOP SECRET markings"
+	}` + "\n```"
+
+	result, err := classify.ParseClassificationResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.Classification != "TOP SECRET" {
+		t.Errorf("Classification = %q, want %q", result.Classification, "TOP SECRET")
+	}
+}
+
+func TestParseClassificationResponse_InvalidJSON(t *testing.T) {
+	input := "Not valid JSON"
+
+	_, err := classify.ParseClassificationResponse(input)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if !errors.Is(err, classify.ErrParseResponse) {
+		t.Errorf("error = %v, want ErrParseResponse", err)
+	}
+}
+
+func TestParseClassificationResponse_ClampsProbability(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		wantProbability float64
+	}{
+		{
+			name:            "clamps above 1.0",
+			input:           `{"classification": "SECRET", "alternative_readings": [{"classification": "X", "probability": 1.5, "reason": "test"}], "marking_summary": [], "rationale": ""}`,
+			wantProbability: 1.0,
+		},
+		{
+			name:            "clamps below 0.0",
+			input:           `{"classification": "SECRET", "alternative_readings": [{"classification": "X", "probability": -0.5, "reason": "test"}], "marking_summary": [], "rationale": ""}`,
+			wantProbability: 0.0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := classify.ParseClassificationResponse(tt.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if len(result.AlternativeReadings) > 0 && result.AlternativeReadings[0].Probability != tt.wantProbability {
+				t.Errorf("Probability = %f, want %f", result.AlternativeReadings[0].Probability, tt.wantProbability)
+			}
+		})
+	}
+}
+
+func TestParseScoringResponse_DirectJSON(t *testing.T) {
+	input := `{
+		"overall_score": 0.85,
+		"factors": [
+			{"name": "marking_clarity", "score": 0.9, "weight": 0.3, "description": "High clarity"}
+		],
+		"recommendation": "REVIEW"
+	}`
+
+	result, err := classify.ParseScoringResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.OverallScore != 0.85 {
+		t.Errorf("OverallScore = %f, want 0.85", result.OverallScore)
+	}
+
+	if result.Recommendation != "REVIEW" {
+		t.Errorf("Recommendation = %q, want %q", result.Recommendation, "REVIEW")
+	}
+
+	if len(result.Factors) != 1 {
+		t.Fatalf("Factors length = %d, want 1", len(result.Factors))
+	}
+
+	if result.Factors[0].Name != "marking_clarity" {
+		t.Errorf("factor name = %q, want %q", result.Factors[0].Name, "marking_clarity")
+	}
+}
+
+func TestParseScoringResponse_MarkdownCodeBlock(t *testing.T) {
+	input := "```json\n" + `{
+		"overall_score": 0.92,
+		"factors": [],
+		"recommendation": "ACCEPT"
+	}` + "\n```"
+
+	result, err := classify.ParseScoringResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.OverallScore != 0.92 {
+		t.Errorf("OverallScore = %f, want 0.92", result.OverallScore)
+	}
+
+	if result.Recommendation != "ACCEPT" {
+		t.Errorf("Recommendation = %q, want %q", result.Recommendation, "ACCEPT")
+	}
+}
+
+func TestParseScoringResponse_InvalidJSON(t *testing.T) {
+	input := "Invalid"
+
+	_, err := classify.ParseScoringResponse(input)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if !errors.Is(err, classify.ErrParseResponse) {
+		t.Errorf("error = %v, want ErrParseResponse", err)
+	}
+}
+
+func TestParseScoringResponse_ClampsValues(t *testing.T) {
+	input := `{
+		"overall_score": 1.5,
+		"factors": [
+			{"name": "test", "score": 2.0, "weight": -0.5, "description": ""}
+		],
+		"recommendation": "ACCEPT"
+	}`
+
+	result, err := classify.ParseScoringResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.OverallScore != 1.0 {
+		t.Errorf("OverallScore = %f, want 1.0", result.OverallScore)
+	}
+
+	if result.Factors[0].Score != 1.0 {
+		t.Errorf("factor score = %f, want 1.0", result.Factors[0].Score)
+	}
+
+	if result.Factors[0].Weight != 0.0 {
+		t.Errorf("factor weight = %f, want 0.0", result.Factors[0].Weight)
+	}
+}
+
+func TestParseScoringResponse_ComputesRecommendationWhenInvalid(t *testing.T) {
+	tests := []struct {
+		name               string
+		input              string
+		wantRecommendation string
+	}{
+		{
+			name:               "high score gets ACCEPT",
+			input:              `{"overall_score": 0.95, "factors": [], "recommendation": "INVALID"}`,
+			wantRecommendation: "ACCEPT",
+		},
+		{
+			name:               "medium score gets REVIEW",
+			input:              `{"overall_score": 0.80, "factors": [], "recommendation": ""}`,
+			wantRecommendation: "REVIEW",
+		},
+		{
+			name:               "low score gets REJECT",
+			input:              `{"overall_score": 0.50, "factors": [], "recommendation": "UNKNOWN"}`,
+			wantRecommendation: "REJECT",
+		},
+		{
+			name:               "valid ACCEPT preserved",
+			input:              `{"overall_score": 0.50, "factors": [], "recommendation": "ACCEPT"}`,
+			wantRecommendation: "ACCEPT",
+		},
+		{
+			name:               "valid REVIEW preserved",
+			input:              `{"overall_score": 0.95, "factors": [], "recommendation": "REVIEW"}`,
+			wantRecommendation: "REVIEW",
+		},
+		{
+			name:               "valid REJECT preserved",
+			input:              `{"overall_score": 0.95, "factors": [], "recommendation": "REJECT"}`,
+			wantRecommendation: "REJECT",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := classify.ParseScoringResponse(tt.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if result.Recommendation != tt.wantRecommendation {
+				t.Errorf("Recommendation = %q, want %q", result.Recommendation, tt.wantRecommendation)
+			}
+		})
+	}
+}
