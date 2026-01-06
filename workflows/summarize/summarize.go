@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/JaimeStill/agent-lab/internal/profiles"
 	"github.com/JaimeStill/agent-lab/internal/workflows"
 	"github.com/JaimeStill/go-agents-orchestration/pkg/state"
 )
@@ -18,7 +19,28 @@ func factory(ctx context.Context, graph state.StateGraph, runtime *workflows.Run
 		return state.State{}, err
 	}
 
-	summarizeNode := state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+	if err := graph.AddNode("summarize", summarizeNode(profile, runtime)); err != nil {
+		return state.State{}, err
+	}
+
+	if err := graph.SetEntryPoint("summarize"); err != nil {
+		return state.State{}, err
+	}
+
+	if err := graph.SetExitPoint("summarize"); err != nil {
+		return state.State{}, err
+	}
+
+	initialState := state.New(nil)
+	for k, v := range params {
+		initialState = initialState.Set(k, v)
+	}
+
+	return initialState, nil
+}
+
+func summarizeNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime) state.StateNode {
+	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
 		stage := profile.Stage("summarize")
 
 		agentID, token, err := workflows.ExtractAgentParams(s, stage)
@@ -44,23 +66,4 @@ func factory(ctx context.Context, graph state.StateGraph, runtime *workflows.Run
 
 		return s.Set("summary", resp.Content()), nil
 	})
-
-	if err := graph.AddNode("summarize", summarizeNode); err != nil {
-		return state.State{}, err
-	}
-
-	if err := graph.SetEntryPoint("summarize"); err != nil {
-		return state.State{}, err
-	}
-
-	if err := graph.SetExitPoint("summarize"); err != nil {
-		return state.State{}, err
-	}
-
-	initialState := state.New(nil)
-	for k, v := range params {
-		initialState = initialState.Set(k, v)
-	}
-
-	return initialState, nil
 }
