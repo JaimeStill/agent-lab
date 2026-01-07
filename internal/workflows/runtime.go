@@ -6,6 +6,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/agents"
 	"github.com/JaimeStill/agent-lab/internal/documents"
 	"github.com/JaimeStill/agent-lab/internal/images"
+	"github.com/JaimeStill/agent-lab/internal/lifecycle"
 	"github.com/JaimeStill/agent-lab/internal/profiles"
 )
 
@@ -17,6 +18,7 @@ type Runtime struct {
 	documents documents.System
 	images    images.System
 	profiles  profiles.System
+	lifecycle *lifecycle.Coordinator
 	logger    *slog.Logger
 }
 
@@ -26,6 +28,7 @@ func NewRuntime(
 	documents documents.System,
 	images images.System,
 	profiles profiles.System,
+	lifecycle *lifecycle.Coordinator,
 	logger *slog.Logger,
 ) *Runtime {
 	return &Runtime{
@@ -33,6 +36,7 @@ func NewRuntime(
 		documents: documents,
 		images:    images,
 		profiles:  profiles,
+		lifecycle: lifecycle,
 		logger:    logger,
 	}
 }
@@ -46,7 +50,13 @@ func (r *Runtime) Documents() documents.System { return r.documents }
 // Images returns the images system for image operations.
 func (r *Runtime) Images() images.System { return r.images }
 
+// Profiles returns the profiles system for workflow configuration.
 func (r *Runtime) Profiles() profiles.System { return r.profiles }
+
+// Lifecycle returns the server lifecycle coordinator for context management.
+// Workflows use this to obtain a context that survives HTTP disconnection
+// but respects server shutdown.
+func (r *Runtime) Lifecycle() *lifecycle.Coordinator { return r.lifecycle }
 
 // Logger returns the logger for workflow logging.
 func (r *Runtime) Logger() *slog.Logger { return r.logger }

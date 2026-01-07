@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"runtime"
+	"sync"
 
 	"github.com/JaimeStill/agent-lab/internal/documents"
 	"github.com/JaimeStill/agent-lab/internal/storage"
@@ -17,6 +19,12 @@ import (
 	"github.com/JaimeStill/document-context/pkg/image"
 	"github.com/google/uuid"
 )
+
+type renderTask struct {
+	pageNum int
+	result  *Image
+	err     error
+}
 
 type repo struct {
 	db         *sql.DB
@@ -126,27 +134,43 @@ func (r *repo) Render(ctx context.Context, documentID uuid.UUID, opts RenderOpti
 		return nil, fmt.Errorf("%w: %v", ErrRenderFailed, err)
 	}
 
-	openDoc, err := document.Open(docPath, doc.ContentType)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRenderFailed, err)
-	}
-	defer openDoc.Close()
+	workerCount := renderWorkerCount(len(pages))
+	tasks := make(chan int, len(pages))
+	results := make(chan renderTask, len(pages))
 
-	renderer, err := image.NewImageMagickRenderer(opts.ToImageConfig())
-	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrRenderFailed, err)
+	var wg sync.WaitGroup
+	for range workerCount {
+		wg.Go(func() {
+			r.renderWorker(ctx, documentID, docPath, doc.ContentType, opts, tasks, results)
+		})
 	}
 
-	var results []Image
 	for _, pageNum := range pages {
-		img, err := r.renderPage(ctx, documentID, openDoc, renderer, pageNum, opts)
-		if err != nil {
-			return nil, err
+		tasks <- pageNum
+	}
+	close(tasks)
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	resultMap := make(map[int]*Image)
+	for task := range results {
+		if task.err != nil {
+			return nil, task.err
 		}
-		results = append(results, *img)
+		resultMap[task.pageNum] = task.result
 	}
 
-	return results, nil
+	images := make([]Image, 0, len(pages))
+	for _, pageNum := range pages {
+		if img, ok := resultMap[pageNum]; ok {
+			images = append(images, *img)
+		}
+	}
+
+	return images, nil
 }
 
 func (r *repo) Delete(ctx context.Context, id uuid.UUID) error {
@@ -215,6 +239,51 @@ func (r *repo) renderPage(ctx context.Context, documentID uuid.UUID, doc documen
 	return r.Find(ctx, img.ID)
 }
 
+func (r *repo) renderWorker(
+	ctx context.Context,
+	documentID uuid.UUID,
+	docPath string,
+	contentType string,
+	opts RenderOptions,
+	tasks <-chan int,
+	results chan<- renderTask,
+) {
+	openDoc, err := document.Open(docPath, contentType)
+	if err != nil {
+		for pageNum := range tasks {
+			results <- renderTask{
+				pageNum: pageNum,
+				err:     fmt.Errorf("%w: %v", ErrRenderFailed, err),
+			}
+		}
+		return
+	}
+	defer openDoc.Close()
+
+	renderer, err := image.NewImageMagickRenderer(opts.ToImageConfig())
+	if err != nil {
+		for pageNum := range tasks {
+			results <- renderTask{
+				pageNum: pageNum,
+				err:     fmt.Errorf("%w: %v", ErrRenderFailed, err),
+			}
+		}
+		return
+	}
+
+	for pageNum := range tasks {
+		select {
+		case <-ctx.Done():
+			results <- renderTask{pageNum: pageNum, err: ctx.Err()}
+			return
+		default:
+		}
+
+		img, err := r.renderPage(ctx, documentID, openDoc, renderer, pageNum, opts)
+		results <- renderTask{pageNum: pageNum, result: img, err: err}
+	}
+}
+
 func (r *repo) findExisting(ctx context.Context, documentID uuid.UUID, pageNum int, opts RenderOptions) (*Image, error) {
 	q, args := query.NewBuilder(projection).
 		WhereEquals("DocumentID", documentID).
@@ -259,4 +328,9 @@ func (r *repo) update(ctx context.Context, id uuid.UUID, storageKey string, size
 		storageKey, sizeBytes, id,
 	)
 	return err
+}
+
+func renderWorkerCount(pageCount int) int {
+	workers := max(min(runtime.NumCPU(), pageCount), 1)
+	return workers
 }

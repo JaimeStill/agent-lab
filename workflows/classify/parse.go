@@ -76,7 +76,7 @@ func validateDetection(d PageDetection) PageDetection {
 	d.ClarityScore = clamp(d.ClarityScore, 0.0, 1.0)
 
 	for i := range d.MarkingsFound {
-		d.MarkingsFound[i].Confidence = clamp(d.MarkingsFound[i].Confidence, 0.0, 1.0)
+		d.MarkingsFound[i].Legibility = clamp(d.MarkingsFound[i].Legibility, 0.0, 1.0)
 	}
 
 	return d

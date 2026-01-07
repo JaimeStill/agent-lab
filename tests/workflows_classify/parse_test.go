@@ -11,7 +11,7 @@ func TestParseDetectionResponse_DirectJSON(t *testing.T) {
 	input := `{
 		"page_number": 1,
 		"markings_found": [
-			{"text": "SECRET", "location": "header", "confidence": 0.95, "faded": false}
+			{"text": "SECRET", "location": "header", "legibility": 0.95, "faded": false}
 		],
 		"clarity_score": 0.85,
 		"filter_suggestion": null
@@ -91,31 +91,31 @@ func TestParseDetectionResponse_ClampsValues(t *testing.T) {
 		name           string
 		input          string
 		wantClarity    float64
-		wantConfidence float64
+		wantLegibility float64
 	}{
 		{
 			name:           "clamps clarity above 1.0",
-			input:          `{"page_number": 1, "markings_found": [{"text": "X", "location": "body", "confidence": 0.5, "faded": false}], "clarity_score": 1.5}`,
+			input:          `{"page_number": 1, "markings_found": [{"text": "X", "location": "body", "legibility": 0.5, "faded": false}], "clarity_score": 1.5}`,
 			wantClarity:    1.0,
-			wantConfidence: 0.5,
+			wantLegibility: 0.5,
 		},
 		{
 			name:           "clamps clarity below 0.0",
-			input:          `{"page_number": 1, "markings_found": [{"text": "X", "location": "body", "confidence": 0.5, "faded": false}], "clarity_score": -0.5}`,
+			input:          `{"page_number": 1, "markings_found": [{"text": "X", "location": "body", "legibility": 0.5, "faded": false}], "clarity_score": -0.5}`,
 			wantClarity:    0.0,
-			wantConfidence: 0.5,
+			wantLegibility: 0.5,
 		},
 		{
-			name:           "clamps confidence above 1.0",
-			input:          `{"page_number": 1, "markings_found": [{"text": "X", "location": "body", "confidence": 1.5, "faded": false}], "clarity_score": 0.8}`,
+			name:           "clamps legibility above 1.0",
+			input:          `{"page_number": 1, "markings_found": [{"text": "X", "location": "body", "legibility": 1.5, "faded": false}], "clarity_score": 0.8}`,
 			wantClarity:    0.8,
-			wantConfidence: 1.0,
+			wantLegibility: 1.0,
 		},
 		{
-			name:           "clamps confidence below 0.0",
-			input:          `{"page_number": 1, "markings_found": [{"text": "X", "location": "body", "confidence": -0.5, "faded": false}], "clarity_score": 0.8}`,
+			name:           "clamps legibility below 0.0",
+			input:          `{"page_number": 1, "markings_found": [{"text": "X", "location": "body", "legibility": -0.5, "faded": false}], "clarity_score": 0.8}`,
 			wantClarity:    0.8,
-			wantConfidence: 0.0,
+			wantLegibility: 0.0,
 		},
 	}
 
@@ -130,8 +130,8 @@ func TestParseDetectionResponse_ClampsValues(t *testing.T) {
 				t.Errorf("ClarityScore = %f, want %f", result.ClarityScore, tt.wantClarity)
 			}
 
-			if len(result.MarkingsFound) > 0 && result.MarkingsFound[0].Confidence != tt.wantConfidence {
-				t.Errorf("Confidence = %f, want %f", result.MarkingsFound[0].Confidence, tt.wantConfidence)
+			if len(result.MarkingsFound) > 0 && result.MarkingsFound[0].Legibility != tt.wantLegibility {
+				t.Errorf("Legibility = %f, want %f", result.MarkingsFound[0].Legibility, tt.wantLegibility)
 			}
 		})
 	}

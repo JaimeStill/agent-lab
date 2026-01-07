@@ -43,7 +43,6 @@ func (h *Handler) Routes() routes.Group {
 		Routes: []routes.Route{
 			{Method: "GET", Pattern: "", Handler: h.ListWorkflows, OpenAPI: Spec.ListWorkflows},
 			{Method: "POST", Pattern: "/{name}/execute", Handler: h.Execute, OpenAPI: Spec.Execute},
-			{Method: "POST", Pattern: "/{name}/execute/stream", Handler: h.ExecuteStream, OpenAPI: Spec.ExecuteStream},
 		},
 		Children: []routes.Group{
 			{
@@ -78,25 +77,7 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	run, err := h.sys.Execute(r.Context(), name, req.Params, req.Token)
-	if err != nil {
-		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
-		return
-	}
-
-	handlers.RespondJSON(w, http.StatusOK, run)
-}
-
-func (h *Handler) ExecuteStream(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("name")
-
-	var req ExecuteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
-		return
-	}
-
-	events, run, err := h.sys.ExecuteStream(r.Context(), name, req.Params, req.Token)
+	events, run, err := h.sys.Execute(name, req.Params, req.Token)
 	if err != nil {
 		handlers.RespondError(w, h.logger, MapHTTPStatus(err), err)
 		return
