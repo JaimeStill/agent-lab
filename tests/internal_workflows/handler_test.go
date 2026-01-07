@@ -41,7 +41,6 @@ func TestHandler_Routes(t *testing.T) {
 	}{
 		{"GET", ""},
 		{"POST", "/{name}/execute"},
-		{"POST", "/{name}/execute/stream"},
 	}
 
 	if len(group.Routes) != len(expectedRoutes) {

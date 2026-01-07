@@ -5,7 +5,6 @@ import "github.com/JaimeStill/agent-lab/pkg/openapi"
 type spec struct {
 	ListWorkflows *openapi.Operation
 	Execute       *openapi.Operation
-	ExecuteStream *openapi.Operation
 	ListRuns      *openapi.Operation
 	FindRun       *openapi.Operation
 	GetStages     *openapi.Operation
@@ -25,25 +24,6 @@ var Spec = spec{
 	},
 	Execute: &openapi.Operation{
 		Summary:     "Execute workflow",
-		Description: "Executes a workflow synchronously and returns the result",
-		Parameters: []*openapi.Parameter{
-			{
-				Name:        "name",
-				In:          "path",
-				Required:    true,
-				Description: "Workflow name",
-				Schema:      &openapi.Schema{Type: "string"},
-			},
-		},
-		RequestBody: openapi.RequestBodyJSON("ExecuteRequest", false),
-		Responses: map[int]*openapi.Response{
-			200: openapi.ResponseJSON("Workflow execution result", "Run"),
-			400: openapi.ResponseRef("BadRequest"),
-			404: openapi.ResponseRef("NotFound"),
-		},
-	},
-	ExecuteStream: &openapi.Operation{
-		Summary:     "Execute workflow with streaming",
 		Description: "Executes a workflow and streams progress events via SSE",
 		Parameters: []*openapi.Parameter{
 			{

@@ -7,8 +7,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -21,10 +23,14 @@ import (
 	wf "github.com/JaimeStill/go-agents-orchestration/pkg/workflows"
 )
 
-// DefaultClarityThreshold is the clarity score below which pages are candidates
-// for enhancement. Pages with clarity scores below this threshold and a valid
-// FilterSuggestion will be re-rendered with suggested filters.
-const DefaultClarityThreshold = 0.7
+// DefaultLegibilityThreshold is the legibility score below which markings are
+// candidates for enhancement. Pages with any marking below this threshold and
+// a valid FilterSuggestion will be re-rendered with suggested filters.
+const DefaultLegibilityThreshold = 0.4
+
+func logNodeTiming(logger *slog.Logger, nodeName string, start time.Time) {
+	logger.Info("node completed", "node", nodeName, "duration", time.Since(start).String())
+}
 
 // PageImage represents a rendered document page ready for vision analysis.
 type PageImage struct {
@@ -46,7 +52,7 @@ type PageDetection struct {
 type MarkingInfo struct {
 	Text       string  `json:"text"`
 	Location   string  `json:"location"`
-	Confidence float64 `json:"confidence"`
+	Legibility float64 `json:"legibility"`
 	Faded      bool    `json:"faded"`
 }
 
@@ -92,18 +98,12 @@ type ConfidenceFactor struct {
 
 // EnhanceOptions configures the enhancement stage behavior.
 type EnhanceOptions struct {
-	ClarityThreshold float64 `json:"clarity_threshold"`
+	LegibilityThreshold float64 `json:"legibility_threshold"`
 }
 
 // DefaultEnhanceOptions returns the default enhancement configuration.
 func DefaultEnhanceOptions() EnhanceOptions {
-	return EnhanceOptions{ClarityThreshold: DefaultClarityThreshold}
-}
-
-// NeedsEnhancement returns true if the page clarity is below the threshold
-// and a filter suggestion is available.
-func (d PageDetection) NeedsEnhancement(threshold float64) bool {
-	return d.ClarityScore < threshold && d.FilterSuggestion != nil
+	return EnhanceOptions{LegibilityThreshold: DefaultLegibilityThreshold}
 }
 
 func init() {
@@ -174,6 +174,9 @@ func factory(ctx context.Context, graph state.StateGraph, runtime *workflows.Run
 
 func initNode(runtime *workflows.Runtime) state.StateNode {
 	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+		start := time.Now()
+		defer logNodeTiming(runtime.Logger(), "init", start)
+
 		docIDStr, ok := s.Get("document_id")
 		if !ok {
 			return s, fmt.Errorf("document_id is required")
@@ -221,6 +224,9 @@ func initNode(runtime *workflows.Runtime) state.StateNode {
 
 func detectNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime) state.StateNode {
 	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+		start := time.Now()
+		defer logNodeTiming(runtime.Logger(), "detect", start)
+
 		stage := profile.Stage("detect")
 
 		agentID, token, err := workflows.ExtractAgentParams(s, stage)
@@ -274,8 +280,16 @@ func detectNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime)
 
 		needsEnhancement := false
 		for _, d := range result.Results {
-			if d.NeedsEnhancement(enhanceOpts.ClarityThreshold) {
-				needsEnhancement = true
+			if d.FilterSuggestion == nil {
+				continue
+			}
+			for _, m := range d.MarkingsFound {
+				if m.Legibility < enhanceOpts.LegibilityThreshold {
+					needsEnhancement = true
+					break
+				}
+			}
+			if needsEnhancement {
 				break
 			}
 		}
@@ -289,6 +303,9 @@ func detectNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime)
 
 func enhanceNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime) state.StateNode {
 	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+		start := time.Now()
+		defer logNodeTiming(runtime.Logger(), "enhance", start)
+
 		stage := profile.Stage("enhance")
 
 		agentID, token, err := workflows.ExtractAgentParams(s, stage)
@@ -319,8 +336,14 @@ func enhanceNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime
 
 		var pagesToEnhance []PageDetection
 		for _, d := range detectList {
-			if d.NeedsEnhancement(enhanceOpts.ClarityThreshold) {
-				pagesToEnhance = append(pagesToEnhance, d)
+			if d.FilterSuggestion == nil {
+				continue
+			}
+			for _, m := range d.MarkingsFound {
+				if m.Legibility < enhanceOpts.LegibilityThreshold {
+					pagesToEnhance = append(pagesToEnhance, d)
+					break
+				}
 			}
 		}
 
@@ -372,7 +395,7 @@ func enhanceNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime
 			enhanced.PageNumber = original.PageNumber
 			enhanced.OriginalImageID = enhancedImg.ID
 
-			return mergeDetections(original, enhanced, enhanceOpts.ClarityThreshold), nil
+			return mergeDetections(original, enhanced, enhanceOpts.LegibilityThreshold), nil
 		}
 
 		cfg := detectionParallelConfig()
@@ -404,6 +427,9 @@ func enhanceNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime
 
 func classifyNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime) state.StateNode {
 	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+		start := time.Now()
+		defer logNodeTiming(runtime.Logger(), "classify", start)
+
 		stage := profile.Stage("classify")
 
 		agentID, token, err := workflows.ExtractAgentParams(s, stage)
@@ -442,6 +468,9 @@ func classifyNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtim
 
 func scoreNode(profile *profiles.ProfileWithStages, runtime *workflows.Runtime) state.StateNode {
 	return state.NewFunctionNode(func(ctx context.Context, s state.State) (state.State, error) {
+		start := time.Now()
+		defer logNodeTiming(runtime.Logger(), "score", start)
+
 		stage := profile.Stage("score")
 
 		agentID, token, err := workflows.ExtractAgentParams(s, stage)
@@ -497,8 +526,8 @@ func buildClassificationPrompt(docName string, detections []PageDetection) strin
 			for _, m := range d.MarkingsFound {
 				fmt.Fprintf(
 					&sb,
-					"  - %s [%s] (confidence: %.2f, faded: %v)\n",
-					m.Text, m.Location, m.Confidence, m.Faded,
+					"  - %s [%s] (legibility: %.2f, faded: %v)\n",
+					m.Text, m.Location, m.Legibility, m.Faded,
 				)
 			}
 		}
@@ -523,7 +552,7 @@ func buildScoringPrompt(detections []PageDetection, classification Classificatio
 	fmt.Fprintf(&sb, "Enhancement Applied: %v\n\n", enhancementApplied)
 
 	sb.WriteString("Detection Summary:\n")
-	var totalClarity, totalConfidence float64
+	var totalClarity, totalLegibility float64
 	var markingCount int
 	markings := make(map[string]int)
 	headerFooterPages := 0
@@ -532,7 +561,7 @@ func buildScoringPrompt(detections []PageDetection, classification Classificatio
 		totalClarity += d.ClarityScore
 		hasHeaderFooter := false
 		for _, m := range d.MarkingsFound {
-			totalConfidence += m.Confidence
+			totalLegibility += m.Legibility
 			markingCount++
 			markings[m.Text]++
 			if m.Location == "header" || m.Location == "footer" {
@@ -550,14 +579,14 @@ func buildScoringPrompt(detections []PageDetection, classification Classificatio
 		avgClarity = totalClarity / float64(len(detections))
 		spatialCoverage = float64(headerFooterPages) / float64(len(detections))
 	}
-	avgConfidence := 0.0
+	avgLegibility := 0.0
 	if markingCount > 0 {
-		avgConfidence = totalConfidence / float64(markingCount)
+		avgLegibility = totalLegibility / float64(markingCount)
 	}
 
 	fmt.Fprintf(&sb, "  Pages: %d\n", len(detections))
 	fmt.Fprintf(&sb, "  Average Clarity: %.2f\n", avgClarity)
-	fmt.Fprintf(&sb, "  Average Confidence: %.2f\n", avgConfidence)
+	fmt.Fprintf(&sb, "  Average Legibility: %.2f\n", avgLegibility)
 	fmt.Fprintf(&sb, "  Spatial Coverage: %.2f\n", spatialCoverage)
 	fmt.Fprintf(&sb, "  Unique Markings: %d\n", len(markings))
 
@@ -566,13 +595,9 @@ func buildScoringPrompt(detections []PageDetection, classification Classificatio
 }
 
 func detectionParallelConfig() config.ParallelConfig {
-	failFast := true
-	return config.ParallelConfig{
-		MaxWorkers:  0,
-		WorkerCap:   4,
-		FailFastNil: &failFast,
-		Observer:    "noop",
-	}
+	cfg := config.DefaultParallelConfig()
+	cfg.Observer = "noop"
+	return cfg
 }
 
 func extractEnhanceOptions(stage *profiles.ProfileStage) EnhanceOptions {
@@ -581,7 +606,7 @@ func extractEnhanceOptions(stage *profiles.ProfileStage) EnhanceOptions {
 		return opts
 	}
 	json.Unmarshal(stage.Options, &opts)
-	opts.ClarityThreshold = clamp(opts.ClarityThreshold, 0.0, 1.0)
+	opts.LegibilityThreshold = clamp(opts.LegibilityThreshold, 0.0, 1.0)
 	return opts
 }
 
@@ -602,7 +627,7 @@ func mergeDetections(original, enhanced PageDetection, threshold float64) PageDe
 	for _, em := range enhanced.MarkingsFound {
 		key := em.Text + "|" + em.Location
 		if om, exists := markingMap[key]; exists {
-			if (om.Faded || om.Confidence < threshold) && em.Confidence > om.Confidence {
+			if (om.Faded || om.Legibility < threshold) && em.Legibility > om.Legibility {
 				markingMap[key] = em
 			}
 		} else {

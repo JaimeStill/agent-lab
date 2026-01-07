@@ -15,20 +15,31 @@ agent-lab provides a Go-based web service architecture for developing intelligen
 agent-lab/
 ├── cmd/
 │   ├── server/           # HTTP server entry point and composition
-│   └── migrate/          # Database migration CLI
+│   ├── migrate/          # Database migration CLI
+│   └── seed/             # Database seeding CLI
 ├── internal/             # Private packages
 │   ├── config/           # Configuration management
 │   ├── database/         # Database connection management
 │   ├── lifecycle/        # Startup/shutdown coordination
 │   ├── middleware/       # HTTP middleware
 │   ├── routes/           # Route registration
-│   ├── providers/        # Provider domain system
-│   └── agents/           # Agents domain system
+│   ├── storage/          # Blob storage abstraction
+│   ├── providers/        # Provider domain (LLM configurations)
+│   ├── agents/           # Agents domain (LLM agents)
+│   ├── documents/        # Documents domain (file upload/management)
+│   ├── images/           # Images domain (document rendering)
+│   ├── profiles/         # Profiles domain (workflow configuration)
+│   └── workflows/        # Workflows domain (execution infrastructure)
+├── workflows/            # Workflow definitions
+│   ├── summarize/        # Text summarization workflow
+│   ├── reasoning/        # Multi-step reasoning workflow
+│   └── classify/         # Document classification workflow
 ├── pkg/                  # Public packages
 │   ├── handlers/         # HTTP response utilities
 │   ├── openapi/          # OpenAPI spec utilities
 │   ├── pagination/       # Pagination utilities
 │   ├── query/            # SQL query builder
+│   ├── decode/           # Type-safe map decoding
 │   └── repository/       # Database helpers
 ├── web/                  # Web assets
 │   └── docs/             # API documentation (Scalar UI)
@@ -82,6 +93,21 @@ go test ./tests/... -v
 # Run with coverage
 go test ./tests/... -cover
 ```
+
+## API Overview
+
+All endpoints are documented in the interactive Scalar UI at `http://localhost:8080/docs`.
+
+| Domain | Prefix | Description |
+|--------|--------|-------------|
+| Providers | `/api/providers` | LLM provider configurations (Ollama, Azure, etc.) |
+| Agents | `/api/agents` | Agent definitions with execution endpoints (Chat, Vision, Tools, Embed) |
+| Documents | `/api/documents` | Document upload and management |
+| Images | `/api/images` | Document page rendering with enhancement filters |
+| Profiles | `/api/profiles` | Workflow stage configurations for A/B testing |
+| Workflows | `/api/workflows` | Workflow execution with SSE streaming |
+
+**Getting Started Order**: Providers → Agents → (Documents → Images for document workflows) → Profiles → Workflows
 
 ## Sample Workflows
 

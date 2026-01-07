@@ -744,6 +744,65 @@ func (c *Coordinator) Shutdown(timeout time.Duration) error {
 - Timeout prevents indefinite hangs
 - No data loss - in-flight requests complete before shutdown
 
+### HTTP-Initiated Long-Running Process Context Pattern
+
+For HTTP endpoints that initiate long-running processes (e.g., workflow execution that may take 10+ minutes), the process must:
+
+1. **Survive HTTP disconnection** - Client can reconnect, poll status, or receive events later
+2. **Respect server shutdown** - Gracefully cancel when server stops
+3. **Support explicit cancellation** - Via dedicated cancel endpoints
+
+**Anti-Pattern** (Tied to HTTP Context):
+```go
+func (e *executor) executeAsync(ctx context.Context, ...) {
+    // ❌ Derives from HTTP request context - cancelled on client disconnect or timeout
+    execCtx, cancel := context.WithCancel(ctx)
+    // Process dies when HTTP connection drops
+}
+```
+
+**Correct Pattern** (Lifecycle Context):
+```go
+func (e *executor) executeAsync(...) {
+    // ✓ Derives from server lifecycle context
+    execCtx, cancel := context.WithCancel(e.runtime.Lifecycle().Context())
+    e.trackProcess(id, cancel)  // Track for explicit cancellation
+    defer e.untrackProcess(id)
+
+    // Process continues even if HTTP disconnects
+    // Process cancelled when server shuts down
+}
+```
+
+**Handler Pattern**:
+```go
+func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
+    // Start long-running process (returns immediately)
+    events, run, err := h.sys.Execute(name, params, token)
+
+    // Stream events to client
+    for event := range events {
+        select {
+        case <-r.Context().Done():
+            return  // Client disconnected, but process continues
+        default:
+        }
+        // Write SSE event...
+    }
+}
+```
+
+**Behavior Summary**:
+
+| Event | Process Behavior |
+|-------|------------------|
+| HTTP client disconnects | Continues running (lifecycle context) |
+| Cancel endpoint called | Cancels via tracked cancel function |
+| Server shutdown initiated | Lifecycle context cancelled → graceful cancel |
+| Process completes | Normal completion, status updated in database |
+
+**Key Principle**: Any HTTP-initiated long-running process should derive its context from `runtime.Lifecycle().Context()` to ensure graceful shutdown support while remaining independent of HTTP connection lifecycle. This makes the pattern repeatable and standardized across all such processes.
+
 ## HTTP Server (cmd/server/http.go)
 
 The HTTP server is implemented directly in the cmd/server package (not a separate internal package) since it's only used by the server entry point.
@@ -880,9 +939,12 @@ type System interface {
     Retrieve(ctx context.Context, key string) ([]byte, error)
     Delete(ctx context.Context, key string) error
     Validate(ctx context.Context, key string) (bool, error)
+    Path(ctx context.Context, key string) (string, error)
     Start(lc *lifecycle.Coordinator) error
 }
 ```
+
+The `Path` method returns the absolute filesystem path for a storage key, used when external tools need direct file access (e.g., document-context library for PDF rendering).
 
 ### Error Types
 
@@ -1097,6 +1159,7 @@ type Group struct {
     Tags        []string
     Description string
     Routes      []Route
+    Children    []Group  // Nested route groups
 }
 
 type Route struct {
@@ -1104,6 +1167,27 @@ type Route struct {
     Pattern string
     Handler http.HandlerFunc
     OpenAPI *openapi.Operation  // Optional OpenAPI operation definition
+}
+```
+
+The `Children` field enables hierarchical route organization. Child groups inherit the parent's prefix:
+
+```go
+routes.Group{
+    Prefix: "/api/workflows",
+    Routes: []routes.Route{
+        {Method: "GET", Pattern: "", Handler: h.ListWorkflows},
+        {Method: "POST", Pattern: "/{name}/execute", Handler: h.Execute},
+    },
+    Children: []routes.Group{
+        {
+            Prefix: "/runs",  // Results in /api/workflows/runs
+            Routes: []routes.Route{
+                {Method: "GET", Pattern: "/{id}", Handler: h.FindRun},
+                {Method: "POST", Pattern: "/{id}/cancel", Handler: h.Cancel},
+            },
+        },
+    },
 }
 ```
 
@@ -1600,6 +1684,98 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
     handlers.RespondJSON(w, http.StatusCreated, result)
 }
 ```
+
+## Parallel Processing Patterns
+
+### Worker Pool Pattern
+
+For CPU-bound or I/O-bound parallel processing with dynamic worker scaling:
+
+```go
+type task struct {
+    item   int
+    result *Result
+    err    error
+}
+
+func processParallel(ctx context.Context, items []Item) ([]Result, error) {
+    workerCount := workerCount(len(items))
+    tasks := make(chan int, len(items))
+    results := make(chan task, len(items))
+
+    var wg sync.WaitGroup
+    for range workerCount {
+        wg.Go(func() {
+            processWorker(ctx, items, tasks, results)
+        })
+    }
+
+    for i := range items {
+        tasks <- i
+    }
+    close(tasks)
+
+    go func() {
+        wg.Wait()
+        close(results)
+    }()
+
+    resultMap := make(map[int]*Result)
+    for t := range results {
+        if t.err != nil {
+            return nil, t.err  // Fail-fast on first error
+        }
+        resultMap[t.item] = t.result
+    }
+
+    // Preserve original order
+    ordered := make([]Result, 0, len(items))
+    for i := range items {
+        if r, ok := resultMap[i]; ok {
+            ordered = append(ordered, *r)
+        }
+    }
+
+    return ordered, nil
+}
+
+func workerCount(itemCount int) int {
+    return max(min(runtime.NumCPU(), itemCount), 1)
+}
+```
+
+**Key characteristics**:
+- Dynamic worker count based on `runtime.NumCPU()` and workload size
+- Fail-fast error handling (first error terminates processing)
+- Order preservation via result map reconstruction
+- Context cancellation support in workers
+
+**Usage** (Images domain parallel rendering):
+```go
+workerCount := renderWorkerCount(len(pages))
+tasks := make(chan int, len(pages))
+results := make(chan renderTask, len(pages))
+
+var wg sync.WaitGroup
+for range workerCount {
+    wg.Go(func() {
+        r.renderWorker(ctx, documentID, docPath, contentType, opts, tasks, results)
+    })
+}
+```
+
+### ProcessParallel (go-agents-orchestration)
+
+For workflow-level parallel processing with configurable concurrency:
+
+```go
+cfg := config.DefaultParallelConfig()  // min(NumCPU*2, 16, itemCount)
+cfg.Observer = "noop"
+
+result, err := workflows.ProcessParallel(ctx, cfg, items, processor, nil)
+```
+
+Use library `ProcessParallel` for workflow stages; use worker pool pattern for domain-level operations requiring fine-grained control.
 
 ## Agent Execution Patterns
 

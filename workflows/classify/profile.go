@@ -17,7 +17,7 @@ OUTPUT FORMAT: Respond with ONLY a JSON object matching this exact schema:
 		{
 			"text": "<exact marking text>",
 			"location": "<header|footer|margin|body>",
-			"confidence": <0.0-1.0>,
+			"legibility": <0.0-1.0>,
 			"faded": <boolean>
 		}
 	],
@@ -32,10 +32,11 @@ OUTPUT FORMAT: Respond with ONLY a JSON object matching this exact schema:
 INSTRUCTIONS:
 - Identify ALL security markings (e.g., UNCLASSIFIED, CONFIDENTIAL, SECRET, TOP SECRET, caveats like NOFORN, ORCON, or any other code names)
 - Note the location of each marking (header, footer, margin, or body)
-- Assess confidence based on readability (1.0 = perfectly clear, 0.0 = illegible)
-- Set faded=true if the marking appears washed out or hard to read
+- LEGIBILITY measures readability: 1.0 = text is perfectly readable, 0.0 = text is illegible
+- FADED indicates visual appearance: true if marking appears washed out or pale
+- IMPORTANT: A faded marking can still have high legibility if the text is readable
 - clarity_score reflects overall page quality for marking detection
-- If clarity_score < 0.7, suggest filter adjustment that might improve readability
+- Only suggest filter_suggestion if legibility < 0.4 AND you believe enhancement would improve readability
 - JSON response only; no preamble or dialog`
 
 const ClassificationSystemPrompt = `You are a document classification specialist. Analyze security marking detections across all pages to determine the overall document classification.
@@ -47,20 +48,23 @@ OUTPUT FORMAT: Respond with ONLY a JSON object matching this exact schema:
 		{
 			"classification": "<alternative classification>",
 			"probability": <0.0-1.0>,
-			"reason": "<why this could be the correct classification>"
+			"reason": "<brief phrase, max 15 words>"
 		}
 	],
 	"marking_summary": ["<list of unique markings found>"],
-	"rationale": "<explanation of classification decision>"
+	"rationale": "<1-2 sentences, max 40 words>"
 }
 
 INSTRUCTIONS:
 - Analyze all marking detections provided
 - Determine the HIGHEST classification level present
-- If markings are inconsistent or ambiguous, list alternative readings
+- IMPORTANT: ALL detected markings contribute to classification regardless of legibility or fading
+- A faded or low-legibility marking is still a valid marking - include it in your classification decision
+- Include detected caveats (NOFORN, ORCON, REL TO, etc.) in the primary classification (e.g., SECRET//NOFORN)
+- Legibility and fading affect confidence scoring, NOT the classification itself
+- Only list alternative readings if there is genuine ambiguity about what marking text says
 - marking_summary should list unique marking texts (deduplicated)
-- rationale should explain how you determined the classification
-- Consider marking confidence and consistency across pages
+- Keep rationale brief: 1-2 sentences explaining the key deciding factor
 - JSON response only; no preamble or dialog`
 
 const ScoringSystemPrompt = `You are a confidence scoring specialist. Evaluate the quality and reliability of document classification results.
@@ -73,7 +77,7 @@ OUTPUT FORMAT: Respond with ONLY a JSON object matching this exact schema:
 			"name": "<factor name>",
 			"score": <0.0-1.0>,
 			"weight": <weight>,
-			"description": "<explanation of score>"
+			"description": "<brief phrase, max 10 words>"
 		}
 	],
 	"recommendation": "<ACCEPT|REVIEW|REJECT>"
@@ -85,14 +89,14 @@ FACTORS TO EVALUATE:
 - spatial_coverage (weight: 0.15): Markings in expected locations (header/footer)
 - enhancement_impact (weight: 0.10): Value added by enhancement (if applied)
 - alternative_count (weight: 0.10): Fewer alternatives = higher confidence
-- detection_confidence (weight: 0.10): Average marking confidence
+- detection_legibility (weight: 0.10): Average marking legibility (low legibility reduces confidence)
 
 THRESHOLDS:
 - >= 0.90: ACCEPT - Classification is reliable
 - 0.70-0.89: REVIEW - Human verification recommended
 - < 0.70: REJECT - Insufficient confidence
 
-JSON response only; no preamble or dialog`
+Keep factor descriptions brief (max 10 words each). JSON response only; no preamble or dialog`
 
 // DefaultProfile returns the hardcoded default profile for the classify-docs workflow.
 // It defines stages for init (no LLM) and detect (vision analysis).

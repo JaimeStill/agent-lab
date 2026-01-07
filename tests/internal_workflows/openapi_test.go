@@ -13,7 +13,6 @@ func TestSpec_Operations(t *testing.T) {
 	}{
 		{"ListWorkflows", workflows.Spec.ListWorkflows},
 		{"Execute", workflows.Spec.Execute},
-		{"ExecuteStream", workflows.Spec.ExecuteStream},
 		{"ListRuns", workflows.Spec.ListRuns},
 		{"FindRun", workflows.Spec.FindRun},
 		{"GetStages", workflows.Spec.GetStages},
@@ -56,25 +55,25 @@ func TestSpec_Schemas(t *testing.T) {
 	}
 }
 
-func TestSpec_ExecuteStream_SSEResponse(t *testing.T) {
-	op := workflows.Spec.ExecuteStream
+func TestSpec_Execute_SSEResponse(t *testing.T) {
+	op := workflows.Spec.Execute
 
 	if op.Responses == nil {
-		t.Fatal("ExecuteStream.Responses is nil")
+		t.Fatal("Execute.Responses is nil")
 	}
 
 	response200, ok := op.Responses[200]
 	if !ok {
-		t.Fatal("ExecuteStream.Responses[200] not found")
+		t.Fatal("Execute.Responses[200] not found")
 	}
 
 	if response200.Content == nil {
-		t.Fatal("ExecuteStream.Responses[200].Content is nil")
+		t.Fatal("Execute.Responses[200].Content is nil")
 	}
 
 	sseContent, ok := response200.Content["text/event-stream"]
 	if !ok {
-		t.Error("ExecuteStream.Responses[200].Content[text/event-stream] not found")
+		t.Error("Execute.Responses[200].Content[text/event-stream] not found")
 	}
 
 	if sseContent.Schema == nil {

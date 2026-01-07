@@ -57,6 +57,7 @@ func NewDomain(runtime *Runtime) *Domain {
 		documentsSys,
 		imagesSys,
 		profilesSys,
+		runtime.Lifecycle,
 		runtime.Logger,
 	)
 

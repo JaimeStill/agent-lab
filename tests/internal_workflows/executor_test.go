@@ -12,7 +12,7 @@ import (
 
 func TestNewSystem(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	runtime := workflows.NewRuntime(nil, nil, nil, nil, logger)
+	runtime := workflows.NewRuntime(nil, nil, nil, nil, nil, logger)
 	paginationCfg := pagination.Config{
 		DefaultPageSize: 20,
 		MaxPageSize:     100,
@@ -27,7 +27,7 @@ func TestNewSystem(t *testing.T) {
 
 func TestNewSystem_ImplementsInterface(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	runtime := workflows.NewRuntime(nil, nil, nil, nil, logger)
+	runtime := workflows.NewRuntime(nil, nil, nil, nil, nil, logger)
 	paginationCfg := pagination.Config{
 		DefaultPageSize: 20,
 		MaxPageSize:     100,
@@ -38,7 +38,7 @@ func TestNewSystem_ImplementsInterface(t *testing.T) {
 
 func TestExecutor_ListWorkflows(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-	runtime := workflows.NewRuntime(nil, nil, nil, nil, logger)
+	runtime := workflows.NewRuntime(nil, nil, nil, nil, nil, logger)
 	paginationCfg := pagination.Config{
 		DefaultPageSize: 20,
 		MaxPageSize:     100,

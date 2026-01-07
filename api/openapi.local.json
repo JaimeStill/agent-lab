@@ -1998,55 +1998,6 @@
     "/api/workflows/{name}/execute": {
       "post": {
         "summary": "Execute workflow",
-        "description": "Executes a workflow synchronously and returns the result",
-        "tags": [
-          "Workflows"
-        ],
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "description": "Workflow name",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ExecuteRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Workflow execution result",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Run"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "",
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "404": {
-            "description": "",
-            "$ref": "#/components/responses/NotFound"
-          }
-        }
-      }
-    },
-    "/api/workflows/{name}/execute/stream": {
-      "post": {
-        "summary": "Execute workflow with streaming",
         "description": "Executes a workflow and streams progress events via SSE",
         "tags": [
           "Workflows"

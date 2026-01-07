@@ -67,64 +67,13 @@ func (e *executor) ListWorkflows() []WorkflowInfo {
 	return List()
 }
 
-func (e *executor) Execute(ctx context.Context, name string, params map[string]any, token string) (*Run, error) {
-	factory, exists := Get(name)
-	if !exists {
-		return nil, ErrWorkflowNotFound
-	}
-
-	run, err := e.repo.CreateRun(ctx, name, params)
-	if err != nil {
-		return nil, fmt.Errorf("create run: %w", err)
-	}
-
-	execCtx, cancel := context.WithCancel(ctx)
-	e.trackRun(run.ID, cancel)
-	defer e.untrackRun(run.ID)
-
-	run, err = e.repo.UpdateRunStarted(execCtx, run.ID)
-	if err != nil {
-		return e.finalizeRun(ctx, run.ID, StatusFailed, nil, err)
-	}
-
-	observer := NewPostgresObserver(e.db, run.ID, e.logger)
-	checkpointStore := NewPostgresCheckpointStore(e.db, e.logger)
-
-	cfg := workflowGraphConfig(name)
-
-	graph, err := state.NewGraphWithDeps(cfg, observer, checkpointStore)
-	if err != nil {
-		return e.finalizeRun(ctx, run.ID, StatusFailed, nil, err)
-	}
-
-	initialState, err := factory(execCtx, graph, e.runtime, params)
-	if err != nil {
-		return e.finalizeRun(ctx, run.ID, StatusFailed, nil, err)
-	}
-
-	initialState.RunID = run.ID.String()
-	if token != "" {
-		initialState = initialState.SetSecret("token", token)
-	}
-
-	finalState, err := graph.Execute(execCtx, initialState)
-	if err != nil {
-		if execCtx.Err() != nil {
-			errMsg := "execution cancelled"
-			return e.repo.UpdateRunCompleted(ctx, run.ID, StatusCancelled, nil, &errMsg)
-		}
-		errMsg := err.Error()
-		return e.repo.UpdateRunCompleted(ctx, run.ID, StatusFailed, nil, &errMsg)
-	}
-
-	return e.repo.UpdateRunCompleted(ctx, run.ID, StatusCompleted, finalState.Data, nil)
-}
-
-func (e *executor) ExecuteStream(ctx context.Context, name string, params map[string]any, token string) (<-chan ExecutionEvent, *Run, error) {
+func (e *executor) Execute(name string, params map[string]any, token string) (<-chan ExecutionEvent, *Run, error) {
 	factory, exists := Get(name)
 	if !exists {
 		return nil, nil, ErrWorkflowNotFound
 	}
+
+	ctx := e.runtime.Lifecycle().Context()
 
 	run, err := e.repo.CreateRun(ctx, name, params)
 	if err != nil {
@@ -133,7 +82,7 @@ func (e *executor) ExecuteStream(ctx context.Context, name string, params map[st
 
 	streamingObs := NewStreamingObserver(defaultStreamBufferSize)
 
-	go e.executeStreamAsync(ctx, run.ID, factory, params, token, streamingObs)
+	go e.executeAsync(ctx, run.ID, factory, params, token, streamingObs)
 
 	return streamingObs.Events(), run, nil
 }
@@ -217,7 +166,7 @@ func (e *executor) Resume(ctx context.Context, runID uuid.UUID) (*Run, error) {
 	return e.repo.UpdateRunCompleted(ctx, run.ID, StatusCompleted, finalState.Data, nil)
 }
 
-func (e *executor) executeStreamAsync(ctx context.Context, runID uuid.UUID, factory WorkflowFactory, params map[string]any, token string, streamingObs *StreamingObserver) {
+func (e *executor) executeAsync(ctx context.Context, runID uuid.UUID, factory WorkflowFactory, params map[string]any, token string, streamingObs *StreamingObserver) {
 	defer streamingObs.Close()
 
 	execCtx, cancel := context.WithCancel(ctx)
@@ -227,7 +176,7 @@ func (e *executor) executeStreamAsync(ctx context.Context, runID uuid.UUID, fact
 	_, err := e.repo.UpdateRunStarted(execCtx, runID)
 	if err != nil {
 		streamingObs.SendError(err, "")
-		e.finalizeRun(ctx, runID, StatusFailed, nil, err)
+		e.finalizeRun(execCtx, runID, StatusFailed, nil, err)
 		return
 	}
 
@@ -240,14 +189,14 @@ func (e *executor) executeStreamAsync(ctx context.Context, runID uuid.UUID, fact
 	graph, err := state.NewGraphWithDeps(cfg, multiObs, checkpointStore)
 	if err != nil {
 		streamingObs.SendError(err, "")
-		e.finalizeRun(ctx, runID, StatusFailed, nil, err)
+		e.finalizeRun(execCtx, runID, StatusFailed, nil, err)
 		return
 	}
 
 	initialState, err := factory(execCtx, graph, e.runtime, params)
 	if err != nil {
 		streamingObs.SendError(err, "")
-		e.finalizeRun(ctx, runID, StatusFailed, nil, err)
+		e.finalizeRun(execCtx, runID, StatusFailed, nil, err)
 		return
 	}
 
@@ -261,17 +210,17 @@ func (e *executor) executeStreamAsync(ctx context.Context, runID uuid.UUID, fact
 		if execCtx.Err() != nil {
 			errMsg := "execution cancelled"
 			streamingObs.SendError(fmt.Errorf("%s", errMsg), "")
-			e.repo.UpdateRunCompleted(ctx, runID, StatusCancelled, nil, &errMsg)
+			e.repo.UpdateRunCompleted(execCtx, runID, StatusCancelled, nil, &errMsg)
 			return
 		}
 		streamingObs.SendError(err, "")
 		errMsg := err.Error()
-		e.repo.UpdateRunCompleted(ctx, runID, StatusFailed, nil, &errMsg)
+		e.repo.UpdateRunCompleted(execCtx, runID, StatusFailed, nil, &errMsg)
 		return
 	}
 
 	streamingObs.SendComplete(finalState.Data)
-	e.repo.UpdateRunCompleted(ctx, runID, StatusCompleted, finalState.Data, nil)
+	e.repo.UpdateRunCompleted(execCtx, runID, StatusCompleted, finalState.Data, nil)
 }
 
 func (e *executor) trackRun(id uuid.UUID, cancel context.CancelFunc) {
