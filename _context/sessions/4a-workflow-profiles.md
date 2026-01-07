@@ -13,7 +13,7 @@ Implemented the profiles domain for storing workflow stage configurations and mi
 
 ### Profiles Domain (`internal/profiles/`)
 - Full CRUD for profiles with pagination and filtering by `workflow_name`
-- Stage management with upsert semantics (`SetStage`)
+- Stage management with save semantics (`SetStage`)
 - `ProfileWithStages` type with `Stage(name)` method for O(1)-ish lookup
 - `NewProfileWithStages(stages...)` variadic constructor
 

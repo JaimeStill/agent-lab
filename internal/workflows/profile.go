@@ -9,11 +9,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// ExtractAgentParams extracts the agent ID and token from workflow state.
-// If the stage has an AgentID configured, it takes precedence over state params.
+// ExtractAgentParams extracts the agent ID and token for workflow execution.
+// Agent ID is resolved from the profile stage (if configured) or state params.
+// Token is retrieved from state secrets to avoid persistence in checkpoints.
 // Returns the agent UUID, optional token string, and any error.
 func ExtractAgentParams(s state.State, stage *profiles.ProfileStage) (uuid.UUID, string, error) {
 	var agentID uuid.UUID
+	var token string
 
 	if stage != nil && stage.AgentID != nil {
 		agentID = *stage.AgentID
@@ -29,8 +31,9 @@ func ExtractAgentParams(s state.State, stage *profiles.ProfileStage) (uuid.UUID,
 		}
 	}
 
-	tkn, _ := s.Get("token")
-	token, _ := tkn.(string)
+	if tkn, ok := s.GetSecret("token"); ok {
+		token = tkn.(string)
+	}
 
 	return agentID, token, nil
 }

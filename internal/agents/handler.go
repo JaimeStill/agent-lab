@@ -142,7 +142,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	handlers.RespondJSON(w, http.StatusOK, result)
 }
 
-// Delete handles DELETE /api/agents/{id} to remove an agent.
+// Delete handles DELETE /api/agents/{id} to delete an agent.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {

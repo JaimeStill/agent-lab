@@ -21,12 +21,12 @@ type System interface {
 	// Update updates profile metadata (name, description).
 	Update(ctx context.Context, id uuid.UUID, cmd UpdateProfileCommand) (*Profile, error)
 
-	// Delete removes a profile and all its stage configurations.
+	// Delete deletes a profile and all its stage configurations.
 	Delete(ctx context.Context, id uuid.UUID) error
 
-	// SetStage creates or updates a stage configuration (upsert).
+	// SetStage creates or updates a stage configuration (save).
 	SetStage(ctx context.Context, profileID uuid.UUID, cmd SetProfileStageCommand) (*ProfileStage, error)
 
-	// DeleteStage removes a stage configuration from a profile.
+	// DeleteStage deletes a stage configuration from a profile.
 	DeleteStage(ctx context.Context, profileID uuid.UUID, stageName string) error
 }

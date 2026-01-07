@@ -104,7 +104,7 @@ func (e *executor) Execute(ctx context.Context, name string, params map[string]a
 
 	initialState.RunID = run.ID.String()
 	if token != "" {
-		initialState = initialState.Set("token", token)
+		initialState = initialState.SetSecret("token", token)
 	}
 
 	finalState, err := graph.Execute(execCtx, initialState)
@@ -253,7 +253,7 @@ func (e *executor) executeStreamAsync(ctx context.Context, runID uuid.UUID, fact
 
 	initialState.RunID = runID.String()
 	if token != "" {
-		initialState = initialState.Set("token", token)
+		initialState = initialState.SetSecret("token", token)
 	}
 
 	finalState, err := graph.Execute(execCtx, initialState)

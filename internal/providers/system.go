@@ -31,7 +31,7 @@ type System interface {
 	// Returns ErrInvalidConfig if the configuration fails go-agents validation.
 	Update(ctx context.Context, id uuid.UUID, cmd UpdateCommand) (*Provider, error)
 
-	// Delete removes a provider configuration by ID.
+	// Delete deletes a provider configuration by ID.
 	// Returns ErrNotFound if the provider does not exist.
 	Delete(ctx context.Context, id uuid.UUID) error
 }

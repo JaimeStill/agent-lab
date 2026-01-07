@@ -77,7 +77,7 @@ var Spec = spec{
 	},
 	SetStage: &openapi.Operation{
 		Summary:     "Set stage configuration",
-		Description: "Creates or updates a stage configuration for a profile (upsert)",
+		Description: "Creates or updates a stage configuration for a profile (save)",
 		Parameters: []*openapi.Parameter{
 			openapi.PathParam("id", "Profile UUID"),
 		},

@@ -1323,7 +1323,7 @@
     "/api/profiles/{id}/stages": {
       "post": {
         "summary": "Set stage configuration",
-        "description": "Creates or updates a stage configuration for a profile (upsert)",
+        "description": "Creates or updates a stage configuration for a profile (save)",
         "tags": [
           "Profiles"
         ],

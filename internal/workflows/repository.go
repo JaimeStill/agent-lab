@@ -178,7 +178,7 @@ func (r *repo) GetDecisions(ctx context.Context, runID uuid.UUID) ([]Decision, e
 	return decisions, nil
 }
 
-// DeleteRun removes a workflow run and its related data (stages, decisions, checkpoints).
+// DeleteRun deletes a workflow run and its related data (stages, decisions, checkpoints).
 func (r *repo) DeleteRun(ctx context.Context, id uuid.UUID) error {
 	_, err := repository.WithTx(ctx, r.db, func(tx *sql.Tx) (struct{}, error) {
 		err := repository.ExecExpectOne(ctx, tx, "DELETE FROM runs WHERE id = $1", id)

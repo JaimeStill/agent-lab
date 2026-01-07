@@ -72,7 +72,7 @@ type UpdateProfileCommand struct {
 }
 
 // SetProfileStageCommand contains the data needed to create or update a stage configuration.
-// Uses upsert semantics - creates if not exists, updates if exists.
+// Uses save semantics - creates if not exists, updates if exists.
 type SetProfileStageCommand struct {
 	StageName    string          `json:"stage_name"`
 	AgentID      *uuid.UUID      `json:"agent_id,omitempty"`
