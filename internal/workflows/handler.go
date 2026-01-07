@@ -226,7 +226,7 @@ func (h *Handler) Resume(w http.ResponseWriter, r *http.Request) {
 	handlers.RespondJSON(w, http.StatusOK, run)
 }
 
-// DeleteRun removes a workflow run and its related data.
+// DeleteRun deletes a workflow run and its related data.
 func (h *Handler) DeleteRun(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {

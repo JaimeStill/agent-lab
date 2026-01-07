@@ -118,6 +118,24 @@ GetDecisions(ctx, runID) ([]Decision, error)            // All decisions for a r
 
 **Rationale**: `Get` signals "retrieve this specific bounded set" (e.g., all stages for one run), while `List` signals "browse a potentially large collection with pagination."
 
+**Data Mutation Methods** (CRUD Semantics):
+
+| Verb | Semantics | Use Case |
+|------|-----------|----------|
+| `Create` | Insert new record | Adding a new entity (fails if exists) |
+| `Update` | Modify existing record | Changing an existing entity (fails if not exists) |
+| `Save` | Create or update | Idempotent write (creates if not exists, updates if exists) |
+| `Delete` | Remove record | Removing an entity |
+
+```go
+Create(ctx, cmd) (*Entity, error)     // Insert new (ErrDuplicate if exists)
+Update(ctx, id, cmd) (*Entity, error) // Modify existing (ErrNotFound if missing)
+Save(ctx, entity) (*Entity, error)    // Create or update (idempotent)
+Delete(ctx, id) error                 // Remove (ErrNotFound if missing)
+```
+
+**Rationale**: This vocabulary provides clear intent at the domain level. `Save` is preferred over "upsert" for readability. The distinction between `Create` (must not exist) and `Save` (may or may not exist) clarifies expected behavior.
+
 ### 6. Configuration-Driven Initialization
 
 **Stateful Systems vs Functional Infrastructure**:

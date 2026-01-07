@@ -123,7 +123,7 @@ func (h *Handler) Render(w http.ResponseWriter, r *http.Request) {
 	handlers.RespondJSON(w, http.StatusCreated, images)
 }
 
-// Delete handles DELETE /{id} - removes an image.
+// Delete handles DELETE /{id} - deletes an image.
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {

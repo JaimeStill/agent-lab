@@ -20,7 +20,7 @@ type System interface {
 	// Returns ErrInvalidKey if the key is malformed.
 	Retrieve(ctx context.Context, key string) ([]byte, error)
 
-	// Delete removes the data at the specified key.
+	// Delete deletes the data at the specified key.
 	// Returns nil if the key does not exist (idempotent).
 	// Returns ErrInvalidKey if the key is malformed.
 	Delete(ctx context.Context, key string) error

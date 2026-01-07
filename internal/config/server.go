@@ -110,10 +110,10 @@ func (c *ServerConfig) loadDefaults() {
 		c.Port = 8080
 	}
 	if c.ReadTimeout == "" {
-		c.ReadTimeout = "30s"
+		c.ReadTimeout = "3m"
 	}
 	if c.WriteTimeout == "" {
-		c.WriteTimeout = "30s"
+		c.WriteTimeout = "3m"
 	}
 	if c.ShutdownTimeout == "" {
 		c.ShutdownTimeout = "30s"

@@ -28,8 +28,8 @@ func NewPostgresCheckpointStore(db *sql.DB, logger *slog.Logger) *PostgresCheckp
 	}
 }
 
-// Save persists workflow state to the database. It uses upsert semantics,
-// updating existing checkpoints for the same run_id.
+// Save persists workflow state to the database. It uses save semantics,
+// creating a new checkpoint or updating an existing one for the same run_id.
 func (s *PostgresCheckpointStore) Save(st state.State) error {
 	stateData, err := json.Marshal(st)
 	if err != nil {
@@ -84,7 +84,7 @@ func (s *PostgresCheckpointStore) Load(runID string) (state.State, error) {
 	return st, nil
 }
 
-// Delete removes a checkpoint from the database by run ID.
+// Delete deletes a checkpoint from the database by run ID.
 func (s *PostgresCheckpointStore) Delete(runID string) error {
 	const query = `DELETE FROM checkpoints WHERE run_id = $1`
 

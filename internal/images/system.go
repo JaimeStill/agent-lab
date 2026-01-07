@@ -22,6 +22,6 @@ type System interface {
 	// Returns the created Image records for all rendered pages.
 	Render(ctx context.Context, documentID uuid.UUID, cmd RenderOptions) ([]Image, error)
 
-	// Delete removes an image from storage and the database.
+	// Delete deletes an image from storage and the database.
 	Delete(ctx context.Context, id uuid.UUID) error
 }

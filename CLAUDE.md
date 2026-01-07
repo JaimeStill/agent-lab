@@ -383,6 +383,7 @@ All technical patterns are documented in [ARCHITECTURE.md](./ARCHITECTURE.md):
 - Query Engine (ProjectionMap, QueryBuilder)
 - Cross-Domain Dependencies
 - Error handling and logging
+- Naming conventions (interface methods, data mutations)
 
 **Pattern Decision Guide:**
 - **Stateful Systems** (own state and other systems) → Use config interface

@@ -635,7 +635,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 - `workflows/summarize/` (profile.go + summarize.go)
 - `workflows/reasoning/` (profile.go + reasoning.go)
 
-**Validation**: ✓ Profile CRUD, stage upsert, both profile scenarios (system_prompt only, agent_id configured)
+**Validation**: ✓ Profile CRUD, stage save, both profile scenarios (system_prompt only, agent_id configured)
 
 #### Session 4b: classify-docs Types and Detection Stage ✓
 
@@ -670,32 +670,72 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **Validation**: ✓ Full workflow execution with Azure GPT-5-mini, tested with challenging faded-marking document
 
-#### Session 4d: Optimization and Accuracy Improvements
+#### Session 4d: Data Security and Seed Infrastructure
+
+**Deliverables**:
+- Add `Secrets` field to `state.State` in go-agents-orchestration (architectural fix for token leakage)
+- Update agent-lab to use new Secrets API for token handling
+- Create `cmd/seed` infrastructure for profile experimentation
+- Profile seeding with transactional execution
+
+**Phase 1: go-agents-orchestration**:
+- Add `Secrets map[string]any` field with `json:"-"` tag (never persisted/observed)
+- Add `SetSecret`, `GetSecret`, `DeleteSecret` methods following immutable pattern
+- Update `Clone()` to also clone Secrets map
+- Release new version
+
+**Phase 2: agent-lab Integration**:
+- Update `executor.go` to use `SetSecret("token", token)`
+- Update `ExtractAgentParams` to use `GetSecret("token")`
+- Update go-agents-orchestration dependency
+
+**Phase 3: cmd/seed Infrastructure**:
+- Create `cmd/seed/main.go` (CLI entry point with flags)
+- Create `cmd/seed/seeder.go` (Seeder interface and registry)
+- Create `cmd/seed/profiles.go` (Profile seeding using internal/profiles types)
+- Create embedded seed data files for classify workflow profiles
+
+**Key Files**:
+- `go-agents-orchestration/pkg/state/state.go`
+- `agent-lab/internal/workflows/executor.go`
+- `agent-lab/internal/workflows/profile.go`
+- `agent-lab/cmd/seed/` (new directory)
+
+**Validation**: ✓ Token NOT in checkpoints, stages, runs, or SSE events; seed command creates profiles correctly
+
+#### Session 4e: Performance and Accuracy Refinement
 
 **Deliverables**:
 - Runtime optimization (~50s for 1-page document is too long)
 - Detection accuracy improvements for faded markings
-- Unit tests for parsers and helpers
-- Integration tests with real LLM calls
-- Default profile seeding migration
 - Validation against test document set
 
-**Optimization Focus**:
-- Investigate Vision API latency and parallel processing efficiency
-- Consider caching strategies for repeated analysis
+**Performance Optimization**:
+- Profile actual bottlenecks (rendering vs Vision API)
+- Consider parallel rendering in init node
+- Evaluate Vision API concurrency (WorkerCap adjustment)
 
 **Accuracy Improvements**:
 - Lower default clarity threshold (e.g., 0.8) to trigger enhancement more aggressively
 - Trigger enhancement if ANY marking has `faded: true`, regardless of clarity score
 - Add faded marking count as enhancement decision factor
 - Tune system prompts for better faded marking detection
+- Consider multi-pass detection with result aggregation
+
+**Classification Logic Refinement**:
+- Detected markings should contribute to classification regardless of fading or confidence
+- Fading/confidence should affect ACCEPT/REVIEW/REJECT recommendation, NOT the classification itself
+- Example: NOFORN detected at 0.35 confidence (faded) was correctly read but excluded from classification
+- Historical documents (20-30+ years old) will inevitably have faded markings
+- If a marking is identified and legible, it contributes to classification; fading only affects confidence scoring
+- Prompt engineering needed: distinguish between "detection confidence" and "classification contribution"
 
 **Key Files**:
-- `tests/internal_profiles/`
-- `tests/workflows_classify/`
-- `cmd/migrate/migrations/000008_seed_classify_profile.up.sql`
+- `workflows/classify/classify.go`
+- `workflows/classify/profile.go`
+- `cmd/seed/seeds/classify_profiles.json` (additional tuning profiles)
 
-**Validation**: Achieve baseline accuracy on test documents, runtime < 30s for single-page documents
+**Validation**: Achieve baseline accuracy on test documents (target: 96.3% prototype), runtime < 30s for single-page documents
 
 ---
 
@@ -857,7 +897,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Validated with Azure GPT-5-mini on challenging faded-marking document
 
 **Next Steps**:
-- Begin Session 4d: Optimization and Accuracy Improvements
+- Begin Session 4e: Performance and Accuracy Refinement
 
 ## Future Phases (Beyond Milestone 7)
 
