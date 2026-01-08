@@ -59,6 +59,9 @@ docker compose -f compose/postgres.yml up -d
 # Run database migrations
 go run ./cmd/migrate -dsn "postgres://agent_lab:agent_lab@localhost:5432/agent_lab?sslmode=disable" -up
 
+# Seed database
+go run ./cmd/seed -dsn "postgres://agent_lab:agent_lab@localhost:5432/agent_lab?sslmode=disable" -all
+
 # Build and run server
 go build -o bin/server ./cmd/server
 ./bin/server

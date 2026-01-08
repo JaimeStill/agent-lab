@@ -31,11 +31,11 @@
     {
       "workflow_name": "classify-docs",
       "name": "aggressive-enhancement",
-      "description": "Lower legibility threshold (0.3) for more aggressive enhancement triggering",
+      "description": "Higher legibility threshold (0.6) triggers enhancement more often",
       "stages": [
         {
           "stage_name": "enhance",
-          "options": {"legibility_threshold": 0.3}
+          "options": {"legibility_threshold": 0.6}
         }
       ]
     }
