@@ -39,15 +39,20 @@ func ExtractAgentParams(s state.State, stage *profiles.ProfileStage) (uuid.UUID,
 }
 
 // LoadProfile resolves the profile configuration for a workflow execution.
-// If profile_id is provided in params, loads from database.
-// Otherwise, returns the provided default profile.
+// If profile_id is provided in params, loads from database and merges with
+// the default profile (DB stages override matching default stages).
+// Otherwise, returns the provided default profile unchanged.
 func LoadProfile(ctx context.Context, rt *Runtime, params map[string]any, defaultProfile *profiles.ProfileWithStages) (*profiles.ProfileWithStages, error) {
 	if profileIDStr, ok := params["profile_id"].(string); ok {
 		profileID, err := uuid.Parse(profileIDStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid profile_id: %w", err)
 		}
-		return rt.Profiles().Find(ctx, profileID)
+		dbProfile, err := rt.Profiles().Find(ctx, profileID)
+		if err != nil {
+			return nil, err
+		}
+		return defaultProfile.Merge(dbProfile), nil
 	}
 	return defaultProfile, nil
 }

@@ -888,9 +888,13 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
     - Lifecycle context pattern for long-running processes
     - 27-page PDF: 3m19s (timeout) → 1m40s completion
     - ~96% marking detection accuracy validated
+  - **Milestone Review** ✓
+    - Profile merging implemented (partial profiles overlay on defaults)
+    - All profile scenarios verified (hardcoded, partial DB, full DB)
+    - Unit tests added for Merge and ExtractAgentParams
 
 **Next Steps**:
-- Begin Milestone 5: Workflow Lab Interface
+- Conduct Milestone 5 Planning Session (Workflow Lab Interface)
 
 ## Future Phases (Beyond Milestone 7)
 

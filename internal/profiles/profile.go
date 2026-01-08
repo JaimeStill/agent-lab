@@ -47,6 +47,44 @@ func NewProfileWithStages(stages ...ProfileStage) *ProfileWithStages {
 	}
 }
 
+// Merge combines this profile with another, returning a new ProfileWithStages.
+// Stages from other take precedence over this profile's stages for matching names.
+// Profile metadata (ID, Name, WorkflowName) comes from other.
+// This enables partial profiles that only override specific stages.
+func (p *ProfileWithStages) Merge(other *ProfileWithStages) *ProfileWithStages {
+	if other == nil {
+		return p
+	}
+
+	result := &ProfileWithStages{
+		Profile: other.Profile,
+		Stages:  make([]ProfileStage, 0, len(p.Stages)),
+	}
+
+	otherStages := make(map[string]ProfileStage)
+	for _, s := range other.Stages {
+		otherStages[s.StageName] = s
+	}
+
+	seen := make(map[string]bool)
+	for _, s := range p.Stages {
+		if override, ok := otherStages[s.StageName]; ok {
+			result.Stages = append(result.Stages, override)
+		} else {
+			result.Stages = append(result.Stages, s)
+		}
+		seen[s.StageName] = true
+	}
+
+	for _, s := range other.Stages {
+		if !seen[s.StageName] {
+			result.Stages = append(result.Stages, s)
+		}
+	}
+
+	return result
+}
+
 // Stage returns the configuration for the named stage, or nil if not found.
 // The returned pointer references the actual slice element, allowing modification.
 func (p *ProfileWithStages) Stage(name string) *ProfileStage {

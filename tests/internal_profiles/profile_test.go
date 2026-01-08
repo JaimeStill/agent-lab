@@ -160,3 +160,138 @@ func TestProfileWithStages_Stage_ReturnsPointerToSliceElement(t *testing.T) {
 		t.Error("Stage() should return pointer to actual slice element, allowing modification")
 	}
 }
+
+func TestProfileWithStages_Merge_NilOther(t *testing.T) {
+	prompt := "Base prompt"
+	base := profiles.NewProfileWithStages(
+		profiles.ProfileStage{StageName: "detect", SystemPrompt: &prompt},
+	)
+
+	result := base.Merge(nil)
+
+	if result != base {
+		t.Error("Merge(nil) should return original profile")
+	}
+}
+
+func TestProfileWithStages_Merge_EmptyOther(t *testing.T) {
+	basePrompt := "Base prompt"
+	base := profiles.NewProfileWithStages(
+		profiles.ProfileStage{StageName: "detect", SystemPrompt: &basePrompt},
+		profiles.ProfileStage{StageName: "classify", SystemPrompt: &basePrompt},
+	)
+
+	other := profiles.NewProfileWithStages()
+
+	result := base.Merge(other)
+
+	if len(result.Stages) != 2 {
+		t.Errorf("Merge() stages len = %d, want 2", len(result.Stages))
+	}
+
+	if result.Stage("detect") == nil || result.Stage("classify") == nil {
+		t.Error("Merge() should preserve base stages when other is empty")
+	}
+}
+
+func TestProfileWithStages_Merge_OverrideStages(t *testing.T) {
+	basePrompt := "Base prompt"
+	overridePrompt := "Override prompt"
+
+	base := profiles.NewProfileWithStages(
+		profiles.ProfileStage{StageName: "detect", SystemPrompt: &basePrompt},
+		profiles.ProfileStage{StageName: "classify", SystemPrompt: &basePrompt},
+	)
+
+	other := profiles.NewProfileWithStages(
+		profiles.ProfileStage{StageName: "detect", SystemPrompt: &overridePrompt},
+	)
+
+	result := base.Merge(other)
+
+	if len(result.Stages) != 2 {
+		t.Errorf("Merge() stages len = %d, want 2", len(result.Stages))
+	}
+
+	detectStage := result.Stage("detect")
+	if detectStage == nil {
+		t.Fatal("detect stage is nil")
+	}
+	if *detectStage.SystemPrompt != "Override prompt" {
+		t.Errorf("detect stage prompt = %q, want %q", *detectStage.SystemPrompt, "Override prompt")
+	}
+
+	classifyStage := result.Stage("classify")
+	if classifyStage == nil {
+		t.Fatal("classify stage is nil")
+	}
+	if *classifyStage.SystemPrompt != "Base prompt" {
+		t.Errorf("classify stage prompt = %q, want %q", *classifyStage.SystemPrompt, "Base prompt")
+	}
+}
+
+func TestProfileWithStages_Merge_AddsNewStages(t *testing.T) {
+	basePrompt := "Base prompt"
+	newPrompt := "New prompt"
+
+	base := profiles.NewProfileWithStages(
+		profiles.ProfileStage{StageName: "detect", SystemPrompt: &basePrompt},
+	)
+
+	other := profiles.NewProfileWithStages(
+		profiles.ProfileStage{StageName: "score", SystemPrompt: &newPrompt},
+	)
+
+	result := base.Merge(other)
+
+	if len(result.Stages) != 2 {
+		t.Errorf("Merge() stages len = %d, want 2", len(result.Stages))
+	}
+
+	if result.Stage("detect") == nil {
+		t.Error("detect stage should be preserved from base")
+	}
+
+	if result.Stage("score") == nil {
+		t.Error("score stage should be added from other")
+	}
+}
+
+func TestProfileWithStages_Merge_UsesOtherMetadata(t *testing.T) {
+	basePrompt := "Base prompt"
+
+	base := &profiles.ProfileWithStages{
+		Profile: profiles.Profile{
+			ID:           uuid.New(),
+			WorkflowName: "base-workflow",
+			Name:         "base-profile",
+		},
+		Stages: []profiles.ProfileStage{
+			{StageName: "detect", SystemPrompt: &basePrompt},
+		},
+	}
+
+	otherID := uuid.New()
+	other := &profiles.ProfileWithStages{
+		Profile: profiles.Profile{
+			ID:           otherID,
+			WorkflowName: "other-workflow",
+			Name:         "other-profile",
+		},
+		Stages: []profiles.ProfileStage{},
+	}
+
+	result := base.Merge(other)
+
+	if result.ID != otherID {
+		t.Error("Merge() should use other's ID")
+	}
+
+	if result.WorkflowName != "other-workflow" {
+		t.Errorf("Merge() WorkflowName = %q, want %q", result.WorkflowName, "other-workflow")
+	}
+
+	if result.Name != "other-profile" {
+		t.Errorf("Merge() Name = %q, want %q", result.Name, "other-profile")
+	}
+}

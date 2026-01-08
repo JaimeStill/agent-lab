@@ -36,12 +36,25 @@ curl -X POST http://localhost:8080/api/agents \
 ```
 
 ```sh
-curl -X POST http://localhost:8080/api/workflows/classify-docs/execute/stream \
+curl -X POST http://localhost:8080/api/workflows/classify-docs/execute \
   -H "Content-Type: application/json" \
   -d '{
     "params": {
       "document_id": "<document-id>",
       "agent_id": "<agent-id>"
+    },
+    "token": "<api-key>"
+  }'
+```
+
+```sh
+curl -X POST http://localhost:8080/api/workflows/classify-docs/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "params": {
+      "document_id": "<document-uuid>",
+      "agent_id": "<agent-uuid>",
+      "profile_id": "<default-uuid>"
     },
     "token": "<api-key>"
   }'
