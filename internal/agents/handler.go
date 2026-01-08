@@ -13,6 +13,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const visionSize int64 = 32 << 20
+
 // Handler provides HTTP handlers for agent CRUD operations and execution endpoints.
 type Handler struct {
 	sys        System
@@ -212,7 +214,7 @@ func (h *Handler) Vision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	form, err := ParseVisionForm(r, 32<<20)
+	form, err := ParseVisionForm(r, visionSize)
 	if err != nil {
 		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
 		return
@@ -235,7 +237,7 @@ func (h *Handler) VisionStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	form, err := ParseVisionForm(r, 32<<20)
+	form, err := ParseVisionForm(r, visionSize)
 	if err != nil {
 		handlers.RespondError(w, h.logger, http.StatusBadRequest, err)
 		return
@@ -309,7 +311,7 @@ func (h *Handler) writeSSEStream(w http.ResponseWriter, r *http.Request, stream 
 	for chunk := range stream {
 		if chunk.Error != nil {
 			data, _ := json.Marshal(map[string]string{"error": chunk.Error.Error()})
-			fmt.Fprintf(w, "data %s\n\n", data)
+			fmt.Fprintf(w, "data: %s\n\n", data)
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()
 			}
