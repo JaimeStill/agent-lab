@@ -749,14 +749,191 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
 
 **Objective**: Build web interface for workflow monitoring and iteration.
 
+**Architecture Document**: `_context/milestones/m05-workflow-lab-interface.md`
+
+**Key Decisions**:
+
+1. **Hybrid Architecture** - Go templates render page shell/lists, Web Components enhance interactive regions (monitoring, charts, previews). Fast initial render, smaller bundles, server-driven routing.
+
+2. **Native Web Stack** - No frameworks. Web Components, TC39 Signals (via signal-polyfill, introduced when needed), D3.js for charts, Fetch API for REST, SSE for real-time.
+
+3. **@layer CSS Architecture** - Cascade layers (reset → theme → layout → components) with CSS custom properties for design tokens. Dark/light theme via `prefers-color-scheme`.
+
+4. **Route-Scoped Bundles** - Vite library mode produces per-route bundles. Each page loads only the JS/CSS it needs.
+
+5. **Foundation First** - Build infrastructure (Vite + Go embedding, design tokens, core components) before feature UIs.
+
+**Technology Stack**:
+- Build: Bun + Vite + TypeScript (CI only, not in container)
+- Components: Web Components (`al-` prefix) with Light DOM (no Shadow DOM for global styling)
+- State: TC39 Signals via signal-polyfill (introduced in Session 05h)
+- Styling: @layer-based CSS with design tokens
+- Charts: D3.js (lazy-loaded/tree-shaken)
+- Templates: Go `html/template` for SSR
+
+**Development Sessions**:
+
+#### Session 05a: Web Infrastructure Setup
+
+**Objective**: Establish Vite + TypeScript build pipeline with Go embedding
+
 **Deliverables**:
-- OpenAPI Scalar interface (established in Milestone 1, enhanced)
-- Document preview web component (view rendered pages)
-- Execution monitoring interface (SSE client with progress display)
-- Confidence score visualization (D3.js line/bar charts)
-- Results display with detected markings overlay
-- Side-by-side comparison of execution runs
-- Workflow parameter adjustment UI
+- Initialize `web/` with Bun, Vite, TypeScript configuration
+- Configure Vite library mode with route-scoped entries
+- Create `web.go` with embed.FS for dist/ and templates/
+- Implement template rendering system with layouts
+- Create minimal app shell template with placeholder navigation
+- Verify build pipeline: `bun run build` → Go embed → serve
+
+**Validation**: Navigate to `/app` and see rendered shell with embedded JS/CSS
+
+---
+
+#### Session 05b: Design Tokens + CSS Architecture
+
+**Objective**: Establish @layer-based design system
+
+**Deliverables**:
+- Create CSS reset layer (modern defaults, accessibility)
+- Create theme layer (color tokens, dark/light via prefers-color-scheme)
+- Create layout layer (spacing, sizing, typography tokens)
+- Create component layer (base component styles)
+- Integrate with Vite build (CSS in entries)
+
+**Validation**: App shell renders with proper tokens, theme switching works
+
+---
+
+#### Session 05c: Core Components + Patterns
+
+**Objective**: Establish Web Component base patterns and shared utilities
+
+**Deliverables**:
+- Base component class with lifecycle helpers
+- API client utility (fetch wrapper, error handling)
+- Atom components: `al-button`, `al-input`, `al-badge`, `al-spinner`
+- Molecule components: `al-form-field`, `al-card`
+- Document component patterns (registration, data binding)
+
+**Note**: Signals and SSE client deferred to Session 05h
+
+**Validation**: Components render correctly, form controls functional
+
+---
+
+#### Session 05d: Providers + Agents UI
+
+**Objective**: Establish CRUD UI patterns with data table component
+
+**Deliverables**:
+- `al-data-table` organism (sortable, filterable, paginated)
+- Providers list page with data table
+- Provider create/edit form (modal or page)
+- Agents list page (reuses data table)
+- Agent create/edit form
+- Agent execution modals (chat, vision with streaming)
+- Establish list/detail/form page patterns
+
+**Validation**: CRUD operations work for providers and agents
+
+---
+
+#### Session 05e: Documents + Images UI
+
+**Objective**: Media handling with upload, preview, and rendering controls
+
+**Deliverables**:
+- Document upload component (multipart form)
+- Documents list with thumbnails (first page preview)
+- Document detail page (metadata, page list)
+- `al-image-viewer` component (zoom, pan, enhance controls)
+- Image rendering form (page range, DPI, format, filters)
+- Binary image streaming display
+
+**Validation**: Upload documents, render pages with filters, view images
+
+---
+
+#### Session 05f: Profiles UI
+
+**Objective**: Nested resource management with stage editor
+
+**Deliverables**:
+- Profiles list (filtered by workflow)
+- Profile detail page with stages list
+- `al-stage-editor` component (agent selection, prompt, options)
+- Inline stage save (create/update semantics)
+- Stage deletion with confirmation
+- Profile cloning for A/B testing prep
+
+**Validation**: Create profile, add stages, modify agent assignments
+
+---
+
+#### Session 05g: Workflow Execution Trigger
+
+**Objective**: Launch workflow executions with parameter configuration
+
+**Deliverables**:
+- Workflows list page (registered workflows)
+- Workflow detail page (description, execution history)
+- `al-execution-form` component (profile selection, params)
+- Execute action with SSE connection initiation
+- Navigation to run monitoring on execute
+
+**Validation**: Select workflow, configure params, trigger execution
+
+---
+
+#### Session 05h: Run Monitoring + SSE Integration
+
+**Objective**: Real-time execution monitoring with SSE event stream
+
+**Deliverables**:
+- Run detail page (status, timing, params)
+- `al-workflow-monitor` component (SSE integration)
+- TC39 Signals integration via signal-polyfill
+- SSE client utility (connect, disconnect, event handling)
+- Stage timeline visualization (started, completed, failed)
+- Decision flow display (from_node → to_node)
+- Live event stream display
+- Run actions (cancel, resume if applicable)
+
+**Validation**: Execute workflow, watch real-time progress, see stages complete
+
+---
+
+#### Session 05i: Confidence Visualization + Results
+
+**Objective**: D3.js-based confidence score charts and result display
+
+**Deliverables**:
+- `al-confidence-chart` component (D3.js integration)
+- Line chart: confidence evolution across pages
+- Bar chart: per-factor confidence breakdown
+- Interactive tooltips with detail
+- Results summary display (classification, markings)
+- Detected markings overlay preparation
+
+**Validation**: Execute classify-docs, view confidence charts, see results
+
+---
+
+#### Session 05j: Comparison + Iteration
+
+**Objective**: Side-by-side run comparison and re-execution workflow
+
+**Deliverables**:
+- `al-run-comparison` component (two runs side-by-side)
+- Diff highlighting for detection differences
+- Profile variation comparison
+- Quick re-execute with modified parameters
+- Parameter adjustment panel (profile, filters)
+- Complete iteration cycle validation
+
+**Validation**: Compare two runs, identify differences, re-execute with changes
+
+---
 
 **Success Criteria**:
 - View document pages with enhancement filter controls
@@ -894,7 +1071,7 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
     - Unit tests added for Merge and ExtractAgentParams
 
 **Next Steps**:
-- Conduct Milestone 5 Planning Session (Workflow Lab Interface)
+- Begin Milestone 5: Session 05a (Web Infrastructure Setup)
 
 ## Future Phases (Beyond Milestone 7)
 
