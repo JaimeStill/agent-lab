@@ -131,7 +131,7 @@ agent-lab will enable experimentation with:
 
 ## Architecture Principles
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete technical specifications and [_context/web-service-architecture.md](./_context/web-service-architecture.md) for architectural philosophy.
+See `.claude/skills/` for domain-specific patterns (loaded on-demand via context system).
 
 **Key Principles**:
 - **State Flows Down, Never Up**: State flows through method parameters unless owned by the object/process
@@ -163,7 +163,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for complete technical specifications a
 - Clear completion criteria at each level
 - Regular commit points for working code
 
-See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
+Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` for project orientation.
 
 ---
 
@@ -1052,6 +1052,11 @@ See [CLAUDE.md](./CLAUDE.md) for detailed development session workflow.
   - Added MultiObserver to go-agents-orchestration v0.3.1
   - Migrated shim from agent-lab to library
   - Enables broadcasting events to multiple observers
+- Maintenance Session mt04: Context Architecture Optimization ✅
+  - Restructured context from monolithic files to Claude Code native skills/rules
+  - Created 12 on-demand skills for domain-specific patterns
+  - Created 3 always-loaded rules (243 lines vs ~4,900 previously)
+  - Archived ARCHITECTURE.md, CLAUDE.md, web-service-architecture.md, service-design.md
 
 **Recently Completed**:
 - **Milestone 4: classify-docs Workflow Integration** ✅
@@ -1127,9 +1132,9 @@ Manage workflow evolution:
 
 This project is currently in early development. Contributions welcome as the project matures.
 
-**Development Workflow**: See [CLAUDE.md](./CLAUDE.md) for development session workflow and conventions.
+**Development Workflow**: Session workflow auto-loaded via `.claude/rules/`.
 
-**Architecture Guidelines**: See [ARCHITECTURE.md](./ARCHITECTURE.md) for technical specifications and patterns.
+**Architecture Patterns**: Domain-specific patterns in `.claude/skills/` (loaded on-demand).
 
 ## License
 

@@ -1,3 +1,3 @@
-I'm ready to begin the MILESTONE milestone planning session. Refer to @PROJECT.md for the project roadmap.
+I'm ready to begin the MILESTONE milestone planning session. Reference @PROJECT.md for the project roadmap.
 
-Follow all conventions and instructions in @CLAUDE.md, particularly the Milestone Planning Session workflow.
+Session workflow is automatically loaded via .claude/rules/. The development-methodology skill will load with planning context.
