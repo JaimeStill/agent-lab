@@ -1,10 +1,10 @@
-# Agents API Guide
+# Execution Snippets
 
-This guide covers the Agents API endpoints for creating, managing, and executing AI agents.
+Quick reference for terminal execution.
 
-## Agent Configurations
+## Agents
 
-### Ollama Chat Agent
+### Ollama Chat
 
 ```bash
 curl -X POST http://localhost:8080/api/agents \
@@ -37,11 +37,6 @@ curl -X POST http://localhost:8080/api/agents \
             "max_tokens": 4096,
             "temperature": 0.7,
             "top_p": 0.95
-          },
-          "tools": {
-            "max_tokens": 4096,
-            "temperature": 0.7,
-            "tool_choice": "auto"
           }
         }
       }
@@ -49,7 +44,7 @@ curl -X POST http://localhost:8080/api/agents \
   }'
 ```
 
-### Ollama Vision Agent
+### Ollama Vision
 
 ```bash
 curl -X POST http://localhost:8080/api/agents \
@@ -77,11 +72,6 @@ curl -X POST http://localhost:8080/api/agents \
       "model": {
         "name": "gemma3:4b",
         "capabilities": {
-          "chat": {
-            "max_tokens": 4096,
-            "temperature": 0.7,
-            "top_p": 0.95
-          },
           "vision": {
             "max_tokens": 4096,
             "temperature": 0.7,
@@ -95,7 +85,7 @@ curl -X POST http://localhost:8080/api/agents \
   }'
 ```
 
-### Ollama Embeddings Agent
+### Ollama Embeddings
 
 ```bash
 curl -X POST http://localhost:8080/api/agents \
@@ -132,7 +122,7 @@ curl -X POST http://localhost:8080/api/agents \
   }'
 ```
 
-### Azure OpenAI Agent (API Key)
+### Azure OpenAI (API Key)
 
 ```bash
 curl -X POST http://localhost:8080/api/agents \
@@ -176,7 +166,7 @@ curl -X POST http://localhost:8080/api/agents \
   }'
 ```
 
-### Azure OpenAI Agent (Entra ID Bearer Token)
+### Azure OpenAI (Entra ID)
 
 ```bash
 curl -X POST http://localhost:8080/api/agents \
@@ -220,77 +210,51 @@ curl -X POST http://localhost:8080/api/agents \
   }'
 ```
 
-## CRUD Endpoints
-
-### Create Agent
+### Azure GPT-5-mini (Vision)
 
 ```bash
 curl -X POST http://localhost:8080/api/agents \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "my-agent",
-    "config": { ... }
+    "name": "gpt-5-mini",
+    "config": {
+      "name": "gpt-5-mini",
+      "provider": {
+        "name": "azure",
+        "base_url": "https://go-agents-platform.openai.azure.com/openai",
+        "options": {
+          "deployment": "gpt-5-mini",
+          "api_version": "2025-01-01-preview",
+          "auth_type": "api_key",
+          "token": "token"
+        }
+      },
+      "model": {
+        "name": "gpt-5-mini",
+        "capabilities": {
+          "chat": {
+            "max_completion_tokens": 4096
+          },
+          "vision": {
+            "max_completion_tokens": 4096,
+            "vision_options": {
+              "detail": "high"
+            }
+          }
+        }
+      }
+    }
   }'
 ```
 
-### List Agents
-
-```bash
-curl http://localhost:8080/api/agents
-```
-
-With pagination and filtering:
-
-```bash
-curl "http://localhost:8080/api/agents?page=1&pageSize=10&name=ollama"
-```
-
-### Get Agent by ID
-
-```bash
-curl http://localhost:8080/api/agents/{id}
-```
-
-### Update Agent
-
-```bash
-curl -X PUT http://localhost:8080/api/agents/{id} \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "updated-name",
-    "config": { ... }
-  }'
-```
-
-### Delete Agent
-
-```bash
-curl -X DELETE http://localhost:8080/api/agents/{id}
-```
-
-### Search Agents (POST)
-
-```bash
-curl -X POST http://localhost:8080/api/agents/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "page": 1,
-    "pageSize": 10,
-    "search": "azure",
-    "sort": [{"field": "name", "direction": "asc"}]
-  }'
-```
-
-## Execution Endpoints
+## Agent Execution
 
 ### Chat
 
 ```bash
 curl -X POST http://localhost:8080/api/agents/{id}/chat \
   -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "What is cloud native architecture?"
-  }'
+  -d '{"prompt": "What is cloud native architecture?"}'
 ```
 
 ### Chat Stream (SSE)
@@ -298,12 +262,10 @@ curl -X POST http://localhost:8080/api/agents/{id}/chat \
 ```bash
 curl -N -X POST http://localhost:8080/api/agents/{id}/chat/stream \
   -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "What is cloud native architecture?"
-  }'
+  -d '{"prompt": "What is cloud native architecture?"}'
 ```
 
-### Vision (File Upload)
+### Vision
 
 ```bash
 curl -X POST http://localhost:8080/api/agents/{id}/vision \
@@ -311,7 +273,7 @@ curl -X POST http://localhost:8080/api/agents/{id}/vision \
   -F "images=@/path/to/image.png"
 ```
 
-Multiple images:
+### Vision (Multiple Images)
 
 ```bash
 curl -X POST http://localhost:8080/api/agents/{id}/vision \
@@ -320,7 +282,7 @@ curl -X POST http://localhost:8080/api/agents/{id}/vision \
   -F "images=@/path/to/image2.png"
 ```
 
-### Vision Stream (File Upload, SSE)
+### Vision Stream (SSE)
 
 ```bash
 curl -N -X POST http://localhost:8080/api/agents/{id}/vision/stream \
@@ -342,10 +304,7 @@ curl -X POST http://localhost:8080/api/agents/{id}/tools \
         "parameters": {
           "type": "object",
           "properties": {
-            "location": {
-              "type": "string",
-              "description": "The city name"
-            }
+            "location": {"type": "string", "description": "The city name"}
           },
           "required": ["location"]
         }
@@ -359,16 +318,10 @@ curl -X POST http://localhost:8080/api/agents/{id}/tools \
 ```bash
 curl -X POST http://localhost:8080/api/agents/{id}/embed \
   -H "Content-Type: application/json" \
-  -d '{
-    "input": "Cloud native architecture emphasizes microservices and containerization."
-  }'
+  -d '{"input": "Cloud native architecture emphasizes microservices and containerization."}'
 ```
 
-## Token Authentication (Azure)
-
-For Azure agents, pass the authentication token at request time. The token overrides the placeholder value stored in the agent config.
-
-### API Key Authentication
+### With Azure Token
 
 ```bash
 curl -N -X POST http://localhost:8080/api/agents/{id}/chat/stream \
@@ -376,39 +329,86 @@ curl -N -X POST http://localhost:8080/api/agents/{id}/chat/stream \
   -d "{\"prompt\": \"Hello\", \"token\": \"$AZURE_KEY\"}"
 ```
 
-### Entra ID Bearer Token
+## Workflows
+
+### Execute classify-docs
 
 ```bash
-curl -N -X POST http://localhost:8080/api/agents/{id}/chat/stream \
+curl -X POST http://localhost:8080/api/workflows/classify-docs/execute \
   -H "Content-Type: application/json" \
-  -d "{\"prompt\": \"Hello\", \"token\": \"$AZURE_TOKEN\"}"
+  -d '{
+    "params": {
+      "document_id": "<document-uuid>",
+      "agent_id": "<agent-uuid>"
+    },
+    "token": "<api-key>"
+  }'
 ```
 
-### Vision with Token
+### Execute classify-docs (with Profile)
 
 ```bash
-curl -X POST http://localhost:8080/api/agents/{id}/vision \
-  -F "prompt=What is in this image?" \
-  -F "images=@/path/to/image.png" \
-  -F "token=$AZURE_KEY"
+curl -X POST http://localhost:8080/api/workflows/classify-docs/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "params": {
+      "document_id": "<document-uuid>",
+      "agent_id": "<agent-uuid>",
+      "profile_id": "<profile-uuid>"
+    },
+    "token": "<api-key>"
+  }'
 ```
 
-### Tools with Token
+### List Workflow Runs
 
 ```bash
-curl -X POST http://localhost:8080/api/agents/{id}/tools \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"prompt\": \"What is the weather?\",
-    \"tools\": [...],
-    \"token\": \"$AZURE_KEY\"
-  }"
+curl http://localhost:8080/api/workflows/runs
 ```
 
-### Embed with Token
+### Get Run Details
 
 ```bash
-curl -X POST http://localhost:8080/api/agents/{id}/embed \
+curl http://localhost:8080/api/workflows/runs/{id}
+```
+
+### Get Run Stages
+
+```bash
+curl http://localhost:8080/api/workflows/runs/{id}/stages
+```
+
+### Get Run Decisions
+
+```bash
+curl http://localhost:8080/api/workflows/runs/{id}/decisions
+```
+
+## Documents
+
+### Upload
+
+```bash
+curl -X POST http://localhost:8080/api/documents \
+  -F "file=@/path/to/document.pdf"
+```
+
+### List
+
+```bash
+curl http://localhost:8080/api/documents
+```
+
+### Render Pages
+
+```bash
+curl -X POST http://localhost:8080/api/images/{documentId}/render \
   -H "Content-Type: application/json" \
-  -d "{\"input\": \"Text to embed\", \"token\": \"$AZURE_KEY\"}"
+  -d '{"pages": "1-5", "dpi": 150, "format": "png"}'
+```
+
+### Get Image Binary
+
+```bash
+curl http://localhost:8080/api/images/{id}/data -o image.png
 ```

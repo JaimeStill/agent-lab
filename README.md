@@ -190,11 +190,10 @@ GET /api/workflows/runs/{run_id}/stages
 
 ## Documentation
 
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - Technical specifications and design patterns
-- **[AGENTS.md](./AGENTS.md)** - Agents API guide with curl examples
-- **[CLAUDE.md](./CLAUDE.md)** - Development conventions and workflow
 - **[PROJECT.md](./PROJECT.md)** - Project roadmap and milestones
-- **[_context/web-service-architecture.md](./_context/web-service-architecture.md)** - Architectural philosophy
+- **[SNIPPETS.md](./SNIPPETS.md)** - Execution snippets for terminal
+- **[.claude/CLAUDE.md](./.claude/CLAUDE.md)** - Development context and skill index
+- **[.claude/skills/](./.claude/skills/)** - Domain-specific patterns (on-demand)
 
 ## License
 

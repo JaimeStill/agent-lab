@@ -203,7 +203,7 @@ Maintenance sessions differ from development sessions - they focus on cleanup, r
 - Pre-milestone cleanup to reduce technical debt
 - Cross-repository version coordination
 
-**Session ID Format**: `m##` (e.g., `m01`, `m02`). Check _context/sessions to determine the current sequence number.
+**Session ID Format**: `mt##` (e.g., `mt01`, `mt02`). Check _context/sessions to determine the current sequence number.
 
 **Workflow**:
 
@@ -212,8 +212,8 @@ Maintenance sessions differ from development sessions - they focus on cleanup, r
 3. **Developer Execution** - Follow guide, coordinating releases if needed
 4. **AI Validation** - Validate changes and adjust tests
 5. **Session Closeout**:
-   - Archive guide to `_context/sessions/.archive/m##-[title].md`
-   - Create summary at `_context/sessions/m##-[title].md`
+   - Archive guide to `_context/sessions/.archive/mt##-[title].md`
+   - Create summary at `_context/sessions/mt##-[title].md`
    - Update PROJECT.md with maintenance session status
    - Update CLAUDE.md if workflow patterns evolved
 
