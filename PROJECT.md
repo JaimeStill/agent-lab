@@ -773,19 +773,20 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 **Development Sessions**:
 
-#### Session 05a: Web Infrastructure Setup
+#### Session 05a: Web Infrastructure Setup ✅
 
-**Objective**: Establish Vite + TypeScript build pipeline with Go embedding
+**Status**: Completed (2026-01-12)
 
-**Deliverables**:
-- Initialize `web/` with Bun, Vite, TypeScript configuration
-- Configure Vite library mode with route-scoped entries
-- Create `web.go` with embed.FS for dist/ and templates/
-- Implement template rendering system with layouts
-- Create minimal app shell template with placeholder navigation
-- Verify build pipeline: `bun run build` → Go embed → serve
+**Implemented**:
+- Vite + Bun + TypeScript build pipeline
+- Library mode with multiple entry points (shared, docs)
+- Scalar API docs integrated into Vite pipeline (replaced manual update-scalar.sh)
+- `web/web.go` with embed.FS for dist/ and templates/
+- Static asset serving at /static/
+- Design tokens CSS placeholder
+- Base layout template
 
-**Validation**: Navigate to `/app` and see rendered shell with embedded JS/CSS
+**Validation**: ✅ `/docs` renders Scalar UI, `/static/*` serves bundled assets, tests passing
 
 ---
 
@@ -1076,7 +1077,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
     - Unit tests added for Merge and ExtractAgentParams
 
 **Next Steps**:
-- Begin Milestone 5: Session 05a (Web Infrastructure Setup)
+- Continue Milestone 5: Session 05b (Design Tokens + CSS Architecture)
 
 ## Future Phases (Beyond Milestone 7)
 
