@@ -74,3 +74,60 @@ func TestStaticNotFound(t *testing.T) {
 		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusNotFound)
 	}
 }
+
+func TestNewHandler(t *testing.T) {
+	h, err := web.NewHandler()
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+	if h == nil {
+		t.Fatal("NewHandler() returned nil")
+	}
+}
+
+func TestHandlerRoutes(t *testing.T) {
+	h, err := web.NewHandler()
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	routes := h.Routes()
+	if routes.Prefix != "/app" {
+		t.Errorf("Prefix = %q, want %q", routes.Prefix, "/app")
+	}
+	if len(routes.Routes) == 0 {
+		t.Error("Routes() returned empty routes")
+	}
+}
+
+func TestHandlerServesApp(t *testing.T) {
+	h, err := web.NewHandler()
+	if err != nil {
+		t.Fatalf("NewHandler() error = %v", err)
+	}
+
+	routes := h.Routes()
+	handler := routes.Routes[0].Handler
+
+	req := httptest.NewRequest(http.MethodGet, "/app", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "text/html; charset=utf-8" {
+		t.Errorf("Content-Type = %q, want %q", contentType, "text/html; charset=utf-8")
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "<!DOCTYPE html>") {
+		t.Error("response body does not contain DOCTYPE")
+	}
+}

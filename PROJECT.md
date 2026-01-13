@@ -773,7 +773,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 **Development Sessions**:
 
-#### Session 05a: Web Infrastructure Setup ✅
+#### Session 5a: Web Infrastructure Setup ✅
 
 **Status**: Completed (2026-01-12)
 
@@ -790,22 +790,22 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 ---
 
-#### Session 05b: Design Tokens + CSS Architecture
+#### Session 5b: Design Tokens + CSS Architecture ✅
 
-**Objective**: Establish @layer-based design system
+**Status**: Completed (2026-01-13)
 
-**Deliverables**:
-- Create CSS reset layer (modern defaults, accessibility)
-- Create theme layer (color tokens, dark/light via prefers-color-scheme)
-- Create layout layer (spacing, sizing, typography tokens)
-- Create component layer (base component styles)
-- Integrate with Vite build (CSS in entries)
+**Implemented**:
+- CSS reset layer (box-sizing, margin reset, reduced-motion)
+- Theme layer (color tokens, dark/light via prefers-color-scheme)
+- Layout layer (spacing scale, typography scale)
+- Layer orchestration in styles.css
+- Web client handler (`/app` route) following docs.go pattern
 
-**Validation**: App shell renders with proper tokens, theme switching works
+**Validation**: ✅ App shell renders with proper tokens, dark/light theme switching works
 
 ---
 
-#### Session 05c: Core Components + Patterns
+#### Session 5c: Core Components + Patterns
 
 **Objective**: Establish Web Component base patterns and shared utilities
 
@@ -822,7 +822,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 ---
 
-#### Session 05d: Providers + Agents UI
+#### Session 5d: Providers + Agents UI
 
 **Objective**: Establish CRUD UI patterns with data table component
 
@@ -839,7 +839,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 ---
 
-#### Session 05e: Documents + Images UI
+#### Session 5e: Documents + Images UI
 
 **Objective**: Media handling with upload, preview, and rendering controls
 
@@ -855,7 +855,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 ---
 
-#### Session 05f: Profiles UI
+#### Session 5f: Profiles UI
 
 **Objective**: Nested resource management with stage editor
 
@@ -871,7 +871,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 ---
 
-#### Session 05g: Workflow Execution Trigger
+#### Session 5g: Workflow Execution Trigger
 
 **Objective**: Launch workflow executions with parameter configuration
 
@@ -886,7 +886,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 ---
 
-#### Session 05h: Run Monitoring + SSE Integration
+#### Session 5h: Run Monitoring + SSE Integration
 
 **Objective**: Real-time execution monitoring with SSE event stream
 
@@ -904,7 +904,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 ---
 
-#### Session 05i: Confidence Visualization + Results
+#### Session 5i: Confidence Visualization + Results
 
 **Objective**: D3.js-based confidence score charts and result display
 
@@ -920,7 +920,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 ---
 
-#### Session 05j: Comparison + Iteration
+#### Session 5j: Comparison + Iteration
 
 **Objective**: Side-by-side run comparison and re-execution workflow
 
@@ -1059,6 +1059,11 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - Created 3 always-loaded rules (243 lines vs ~4,900 previously)
   - Archived ARCHITECTURE.md, CLAUDE.md, web-service-architecture.md, service-design.md
 
+**In Progress**:
+- **Milestone 5: Workflow Lab Interface**
+  - Session 5a: Web Infrastructure Setup ✅
+  - Session 5b: Design Tokens + CSS Architecture ✅
+
 **Recently Completed**:
 - **Milestone 4: classify-docs Workflow Integration** ✅
   - Session 4a: Profiles Infrastructure & Workflow Migration ✓
@@ -1066,18 +1071,10 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - Session 4c: Enhancement, Classification, and Scoring ✓
   - Session 4d: Data Security and Seed Infrastructure ✓
   - Session 4e: Performance and Accuracy Refinement ✓
-    - Parallel PDF rendering (6.6x improvement)
-    - Dynamic worker detection via DefaultParallelConfig
-    - Lifecycle context pattern for long-running processes
-    - 27-page PDF: 3m19s (timeout) → 1m40s completion
-    - ~96% marking detection accuracy validated
   - **Milestone Review** ✓
-    - Profile merging implemented (partial profiles overlay on defaults)
-    - All profile scenarios verified (hardcoded, partial DB, full DB)
-    - Unit tests added for Merge and ExtractAgentParams
 
 **Next Steps**:
-- Continue Milestone 5: Session 05b (Design Tokens + CSS Architecture)
+- Continue Milestone 5: Session 05c (Core Components + Patterns)
 
 ## Future Phases (Beyond Milestone 7)
 

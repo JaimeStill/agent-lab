@@ -7,6 +7,8 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+
+	"github.com/JaimeStill/agent-lab/internal/routes"
 )
 
 //go:embed dist/*
@@ -34,4 +36,38 @@ func Static() http.HandlerFunc {
 // and can be used for server-rendered pages.
 func Templates() (*template.Template, error) {
 	return template.ParseFS(templateFS, "templates/**/*.html")
+}
+
+// Handler serves the web client application pages using Go templates.
+type Handler struct {
+	tmpl *template.Template
+}
+
+// NewHandler creates a new web client handler by parsing embedded templates.
+// Returns an error if template parsing fails.
+func NewHandler() (*Handler, error) {
+	tmpl, err := Templates()
+	if err != nil {
+		return nil, err
+	}
+	return &Handler{tmpl: tmpl}, nil
+}
+
+// Routes returns the route group for web client endpoints.
+// All routes are prefixed with /app.
+func (h *Handler) Routes() routes.Group {
+	return routes.Group{
+		Prefix: "/app",
+		Routes: []routes.Route{
+			{Method: "GET", Pattern: "", Handler: h.serveApp},
+		},
+	}
+}
+
+func (h *Handler) serveApp(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	h.tmpl.ExecuteTemplate(w, "app.html", map[string]string{
+		"Title":  "Home",
+		"Bundle": "shared",
+	})
 }

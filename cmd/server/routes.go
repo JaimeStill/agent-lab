@@ -119,6 +119,12 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 	docsHandler := docs.NewHandler(specBytes)
 	r.RegisterGroup(docsHandler.Routes())
 
+	webHandler, err := web.NewHandler()
+	if err != nil {
+		return err
+	}
+	r.RegisterGroup(webHandler.Routes())
+
 	return nil
 }
 
