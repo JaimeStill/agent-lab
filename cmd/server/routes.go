@@ -13,6 +13,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/routes"
 	"github.com/JaimeStill/agent-lab/internal/workflows"
 	"github.com/JaimeStill/agent-lab/pkg/openapi"
+	"github.com/JaimeStill/agent-lab/web"
 	"github.com/JaimeStill/agent-lab/web/docs"
 )
 
@@ -107,6 +108,12 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 		Method:  "GET",
 		Pattern: "/api/openapi.json",
 		Handler: serveOpenAPISpec(specBytes),
+	})
+
+	r.RegisterRoute(routes.Route{
+		Method:  "GET",
+		Pattern: "/static/",
+		Handler: web.Static(),
 	})
 
 	docsHandler := docs.NewHandler(specBytes)

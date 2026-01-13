@@ -34,7 +34,7 @@ web/
 │   │   ├── api.ts               # Fetch wrapper
 │   │   ├── signals.ts           # TC39 Signals wrapper (Session 05h)
 │   │   └── sse.ts               # SSE client (Session 05h)
-│   ├── tokens/                  # Design tokens
+│   ├── design/                  # Design tokens
 │   │   ├── reset.css            # Modern CSS reset
 │   │   ├── theme.css            # Color tokens + dark/light
 │   │   ├── layout.css           # Spacing/sizing tokens
