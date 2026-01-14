@@ -20,4 +20,29 @@
     --text-3xl: 1.875rem;
     --text-4xl: 2.25rem;
   }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .stack-sm {
+    gap: var(--space-2);
+  }
+
+  .cluster {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    align-items: center;
+  }
+
+  .cluster-sm {
+    gap: var(--space-2);
+  }
+
+  .constrain {
+    max-width: 24rem;
+  }
 }

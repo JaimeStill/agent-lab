@@ -5,18 +5,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ .Title }} - Agent Lab</title>
+  <link rel="icon" type="image/x-icon" href="/app/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="/app/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/app/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/app/favicon-16x16.png">
   <link rel="stylesheet" href="/static/{{ .Bundle }}.css">
 </head>
 
 <body>
   <nav class="app-nav">
-    <a href="/app/workflows">Workflows</a>
-    <a href="/app/documents">Documents</a>
-    <a href="/app/profiles">Profiles</a>
-    <a href="/app/agents">Agents</a>
-    <a href="/app/providers">Providers</a>
+    <a href="/app" class="app-nav-brand">Agent Lab</a>
+    <div class="app-nav-links">
+      <a href="/app/workflows">Workflows</a>
+      <a href="/app/documents">Documents</a>
+      <a href="/app/profiles">Profiles</a>
+      <a href="/app/agents">Agents</a>
+      <a href="/app/providers">Providers</a>
+      <a href="/app/components">Components</a>
+    </div>
   </nav>
-
   <main class="app-content">
     {{ block "content" . }}{{ end }}
   </main>

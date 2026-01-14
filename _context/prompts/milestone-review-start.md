@@ -4,3 +4,5 @@ I'm ready to begin the MILESTONE milestone review session. Reference documents:
 - _context/sessions: session summaries
 
 Session workflow is automatically loaded via .claude/rules/.
+
+Follow the Milestone Review guidelines in /development-methodology
