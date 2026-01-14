@@ -43,7 +43,7 @@ Skills load automatically when context is relevant. Use these keywords/files to 
 | **agent-execution** | agent.Agent, VisionForm, token injection | `internal/agents/*.go` |
 | **workflow-orchestration** | StateGraph, Observer, CheckpointStore | `internal/workflows/*.go` |
 | **document-processing** | PDF, page rendering, RenderOptions | `internal/documents/*.go` |
-| **web-components** | al-* components, TypeScript, Vite | `web/**/*.ts` |
+| **web-development** | al-* components, TypeScript, Vite | `web/**/*.ts` |
 | **development-methodology** | milestone planning, session workflow | `_context/*.md` |
 
 ### Always-Loaded Rules

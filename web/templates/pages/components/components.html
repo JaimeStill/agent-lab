@@ -1,0 +1,119 @@
+{{ template "layouts/app.html" . }}
+
+{{ define "content" }}
+<div class="stack">
+  <h1>Component Styles</h1>
+
+  <section class="stack stack-sm">
+    <h2>Buttons</h2>
+    <div class="cluster">
+      <button class="btn">Default</button>
+      <button class="btn btn-primary">Primary</button>
+      <button class="btn btn-danger">Danger</button>
+      <button class="btn" disabled>Disabled</button>
+    </div>
+  </section>
+
+  <section class="stack stack-sm">
+    <h2>Form Elements</h2>
+    <div class="stack constrain">
+      <div class="form-group">
+        <label class="form-label">Text Input</label>
+        <input class="input" type="text" placeholder="Enter text...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Input with Error</label>
+        <input class="input input-error" type="text" value="Invalid value">
+        <span class="form-error">This field has an error</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Select</label>
+        <select class="input">
+          <option>Option 1</option>
+          <option>Option 2</option>
+          <option>Option 3</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Textarea</label>
+        <textarea class="input" rows="3" placeholder="Enter description..."></textarea>
+      </div>
+    </div>
+  </section>
+
+  <section class="stack stack-sm">
+    <h2>Badges</h2>
+    <div class="cluster cluster-sm">
+      <span class="badge">Default</span>
+      <span class="badge badge-success">Success</span>
+      <span class="badge badge-warning">Warning</span>
+      <span class="badge badge-error">Error</span>
+    </div>
+  </section>
+
+  <section class="stack stack-sm">
+    <h2>Table</h2>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Item One</td>
+          <td><span class="badge badge-success">Active</span></td>
+          <td><button class="btn">Edit</button></td>
+        </tr>
+        <tr>
+          <td>Item Two</td>
+          <td><span class="badge badge-warning">Pending</span></td>
+          <td><button class="btn">Edit</button></td>
+        </tr>
+        <tr>
+          <td>Item Three</td>
+          <td><span class="badge badge-error">Failed</span></td>
+          <td><button class="btn">Edit</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="stack stack-sm">
+    <h2>Striped Table</h2>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Description</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>First row</td>
+          <td>100</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Second row</td>
+          <td>200</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Third row</td>
+          <td>300</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Fourth row</td>
+          <td>400</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+{{ end }}

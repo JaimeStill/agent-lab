@@ -3,24 +3,42 @@
 @import url(./reset.css);
 @import url(./theme.css);
 @import url(./layout.css);
+@import url(./components.css);
+
+.app-content {
+  padding: var(--space-4);
+}
 
 .app-nav {
   display: flex;
-  gap: var(--space-4);
+  align-items: center;
+  justify-content: space-between;
   padding: var(--space-4);
   background-color: var(--bg-1);
   border-bottom: 1px solid var(--divider);
 }
 
-.app-nav a {
+.app-nav-brand {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color);
+  text-decoration: none;
+}
+
+.app-nav-brand:hover {
+  color: var(--blue);
+}
+
+.app-nav-links {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.app-nav-links a {
   color: var(--color-1);
   text-decoration: none;
 }
 
-.app-nav a:hover {
+.app-nav-links a:hover {
   color: var(--color);
-}
-
-.app-content {
-  padding: var(--space-4);
 }

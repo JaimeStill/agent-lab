@@ -805,20 +805,31 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 ---
 
-#### Session 5c: Core Components + Patterns
+#### Session 5c: Core Components + Patterns ✅
 
-**Objective**: Establish Web Component base patterns and shared utilities
+**Status**: Completed (2026-01-14)
 
-**Deliverables**:
-- Base component class with lifecycle helpers
-- API client utility (fetch wrapper, error handling)
-- Atom components: `al-button`, `al-input`, `al-badge`, `al-spinner`
-- Molecule components: `al-form-field`, `al-card`
-- Document component patterns (registration, data binding)
+**Implemented**:
+- Native-first guidelines documented in web-components skill
+- Semantic CSS classes for native elements (buttons, inputs, tables, badges)
+- Layout utilities (stack, cluster, constrain)
+- Template isolation pattern (clone + parse per page)
+- Favicon infrastructure via embedded public/ directory
+- Home and Components showcase pages
+- Nav with brand heading
 
-**Note**: Signals and SSE client deferred to Session 05h
+**Architectural Decisions**:
+- Native-first: Style native HTML elements with CSS classes, not wrapper components
+- Server-side rendering: Traditional form submissions and page reloads
+- Create components only for: SSE streaming, D3 charts, complex nested editors
+- Asset co-location: Templates can have adjacent .css/.ts files
 
-**Validation**: Components render correctly, form controls functional
+**Deferred**:
+- Responsive nav design (needs more thought on implementation)
+- API fetch wrapper (create when needed)
+- Base component class (create when first component needed)
+
+**Validation**: ✅ Pages render, CSS classes work, favicon loads, all tests passing
 
 ---
 
@@ -1063,6 +1074,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 - **Milestone 5: Workflow Lab Interface**
   - Session 5a: Web Infrastructure Setup ✅
   - Session 5b: Design Tokens + CSS Architecture ✅
+  - Session 5c: Core Components + Patterns ✅
 
 **Recently Completed**:
 - **Milestone 4: classify-docs Workflow Integration** ✅
@@ -1074,7 +1086,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - **Milestone Review** ✓
 
 **Next Steps**:
-- Continue Milestone 5: Session 05c (Core Components + Patterns)
+- Continue Milestone 5: Session 05d (Providers + Agents UI)
 
 ## Future Phases (Beyond Milestone 7)
 
