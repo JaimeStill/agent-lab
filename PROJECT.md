@@ -1071,9 +1071,11 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - Archived ARCHITECTURE.md, CLAUDE.md, web-service-architecture.md, service-design.md
 - Maintenance Session mt05: Web Architecture Refactor ✅
   - Extracted `pkg/routes` types (Route, Group, System interface)
-  - Created `pkg/web` infrastructure (TemplateSet, DistServer, PublicFileRoutes)
-  - Reorganized `web/` directory: `client/`, `scalar/`, `server/`, `public/`
-  - Updated URL routing: `/dist/*` for bundles, `/scalar` for OpenAPI UI
+  - Created `pkg/web` infrastructure (TemplateSet, Router, DistServer, PublicFileRoutes)
+  - Established isolated web clients pattern: `web/app/`, `web/scalar/`
+  - Each client is fully self-contained with Mount() function
+  - Per-client Vite configs (`client.config.ts`) merged by root `vite.config.ts`
+  - URL routing: `/app/*` for main app, `/scalar/*` for OpenAPI UI
   - Added Makefile for development workflow
   - Pre-parse templates at startup for zero per-request overhead
 
@@ -1093,6 +1095,10 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - **Milestone Review** ✓
 
 **Next Steps**:
+- **Prefix Session**: Fix broken 404 page in `web/app` before continuing M5
+  - Issue: 404 page requests `/app/dist/.css` and `/app/dist/.js` (empty bundle name)
+  - Cause: `ErrorHandler` passes empty `Bundle` field to template
+  - Fix: Either set a default bundle for error pages or conditionally render asset tags
 - Continue Milestone 5: Session 05d (Providers + Agents UI)
 
 ## Future Phases (Beyond Milestone 7)

@@ -11,23 +11,23 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "paths": {
-      "@core/*": [
-        "./client/core/*"
+      "@app/core/*": [
+        "./app/client/core/*"
       ],
-      "@design/*": [
-        "./client/design/*"
+      "@app/design/*": [
+        "./app/client/design/*"
       ],
-      "@components/*": [
-        "./client/components/*"
+      "@app/components/*": [
+        "./app/client/components/*"
       ]
     }
   },
   "include": [
-    "client/**/*",
+    "app/client/**/*",
     "scalar/**/*"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "app/dist"
   ]
 }

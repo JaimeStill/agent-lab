@@ -1202,9 +1202,11 @@ func (h *Handler) Mount(r routes.System, prefix string) {
 
 ### B.3 Update web/scalar/scalar.go
 
-Replace with Mount-based implementation that embeds its own static files:
+Replace with Mount-based implementation that uses an internal router (same pattern as app). Using `http.FileServer` directly with path rewriting doesn't work cleanly when mounted via `routes.System` - the FileServer causes unexpected redirects.
 
 ```go
+// Package scalar provides the interactive API documentation handler using Scalar UI.
+// Assets are embedded at compile time for zero-dependency deployment.
 package scalar
 
 import (
@@ -1214,37 +1216,49 @@ import (
 	"github.com/JaimeStill/agent-lab/pkg/routes"
 )
 
-//go:embed index.html scalar.js scalar.css
+//go:embed index.html scalar.css scalar.js
 var staticFS embed.FS
 
 // Mount registers the scalar client at the given prefix.
-// Handles both exact-match and wildcard patterns for compatibility
-// with trailing-slash-removal middleware.
 func Mount(r routes.System, prefix string) {
-	fs := http.FileServer(http.FS(staticFS))
+	router := newRouter()
 
-	// Exact match for prefix (e.g., /scalar)
 	r.RegisterRoute(routes.Route{
 		Method:  "GET",
 		Pattern: prefix,
 		Handler: func(w http.ResponseWriter, req *http.Request) {
-			req.URL.Path = "/index.html"
-			fs.ServeHTTP(w, req)
+			req.URL.Path = "/"
+			router.ServeHTTP(w, req)
 		},
 	})
 
-	// Wildcard for assets under prefix (e.g., /scalar/scalar.js)
 	r.RegisterRoute(routes.Route{
 		Method:  "GET",
 		Pattern: prefix + "/{path...}",
-		Handler: http.StripPrefix(prefix, fs).ServeHTTP,
+		Handler: http.StripPrefix(prefix, router).ServeHTTP,
 	})
+}
+
+func newRouter() http.Handler {
+	mux := http.NewServeMux()
+
+	// Serve index.html at root
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		data, _ := staticFS.ReadFile("index.html")
+		w.Write(data)
+	})
+
+	// Serve static assets
+	mux.Handle("GET /", http.FileServer(http.FS(staticFS)))
+
+	return mux
 }
 ```
 
 ### B.4 Update web/scalar/index.html
 
-Change asset references to relative paths (served from same directory):
+Use absolute paths with the `/scalar/` prefix. This ensures assets resolve correctly regardless of whether the user accesses `/scalar` or `/scalar/`:
 
 ```html
 <!DOCTYPE html>
@@ -1253,7 +1267,7 @@ Change asset references to relative paths (served from same directory):
   <meta charset="UTF-8">
   <title>Agent Lab - API Documentation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="scalar.css">
+  <link rel="stylesheet" href="/scalar/scalar.css">
   <style>
     :root {
       --scalar-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -1263,62 +1277,143 @@ Change asset references to relative paths (served from same directory):
 </head>
 <body>
   <div id="api-reference"></div>
-  <script type="module" src="scalar.js"></script>
+  <script type="module" src="/scalar/scalar.js"></script>
 </body>
 </html>
 ```
 
-### B.5 Update web/vite.config.ts
+### B.5 Create web/vite.client.ts
 
-Configure Vite to output each client's bundle to its own directory:
+Create a shared module with types, defaults, and merge function:
+
+```typescript
+import { resolve } from 'path'
+import type { PreRenderedAsset, PreRenderedChunk, RollupOptions } from 'rollup'
+import type { UserConfig } from 'vite'
+
+export interface ClientConfig {
+  name: string
+  input?: string
+  output?: {
+    entryFileNames?: string | ((chunk: PreRenderedChunk) => string)
+    assetFileNames?: string | ((asset: PreRenderedAsset) => string)
+  }
+  aliases?: Record<string, string>
+}
+
+const root = __dirname
+
+export function merge(clients: ClientConfig[]): UserConfig {
+  return {
+    build: {
+      outDir: '.',
+      emptyOutDir: false,
+      rollupOptions: mergeRollup(clients),
+    },
+    resolve: mergeResolve(clients),
+  }
+}
+
+function mergeRollup(clients: ClientConfig[]): RollupOptions {
+  return {
+    input: Object.fromEntries(
+      clients.map(c => [c.name, c.input ?? defaultInput(c.name)])
+    ),
+    output: {
+      entryFileNames: (chunk) => {
+        const client = clients.find(c => c.name === chunk.name)
+        const custom = client?.output?.entryFileNames
+        if (custom) return typeof custom === 'function' ? custom(chunk) : custom
+        return defaultEntry(chunk.name)
+      },
+      assetFileNames: (asset) => {
+        const originalPath = asset.originalFileNames?.[0] ?? ''
+        const client = clients.find(c => originalPath.startsWith(`${c.name}/`))
+        if (client?.output?.assetFileNames) {
+          const custom = client.output.assetFileNames
+          return typeof custom === 'function' ? custom(asset) : custom
+        }
+        return client ? defaultAssets(client.name) : 'app/dist/[name][extname]'
+      },
+    },
+  }
+}
+
+function mergeResolve(clients: ClientConfig[]): UserConfig['resolve'] {
+  return {
+    alias: Object.assign({}, ...clients.map(c => c.aliases ?? {})),
+  }
+}
+
+function defaultInput(name: string) {
+  return resolve(root, `${name}/client/app.ts`)
+}
+
+function defaultEntry(name: string) {
+  return `${name}/dist/app.js`
+}
+
+function defaultAssets(name: string) {
+  return `${name}/dist/[name][extname]`
+}
+```
+
+### B.6 Create Per-Client Vite Configs
+
+Each client defines only what differs from defaults.
+
+**web/app/vite.config.ts** (new file):
+
+```typescript
+import { resolve } from 'path'
+import type { ClientConfig } from '../vite.client'
+
+const root = __dirname
+
+const config: ClientConfig = {
+  name: 'app',
+  aliases: {
+    '@app/design': resolve(root, 'client/design'),
+    '@app/core': resolve(root, 'client/core'),
+    '@app/components': resolve(root, 'client/components'),
+  },
+}
+
+export default config
+```
+
+**web/scalar/vite.config.ts** (new file):
+
+```typescript
+import { resolve } from 'path'
+import type { ClientConfig } from '../vite.client'
+
+const config: ClientConfig = {
+  name: 'scalar',
+  input: resolve(__dirname, 'app.ts'),
+  output: {
+    entryFileNames: 'scalar/scalar.js',
+    assetFileNames: 'scalar/scalar.css',
+  },
+}
+
+export default config
+```
+
+### B.7 Update web/vite.config.ts
+
+Replace with simple merge call:
 
 ```typescript
 import { defineConfig } from 'vite'
-import { resolve } from 'path'
+import { merge } from './vite.client'
+import appConfig from './app/vite.config'
+import scalarConfig from './scalar/vite.config'
 
-export default defineConfig({
-  define: {
-    'process.env.NODE_ENV': JSON.stringify('production'),
-  },
-  build: {
-    outDir: '.',
-    emptyOutDir: false,
-    rollupOptions: {
-      input: {
-        app: resolve(__dirname, 'app/client/app.ts'),
-        scalar: resolve(__dirname, 'scalar/app.ts'),
-      },
-      output: {
-        entryFileNames: (chunk) => {
-          if (chunk.name === 'scalar') {
-            return 'scalar/scalar.js'
-          }
-          return 'app/dist/app.js'
-        },
-        assetFileNames: (asset) => {
-          const name = asset.name?.replace('.css', '') || 'app'
-          if (name === 'scalar') {
-            return 'scalar/scalar.css'
-          }
-          return 'app/dist/app.css'
-        },
-      },
-    },
-    cssCodeSplit: true,
-    sourcemap: true,
-    minify: true,
-  },
-  resolve: {
-    alias: {
-      '@app/core': resolve(__dirname, 'app/client/core'),
-      '@app/design': resolve(__dirname, 'app/client/design'),
-      '@app/components': resolve(__dirname, 'app/client/components'),
-    },
-  },
-})
+export default defineConfig(merge([appConfig, scalarConfig]))
 ```
 
-### B.6 Update web/tsconfig.json
+### B.8 Update web/tsconfig.json
 
 Update paths for client-scoped aliases:
 
@@ -1352,15 +1447,17 @@ Update paths for client-scoped aliases:
 }
 ```
 
-### B.7 Update web/app/client/app.ts
+### B.9 Update web/app/client/app.ts
 
-Change import aliases from `@design` to `@app/design`:
+Change aliases from `@design`, `@core`, `@components` to `@app/*`:
 
 ```typescript
 import '@app/design/styles.css'
+export * from '@app/core/index'
+export * from '@app/components/index'
 ```
 
-### B.8 Update web/.gitignore
+### B.10 Update web/.gitignore
 
 Add client-specific build outputs:
 
@@ -1371,7 +1468,7 @@ scalar/scalar.js
 scalar/scalar.css
 ```
 
-### B.9 Update cmd/server/routes.go
+### B.11 Update cmd/server/routes.go
 
 Replace web imports and simplify to Mount() calls:
 
@@ -1403,7 +1500,7 @@ scalar.Mount(r, "/scalar")
 // - r.RegisterGroup(scalar.Routes())
 ```
 
-### B.10 Update Tests
+### B.12 Update Tests
 
 Move `tests/web/web_test.go` to `tests/web/app/app_test.go` and update imports:
 
@@ -1433,7 +1530,7 @@ func TestNewHandler(t *testing.T) {
 // ... rest of tests with "web" replaced by "app"
 ```
 
-### B.11 Delete Obsolete Files
+### B.13 Delete Obsolete Files
 
 ```bash
 # Remove old web.go (now at web/app/app.go)

@@ -147,44 +147,98 @@ customElements.define('al-workflow-monitor', AlWorkflowMonitor);
 
 ## Directory Structure
 
+Each web client is fully isolated in its own directory:
+
 ```
 web/
-├── client/                      # Client-side TypeScript/CSS
-│   ├── app.ts                   # Main entry point → dist/app.js
-│   ├── core/                    # Foundation (created when needed)
-│   │   ├── api.ts               # Fetch wrapper
-│   │   ├── sse.ts               # SSE client
-│   │   └── signals.ts           # TC39 Signals wrapper
-│   ├── design/                  # Global CSS architecture
-│   │   ├── reset.css            # Box-sizing, a11y defaults
-│   │   ├── theme.css            # Color tokens, dark/light
-│   │   ├── layout.css           # Spacing, typography, layout utilities
-│   │   ├── components.css       # Semantic element classes
-│   │   └── styles.css           # Layer orchestration
-│   └── components/              # Custom elements (when needed)
-│       └── al-*.ts
-├── scalar/                      # Scalar OpenAPI UI
-│   ├── app.ts                   # Entry point → dist/scalar.js
+├── app/                         # Main app client (fully self-contained)
+│   ├── client/                  # TypeScript source
+│   │   ├── app.ts               # Entry point → dist/app.js
+│   │   ├── core/                # Foundation (created when needed)
+│   │   ├── design/              # CSS architecture
+│   │   └── components/          # Custom elements (when needed)
+│   ├── dist/                    # Build output (gitignored)
+│   ├── public/                  # Static assets (favicons, manifest)
+│   ├── server/                  # Go templates (SSR)
+│   │   ├── layouts/
+│   │   └── pages/
+│   └── app.go                   # Handler + Mount()
+├── scalar/                      # Scalar OpenAPI UI (fully self-contained)
+│   ├── app.ts                   # Entry point → scalar.js
 │   ├── index.html               # Scalar mount point
-│   └── scalar.go                # Handler and routes
-├── server/                      # Go templates (SSR)
-│   ├── layouts/
-│   │   └── app.html             # Main layout template
-│   └── pages/
-│       ├── home.html
-│       └── [page].html
-├── public/                      # Static assets (favicons, manifest)
-├── dist/                        # Vite build output (gitignored)
-├── web.go                       # Embedding and route definitions
-├── vite.config.ts
+│   ├── scalar.go                # Mount()
+│   └── [scalar.js/css]          # Build output (gitignored)
+├── vite.client.ts               # Shared Vite config module
+├── vite.config.ts               # Root config (merges clients)
 └── package.json
 ```
 
 **URL Routing:**
-- `/app/*` - SSR pages (Go templates)
-- `/dist/*` - Vite-built bundles (JS/CSS)
-- `/scalar` - OpenAPI documentation UI
-- `/*` - Public files (favicon.ico, etc.)
+- `/app/*` - Main app (SSR pages, assets, public files)
+- `/scalar/*` - OpenAPI documentation UI
+
+## Mountable Web Clients
+
+Each `web/[client-name]/` directory is a self-contained web client that mounts to `/[client-name]`.
+
+### Mount Pattern
+
+Web clients implement `Mount(routes.System, prefix)` which registers:
+
+1. **Exact match** (`/prefix`) - Rewrites path to `/` and serves via internal router
+2. **Wildcard** (`/prefix/{path...}`) - Strips prefix and serves via internal router
+
+```go
+func (h *Handler) Mount(r routes.System, prefix string) {
+    router := h.Router()
+
+    r.RegisterRoute(routes.Route{
+        Method:  "GET",
+        Pattern: prefix,
+        Handler: func(w http.ResponseWriter, req *http.Request) {
+            req.URL.Path = "/"
+            router.ServeHTTP(w, req)
+        },
+    })
+
+    r.RegisterRoute(routes.Route{
+        Method:  "GET",
+        Pattern: prefix + "/{path...}",
+        Handler: http.StripPrefix(prefix, router).ServeHTTP,
+    })
+}
+```
+
+### Why Internal Router?
+
+Using `http.FileServer` directly with path rewriting causes unexpected redirects. Each client needs its own `http.ServeMux` router to handle requests properly.
+
+### Asset Paths
+
+- **SSR templates**: Use `{{ .BasePath }}` for all URLs
+- **Static HTML**: Use absolute paths (`/scalar/scalar.js`) since relative paths depend on trailing slash
+
+### Adding a New Client
+
+1. Create `web/[client-name]/` with standard structure
+2. Implement `[client-name].go` with `Mount()` function
+3. Add per-client config at `web/[client-name]/client.config.ts` (exports `ClientConfig`)
+4. Import config in `web/vite.config.ts`
+5. Register in `cmd/server/routes.go`: `[client].Mount(r, "/[client-name]")`
+
+### Vite Configuration
+
+Per-client configs are named `client.config.ts` to distinguish from the root `vite.config.ts`:
+
+```
+web/
+├── vite.config.ts            # Root config (imports and merges clients)
+├── vite.client.ts            # Shared merge utilities and ClientConfig type
+├── app/
+│   └── client.config.ts      # App client config
+└── scalar/
+    └── client.config.ts      # Scalar client config
+```
 
 ## Asset Co-location
 

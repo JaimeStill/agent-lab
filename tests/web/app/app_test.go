@@ -1,4 +1,4 @@
-package web_test
+package app_test
 
 import (
 	"io"
@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JaimeStill/agent-lab/web"
+	"github.com/JaimeStill/agent-lab/web/app"
 )
 
 func TestNewHandler(t *testing.T) {
-	h, err := web.NewHandler("/app")
+	h, err := app.NewHandler("/app")
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -21,7 +21,7 @@ func TestNewHandler(t *testing.T) {
 }
 
 func TestHandlerRouter(t *testing.T) {
-	h, err := web.NewHandler("/app")
+	h, err := app.NewHandler("/app")
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -33,7 +33,7 @@ func TestHandlerRouter(t *testing.T) {
 }
 
 func TestRouterServesHome(t *testing.T) {
-	h, err := web.NewHandler("/app")
+	h, err := app.NewHandler("/app")
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -66,7 +66,7 @@ func TestRouterServesHome(t *testing.T) {
 }
 
 func TestRouterServesComponents(t *testing.T) {
-	h, err := web.NewHandler("/app")
+	h, err := app.NewHandler("/app")
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -92,7 +92,7 @@ func TestRouterServesComponents(t *testing.T) {
 }
 
 func TestRouterServes404(t *testing.T) {
-	h, err := web.NewHandler("/app")
+	h, err := app.NewHandler("/app")
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -120,7 +120,7 @@ func TestRouterServes404(t *testing.T) {
 }
 
 func TestRouterServesDistAssets(t *testing.T) {
-	h, err := web.NewHandler("/app")
+	h, err := app.NewHandler("/app")
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -146,7 +146,7 @@ func TestRouterServesDistAssets(t *testing.T) {
 }
 
 func TestRouterServesPublicFiles(t *testing.T) {
-	h, err := web.NewHandler("/app")
+	h, err := app.NewHandler("/app")
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -172,7 +172,7 @@ func TestRouterServesPublicFiles(t *testing.T) {
 }
 
 func TestRouterBasePathInTemplates(t *testing.T) {
-	h, err := web.NewHandler("/myapp")
+	h, err := app.NewHandler("/myapp")
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}
@@ -196,7 +196,7 @@ func TestRouterBasePathInTemplates(t *testing.T) {
 }
 
 func TestRouterDistNotFound(t *testing.T) {
-	h, err := web.NewHandler("/app")
+	h, err := app.NewHandler("/app")
 	if err != nil {
 		t.Fatalf("NewHandler() error = %v", err)
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/workflows"
 	"github.com/JaimeStill/agent-lab/pkg/openapi"
 	"github.com/JaimeStill/agent-lab/pkg/routes"
-	"github.com/JaimeStill/agent-lab/web"
+	"github.com/JaimeStill/agent-lab/web/app"
 	"github.com/JaimeStill/agent-lab/web/scalar"
 )
 
@@ -110,33 +110,13 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 		Handler: serveOpenAPISpec(specBytes),
 	})
 
-	r.RegisterGroup(scalar.Routes())
-
-	r.RegisterRoute(routes.Route{
-		Method:  "GET",
-		Pattern: "/dist/{path...}",
-		Handler: web.Dist(),
-	})
-
-	webHandler, err := web.NewHandler("/app")
+	appHandler, err := app.NewHandler("/app")
 	if err != nil {
 		return err
 	}
+	appHandler.Mount(r, "/app")
 
-	webRouter := webHandler.Router()
-	r.RegisterRoute(routes.Route{
-		Method:  "GET",
-		Pattern: "/app",
-		Handler: func(w http.ResponseWriter, r *http.Request) {
-			r.URL.Path = "/"
-			webRouter.ServeHTTP(w, r)
-		},
-	})
-	r.RegisterRoute(routes.Route{
-		Method:  "GET",
-		Pattern: "/app/{path...}",
-		Handler: http.StripPrefix("/app", webRouter).ServeHTTP,
-	})
+	scalar.Mount(r, "/scalar")
 
 	return nil
 }

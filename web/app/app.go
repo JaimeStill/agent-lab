@@ -1,11 +1,10 @@
-// Package web provides embedded static assets and templates for the web interface.
-// Assets are compiled by Vite and embedded at build time for zero-dependency deployment.
-package web
+package app
 
 import (
 	"embed"
 	"net/http"
 
+	"github.com/JaimeStill/agent-lab/pkg/routes"
 	pkgweb "github.com/JaimeStill/agent-lab/pkg/web"
 )
 
@@ -38,12 +37,6 @@ var errorPages = []pkgweb.PageDef{
 	{Template: "404.html", Title: "Not Found"},
 }
 
-// Dist returns a handler that serves Vite-built assets from the dist directory.
-// Used for root-level /dist/ route (for scalar and other non-app consumers).
-func Dist() http.HandlerFunc {
-	return http.FileServer(http.FS(distFS)).ServeHTTP
-}
-
 type Handler struct {
 	templates *pkgweb.TemplateSet
 }
@@ -62,6 +55,27 @@ func NewHandler(basePath string) (*Handler, error) {
 		return nil, err
 	}
 	return &Handler{templates: ts}, nil
+}
+
+func (h *Handler) Mount(r routes.System, prefix string) {
+	router := h.Router()
+
+	// Exact match for prefix (e.g., /app)
+	r.RegisterRoute(routes.Route{
+		Method:  "GET",
+		Pattern: prefix,
+		Handler: func(w http.ResponseWriter, req *http.Request) {
+			req.URL.Path = "/"
+			router.ServeHTTP(w, req)
+		},
+	})
+
+	// Wildcard for all paths under prefix (e.g., /app/components)
+	r.RegisterRoute(routes.Route{
+		Method:  "GET",
+		Pattern: prefix + "/{path...}",
+		Handler: http.StripPrefix(prefix, router).ServeHTTP,
+	})
 }
 
 func (h *Handler) Router() http.Handler {
