@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ .Title }} - Agent Lab</title>
+  <link rel="icon" type="image/x-icon" href="{{ .BasePath }}/favicon.ico">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ .BasePath }}/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="{{ .BasePath }}/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="{{ .BasePath }}/favicon-16x16.png">
+  <link rel="stylesheet" href="{{ .BasePath }}/dist/{{ .Bundle }}.css">
+</head>
+
+<body>
+  <nav class="app-nav">
+    <a href="{{ .BasePath }}" class="app-nav-brand">Agent Lab</a>
+    <div class="app-nav-links">
+      <a href="{{ .BasePath }}/workflows">Workflows</a>
+      <a href="{{ .BasePath }}/documents">Documents</a>
+      <a href="{{ .BasePath }}/profiles">Profiles</a>
+      <a href="{{ .BasePath }}/agents">Agents</a>
+      <a href="{{ .BasePath }}/providers">Providers</a>
+      <a href="{{ .BasePath }}/components">Components</a>
+    </div>
+  </nav>
+  <main class="app-content">
+    {{ block "content" . }}{{ end }}
+  </main>
+
+  <script type="module" src="{{ .BasePath }}/dist/{{ .Bundle }}.js"></script>
+</body>
+
+</html>

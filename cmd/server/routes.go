@@ -10,11 +10,11 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/lifecycle"
 	"github.com/JaimeStill/agent-lab/internal/profiles"
 	"github.com/JaimeStill/agent-lab/internal/providers"
-	"github.com/JaimeStill/agent-lab/internal/routes"
 	"github.com/JaimeStill/agent-lab/internal/workflows"
 	"github.com/JaimeStill/agent-lab/pkg/openapi"
+	"github.com/JaimeStill/agent-lab/pkg/routes"
 	"github.com/JaimeStill/agent-lab/web"
-	"github.com/JaimeStill/agent-lab/web/docs"
+	"github.com/JaimeStill/agent-lab/web/scalar"
 )
 
 // registerRoutes configures all HTTP routes for the service.
@@ -110,20 +110,33 @@ func registerRoutes(r routes.System, runtime *Runtime, domain *Domain, cfg *conf
 		Handler: serveOpenAPISpec(specBytes),
 	})
 
+	r.RegisterGroup(scalar.Routes())
+
 	r.RegisterRoute(routes.Route{
 		Method:  "GET",
-		Pattern: "/static/",
-		Handler: web.Static(),
+		Pattern: "/dist/{path...}",
+		Handler: web.Dist(),
 	})
 
-	docsHandler := docs.NewHandler(specBytes)
-	r.RegisterGroup(docsHandler.Routes())
-
-	webHandler, err := web.NewHandler()
+	webHandler, err := web.NewHandler("/app")
 	if err != nil {
 		return err
 	}
-	r.RegisterGroup(webHandler.Routes())
+
+	webRouter := webHandler.Router()
+	r.RegisterRoute(routes.Route{
+		Method:  "GET",
+		Pattern: "/app",
+		Handler: func(w http.ResponseWriter, r *http.Request) {
+			r.URL.Path = "/"
+			webRouter.ServeHTTP(w, r)
+		},
+	})
+	r.RegisterRoute(routes.Route{
+		Method:  "GET",
+		Pattern: "/app/{path...}",
+		Handler: http.StripPrefix("/app", webRouter).ServeHTTP,
+	})
 
 	return nil
 }

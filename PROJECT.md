@@ -1069,6 +1069,13 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - Created 12 on-demand skills for domain-specific patterns
   - Created 3 always-loaded rules (243 lines vs ~4,900 previously)
   - Archived ARCHITECTURE.md, CLAUDE.md, web-service-architecture.md, service-design.md
+- Maintenance Session mt05: Web Architecture Refactor ✅
+  - Extracted `pkg/routes` types (Route, Group, System interface)
+  - Created `pkg/web` infrastructure (TemplateSet, DistServer, PublicFileRoutes)
+  - Reorganized `web/` directory: `client/`, `scalar/`, `server/`, `public/`
+  - Updated URL routing: `/dist/*` for bundles, `/scalar` for OpenAPI UI
+  - Added Makefile for development workflow
+  - Pre-parse templates at startup for zero per-request overhead
 
 **In Progress**:
 - **Milestone 5: Workflow Lab Interface**

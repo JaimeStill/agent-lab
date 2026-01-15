@@ -10,8 +10,8 @@ export default defineConfig({
     emptyOutDir: true,
     lib: {
       entry: {
-        shared: resolve(__dirname, 'src/entries/shared.ts'),
-        docs: resolve(__dirname, 'src/entries/docs.ts'),
+        app: resolve(__dirname, 'client/app.ts'),
+        scalar: resolve(__dirname, 'scalar/app.ts'),
       },
       formats: ['es'],
       fileName: (_, entryName) => `${entryName}.js`,
@@ -22,9 +22,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@core': resolve(__dirname, 'src/core'),
-      '@design': resolve(__dirname, 'src/design'),
-      '@components': resolve(__dirname, 'src/components'),
+      '@core': resolve(__dirname, 'client/core'),
+      '@design': resolve(__dirname, 'client/design'),
+      '@components': resolve(__dirname, 'client/components'),
     },
   },
 })

@@ -5,9 +5,9 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/JaimeStill/agent-lab/internal/routes"
 	"github.com/JaimeStill/agent-lab/pkg/handlers"
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
+	"github.com/JaimeStill/agent-lab/pkg/routes"
 	"github.com/google/uuid"
 )
 

@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 
 	"github.com/JaimeStill/agent-lab/internal/config"
-	"github.com/JaimeStill/agent-lab/internal/routes"
 	"github.com/JaimeStill/agent-lab/pkg/openapi"
+	"github.com/JaimeStill/agent-lab/pkg/routes"
 )
 
 func specFilePath(env string) string {

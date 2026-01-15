@@ -1,0 +1,5 @@
+{{ define "test.html" }}<!DOCTYPE html>
+<html>
+<head><title>{{ .Title }}</title></head>
+<body data-basepath="{{ .BasePath }}">{{ .Bundle }}{{ template "content" . }}</body>
+</html>{{ end }}

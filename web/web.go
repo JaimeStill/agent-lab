@@ -3,14 +3,10 @@
 package web
 
 import (
-	"bytes"
 	"embed"
-	"html/template"
-	"io/fs"
 	"net/http"
-	"time"
 
-	"github.com/JaimeStill/agent-lab/internal/routes"
+	pkgweb "github.com/JaimeStill/agent-lab/pkg/web"
 )
 
 //go:embed dist/*
@@ -19,98 +15,73 @@ var distFS embed.FS
 //go:embed public/*
 var publicFS embed.FS
 
-//go:embed all:templates
-var templateFS embed.FS
+//go:embed server/layouts/*
+var layoutFS embed.FS
 
-// Static returns an HTTP handler that serves Vite-built assets from the embedded
-// dist/ directory. The handler is designed to be mounted at /static/ and strips
-// that prefix before serving files.
-func Static() http.HandlerFunc {
-	sub, err := fs.Sub(distFS, "dist")
-	if err != nil {
-		panic("failed to created dist sub-filesystem: " + err.Error())
-	}
-	fileServer := http.StripPrefix("/static/", http.FileServer(http.FS(sub)))
-	return func(w http.ResponseWriter, r *http.Request) {
-		fileServer.ServeHTTP(w, r)
-	}
+//go:embed server/pages/*
+var pageFS embed.FS
+
+var publicFiles = []string{
+	"favicon.ico",
+	"favicon-16x16.png",
+	"favicon-32x32.png",
+	"apple-touch-icon.png",
+	"site.webmanifest",
 }
 
-// Handler serves the web client application pages using Go templates.
-// It manages layout templates and renders pages by cloning the base layout
-// and parsing page-specific templates to isolate template block definitions.
+var pages = []pkgweb.PageDef{
+	{Route: "/{$}", Template: "home.html", Title: "Home", Bundle: "app"},
+	{Route: "/components", Template: "components.html", Title: "Components", Bundle: "app"},
+}
+
+var errorPages = []pkgweb.PageDef{
+	{Template: "404.html", Title: "Not Found"},
+}
+
+// Dist returns a handler that serves Vite-built assets from the dist directory.
+// Used for root-level /dist/ route (for scalar and other non-app consumers).
+func Dist() http.HandlerFunc {
+	return http.FileServer(http.FS(distFS)).ServeHTTP
+}
+
 type Handler struct {
-	layouts *template.Template
+	templates *pkgweb.TemplateSet
 }
 
-// NewHandler creates a new web client handler by parsing embedded templates.
-// Returns an error if template parsing fails.
-func NewHandler() (*Handler, error) {
-	layouts, err := template.ParseFS(templateFS, "templates/layouts/*.html")
+func NewHandler(basePath string) (*Handler, error) {
+	allPages := append(pages, errorPages...)
+	ts, err := pkgweb.NewTemplateSet(
+		layoutFS,
+		pageFS,
+		"server/layouts/*.html",
+		"server/pages",
+		basePath,
+		allPages,
+	)
 	if err != nil {
 		return nil, err
 	}
-	return &Handler{layouts: layouts}, nil
+	return &Handler{templates: ts}, nil
 }
 
-// Routes returns the route group for web client endpoints.
-// All routes are prefixed with /app.
-func (h *Handler) Routes() routes.Group {
-	return routes.Group{
-		Prefix: "/app",
-		Routes: []routes.Route{
-			{Method: "GET", Pattern: "", Handler: h.serveHome},
-			{Method: "GET", Pattern: "/components", Handler: h.serveComponents},
-			{Method: "GET", Pattern: "/favicon.ico", Handler: publicFile("favicon.ico")},
-			{Method: "GET", Pattern: "/favicon-16x16.png", Handler: publicFile("favicon-16x16.png")},
-			{Method: "GET", Pattern: "/favicon-32x32.png", Handler: publicFile("favicon-32x32.png")},
-			{Method: "GET", Pattern: "/apple-touch-icon.png", Handler: publicFile("apple-touch-icon.png")},
-			{Method: "GET", Pattern: "/site.webmanifest", Handler: publicFile("site.webmanifest")},
-		},
-	}
-}
+func (h *Handler) Router() http.Handler {
+	r := pkgweb.NewRouter()
+	r.SetFallback(h.templates.ErrorHandler(
+		"app.html",
+		"404.html",
+		http.StatusNotFound,
+		"Not Found",
+	))
 
-func (h *Handler) serveHome(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := h.page("home/home.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	for _, page := range pages {
+		r.HandleFunc("GET "+page.Route, h.templates.PageHandler("app.html", page))
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tmpl.ExecuteTemplate(w, "app.html", map[string]string{
-		"Title":  "Home",
-		"Bundle": "shared",
-	})
-}
 
-func (h *Handler) serveComponents(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := h.page("components/components.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tmpl.ExecuteTemplate(w, "app.html", map[string]string{
-		"Title":  "Components",
-		"Bundle": "shared",
-	})
-}
+	r.Handle("GET /dist/", http.FileServer(http.FS(distFS)))
 
-func (h *Handler) page(name string) (*template.Template, error) {
-	t, err := h.layouts.Clone()
-	if err != nil {
-		return nil, err
+	for _, route := range pkgweb.PublicFileRoutes(publicFS, "public", publicFiles...) {
+		r.HandleFunc(route.Method+" "+route.Pattern, route.Handler)
 	}
-	return t.ParseFS(templateFS, "templates/pages/"+name)
-}
 
-func publicFile(name string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		data, err := publicFS.ReadFile("public/" + name)
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-		http.ServeContent(w, r, name, time.Time{}, bytes.NewReader(data))
-	}
+	return r
 }

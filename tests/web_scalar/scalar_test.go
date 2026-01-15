@@ -1,4 +1,4 @@
-package web_docs_test
+package web_scalar_test
 
 import (
 	"net/http"
@@ -6,31 +6,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JaimeStill/agent-lab/web/docs"
+	"github.com/JaimeStill/agent-lab/web/scalar"
 )
 
-func TestNewHandler(t *testing.T) {
-	handler := docs.NewHandler(nil)
-
+func TestHandler(t *testing.T) {
+	handler := scalar.Handler()
 	if handler == nil {
-		t.Fatal("NewHandler() returned nil")
+		t.Fatal("Handler() returned nil")
 	}
 }
 
 func TestRoutes(t *testing.T) {
-	handler := docs.NewHandler(nil)
-	group := handler.Routes()
+	group := scalar.Routes()
 
-	if group.Prefix != "/docs" {
-		t.Errorf("Prefix = %q, want %q", group.Prefix, "/docs")
-	}
-
-	if len(group.Tags) == 0 {
-		t.Error("Tags is empty")
-	}
-
-	if group.Description == "" {
-		t.Error("Description is empty")
+	if group.Prefix != "/scalar" {
+		t.Errorf("Prefix = %q, want %q", group.Prefix, "/scalar")
 	}
 
 	expectedPatterns := map[string]string{
@@ -59,25 +49,12 @@ func TestRoutes(t *testing.T) {
 }
 
 func TestServeIndex(t *testing.T) {
-	handler := docs.NewHandler(nil)
-	group := handler.Routes()
+	handler := scalar.Handler()
 
-	var indexHandler http.HandlerFunc
-	for _, route := range group.Routes {
-		if route.Pattern == "" {
-			indexHandler = route.Handler
-			break
-		}
-	}
-
-	if indexHandler == nil {
-		t.Fatal("index handler not found")
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/docs", nil)
+	req := httptest.NewRequest(http.MethodGet, "/scalar", nil)
 	w := httptest.NewRecorder()
 
-	indexHandler(w, req)
+	handler(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()

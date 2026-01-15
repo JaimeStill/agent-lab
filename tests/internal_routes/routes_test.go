@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/JaimeStill/agent-lab/internal/routes"
+	pkgroutes "github.com/JaimeStill/agent-lab/pkg/routes"
 )
 
 func testLogger() *slog.Logger {
@@ -26,7 +27,7 @@ func TestNew(t *testing.T) {
 func TestRegisterRoute(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	route := routes.Route{
+	route := pkgroutes.Route{
 		Method:  "GET",
 		Pattern: "/test",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +73,7 @@ func TestRegisterRoute_MultipleMethods(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sys := routes.New(testLogger())
 
-			route := routes.Route{
+			route := pkgroutes.Route{
 				Method:  tt.method,
 				Pattern: "/test",
 				Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +98,7 @@ func TestRegisterRoute_MultipleMethods(t *testing.T) {
 func TestRegisterRoute_MultipleRoutes(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	route1 := routes.Route{
+	route1 := pkgroutes.Route{
 		Method:  "GET",
 		Pattern: "/route1",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -105,7 +106,7 @@ func TestRegisterRoute_MultipleRoutes(t *testing.T) {
 		},
 	}
 
-	route2 := routes.Route{
+	route2 := pkgroutes.Route{
 		Method:  "POST",
 		Pattern: "/route2",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -155,9 +156,9 @@ func TestBuild_EmptySystem(t *testing.T) {
 func TestRegisterGroup_WithChildren(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	group := routes.Group{
+	group := pkgroutes.Group{
 		Prefix: "/api/parent",
-		Routes: []routes.Route{
+		Routes: []pkgroutes.Route{
 			{
 				Method:  "GET",
 				Pattern: "",
@@ -166,10 +167,10 @@ func TestRegisterGroup_WithChildren(t *testing.T) {
 				},
 			},
 		},
-		Children: []routes.Group{
+		Children: []pkgroutes.Group{
 			{
 				Prefix: "/child",
-				Routes: []routes.Route{
+				Routes: []pkgroutes.Route{
 					{
 						Method:  "GET",
 						Pattern: "",
@@ -223,9 +224,9 @@ func TestRegisterGroup_WithChildren(t *testing.T) {
 func TestRegisterGroup_NestedChildren(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	group := routes.Group{
+	group := pkgroutes.Group{
 		Prefix: "/api",
-		Routes: []routes.Route{
+		Routes: []pkgroutes.Route{
 			{
 				Method:  "GET",
 				Pattern: "/root",
@@ -234,13 +235,13 @@ func TestRegisterGroup_NestedChildren(t *testing.T) {
 				},
 			},
 		},
-		Children: []routes.Group{
+		Children: []pkgroutes.Group{
 			{
 				Prefix: "/level1",
-				Children: []routes.Group{
+				Children: []pkgroutes.Group{
 					{
 						Prefix: "/level2",
-						Routes: []routes.Route{
+						Routes: []pkgroutes.Route{
 							{
 								Method:  "GET",
 								Pattern: "/deep",

@@ -6,16 +6,17 @@ import (
 	"testing"
 
 	"github.com/JaimeStill/agent-lab/internal/routes"
+	pkgroutes "github.com/JaimeStill/agent-lab/pkg/routes"
 )
 
 func TestRegisterGroup(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	group := routes.Group{
+	group := pkgroutes.Group{
 		Prefix:      "/api",
 		Description: "API routes",
 		Tags:        []string{"api"},
-		Routes: []routes.Route{
+		Routes: []pkgroutes.Route{
 			{
 				Method:  "GET",
 				Pattern: "/users",
@@ -45,9 +46,9 @@ func TestRegisterGroup(t *testing.T) {
 func TestRegisterGroup_MultipleRoutes(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	group := routes.Group{
+	group := pkgroutes.Group{
 		Prefix: "/api",
-		Routes: []routes.Route{
+		Routes: []pkgroutes.Route{
 			{
 				Method:  "GET",
 				Pattern: "/users",
@@ -101,9 +102,9 @@ func TestRegisterGroup_MultipleRoutes(t *testing.T) {
 func TestRegisterGroup_MultipleGroups(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	apiGroup := routes.Group{
+	apiGroup := pkgroutes.Group{
 		Prefix: "/api",
-		Routes: []routes.Route{
+		Routes: []pkgroutes.Route{
 			{
 				Method:  "GET",
 				Pattern: "/users",
@@ -114,9 +115,9 @@ func TestRegisterGroup_MultipleGroups(t *testing.T) {
 		},
 	}
 
-	adminGroup := routes.Group{
+	adminGroup := pkgroutes.Group{
 		Prefix: "/admin",
-		Routes: []routes.Route{
+		Routes: []pkgroutes.Route{
 			{
 				Method:  "GET",
 				Pattern: "/users",
@@ -151,9 +152,9 @@ func TestRegisterGroup_MultipleGroups(t *testing.T) {
 func TestRegisterGroup_EmptyPrefix(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	group := routes.Group{
+	group := pkgroutes.Group{
 		Prefix: "",
-		Routes: []routes.Route{
+		Routes: []pkgroutes.Route{
 			{
 				Method:  "GET",
 				Pattern: "/root",
@@ -179,9 +180,9 @@ func TestRegisterGroup_EmptyPrefix(t *testing.T) {
 func TestRegisterGroup_NestedPaths(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	group := routes.Group{
+	group := pkgroutes.Group{
 		Prefix: "/api/v1",
-		Routes: []routes.Route{
+		Routes: []pkgroutes.Route{
 			{
 				Method:  "GET",
 				Pattern: "/users/{id}",
@@ -207,7 +208,7 @@ func TestRegisterGroup_NestedPaths(t *testing.T) {
 func TestMixedRoutesAndGroups(t *testing.T) {
 	sys := routes.New(testLogger())
 
-	standaloneRoute := routes.Route{
+	standaloneRoute := pkgroutes.Route{
 		Method:  "GET",
 		Pattern: "/health",
 		Handler: func(w http.ResponseWriter, r *http.Request) {
@@ -215,9 +216,9 @@ func TestMixedRoutesAndGroups(t *testing.T) {
 		},
 	}
 
-	apiGroup := routes.Group{
+	apiGroup := pkgroutes.Group{
 		Prefix: "/api",
-		Routes: []routes.Route{
+		Routes: []pkgroutes.Route{
 			{
 				Method:  "GET",
 				Pattern: "/users",

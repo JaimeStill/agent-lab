@@ -12,18 +12,19 @@
     "isolatedModules": true,
     "paths": {
       "@core/*": [
-        "./src/core/*"
+        "./client/core/*"
       ],
       "@design/*": [
-        "./src/design/*"
+        "./client/design/*"
       ],
       "@components/*": [
-        "./src/components/*"
+        "./client/components/*"
       ]
     }
   },
   "include": [
-    "src/**/*"
+    "client/**/*",
+    "scalar/**/*"
   ],
   "exclude": [
     "node_modules",

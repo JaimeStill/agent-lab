@@ -149,7 +149,8 @@ customElements.define('al-workflow-monitor', AlWorkflowMonitor);
 
 ```
 web/
-├── src/
+├── client/                      # Client-side TypeScript/CSS
+│   ├── app.ts                   # Main entry point → dist/app.js
 │   ├── core/                    # Foundation (created when needed)
 │   │   ├── api.ts               # Fetch wrapper
 │   │   ├── sse.ts               # SSE client
@@ -160,57 +161,54 @@ web/
 │   │   ├── layout.css           # Spacing, typography, layout utilities
 │   │   ├── components.css       # Semantic element classes
 │   │   └── styles.css           # Layer orchestration
-│   ├── components/              # Custom elements (when needed)
-│   │   └── al-*.ts
-│   └── entries/                 # Route-scoped bundles
-│       ├── shared.ts
-│       └── [domain].ts
-└── templates/
-    ├── layouts/
-    │   ├── app.html
-    │   ├── app.css              # Layout-scoped styles (optional)
-    │   └── app.ts               # Layout-scoped scripts (optional)
-    ├── partials/
-    │   └── [partial]/
-    │       ├── [partial].html
-    │       ├── [partial].css    # Partial-scoped styles (optional)
-    │       └── [partial].ts     # Partial-scoped scripts (optional)
-    └── pages/
-        └── [page]/
-            ├── [page].html
-            ├── [page].css       # Page-scoped styles (optional)
-            └── [page].ts        # Page-scoped scripts (optional)
+│   └── components/              # Custom elements (when needed)
+│       └── al-*.ts
+├── scalar/                      # Scalar OpenAPI UI
+│   ├── app.ts                   # Entry point → dist/scalar.js
+│   ├── index.html               # Scalar mount point
+│   └── scalar.go                # Handler and routes
+├── server/                      # Go templates (SSR)
+│   ├── layouts/
+│   │   └── app.html             # Main layout template
+│   └── pages/
+│       ├── home.html
+│       └── [page].html
+├── public/                      # Static assets (favicons, manifest)
+├── dist/                        # Vite build output (gitignored)
+├── web.go                       # Embedding and route definitions
+├── vite.config.ts
+└── package.json
 ```
+
+**URL Routing:**
+- `/app/*` - SSR pages (Go templates)
+- `/dist/*` - Vite-built bundles (JS/CSS)
+- `/scalar` - OpenAPI documentation UI
+- `/*` - Public files (favicon.ico, etc.)
 
 ## Asset Co-location
 
-Scoped styles and scripts live adjacent to their templates at any level:
+Global styles live in `client/design/`. Page-specific styles can be co-located with templates when needed:
 
 ```
-web/templates/
+web/server/
 ├── layouts/
-│   ├── app.html
-│   └── app.css              # Styles for the app layout
-├── partials/
-│   └── pagination/
-│       ├── pagination.html
-│       └── pagination.css   # Styles for pagination partial
+│   └── app.html
 └── pages/
     └── workflows/
         ├── list.html
-        └── list.css         # Styles for workflows list page
+        └── list.css         # Page-scoped styles (optional)
 ```
 
 **Loading scoped assets**: Entry files import the assets they need:
 
 ```typescript
-// entries/workflows.ts
+// client/app.ts
 import '@design/styles.css';
-import '../templates/layouts/app.css';
-import '../templates/pages/workflows/list.css';
+import '../server/pages/workflows/list.css';  // If page-specific styles exist
 ```
 
-**When to co-locate**: Only create scoped CSS/TS when styles or behavior are unique to that template. Prefer global utilities in `design/` when patterns are reusable across templates.
+**When to co-locate**: Only create scoped CSS when styles are unique to that template. Prefer global utilities in `client/design/` when patterns are reusable.
 
 ## Core Principles
 
@@ -220,7 +218,7 @@ import '../templates/pages/workflows/list.css';
 - Code belongs in `.ts` files
 - Never use inline `style` attributes in templates
 
-**Exception**: Third-party library overrides (e.g., Scalar font variables in `web/docs/index.html`) may use `<style>` in `<head>` when the library doesn't expose CSS custom properties.
+**Exception**: Third-party library overrides (e.g., Scalar font variables in `web/scalar/index.html`) may use `<style>` in `<head>` when the library doesn't expose CSS custom properties.
 
 ## Anti-Patterns
 
