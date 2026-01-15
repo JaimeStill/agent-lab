@@ -1,69 +1,54 @@
-# Client Development Architecture
+# Web Client Architecture
 
-This directory contains all client-side web infrastructure for agent-lab.
+This directory contains isolated, self-contained web clients for agent-lab.
 
 ## Philosophy
 
 **Build in CI, embed in Go, deploy without Node.js.**
 
-- **CI/CD:** Builds web assets (Bun + Vite), then builds Go binary with embedded assets
-- **Container:** Contains only the Go binary - no node_modules, no Node.js runtime
-- **Air-gap:** Works in isolated environments with zero external dependencies
+- **CI/CD**: Builds web assets (Bun + Vite), then builds Go binary with embedded assets
+- **Container**: Contains only the Go binary - no node_modules, no Node.js runtime
+- **Air-gap**: Works in isolated environments with zero external dependencies
 
-The `dist/` directory is **gitignored** - CI builds from source to ensure consistency. Local development requires running the build.
+Build outputs are **gitignored** - CI builds from source to ensure consistency.
 
 ## Directory Structure
 
+Each web client is fully isolated in its own directory:
+
 ```
 web/
-├── README.md              # This file
-├── package.json           # Bun dependencies
-├── vite.config.ts         # Vite build configuration
-├── tsconfig.json          # TypeScript configuration
-├── .gitignore             # Ignores dist/, node_modules/
-├── web.go                 # Go embedding and static handler
-├── src/                   # TypeScript/CSS source
-│   ├── core/              # Foundation layer
-│   ├── design/            # Design system (CSS tokens, reset, themes)
-│   ├── components/        # Web components
-│   └── entries/           # Route-scoped entry points
-│       ├── shared.ts      # Common components
-│       └── docs.ts        # Scalar API docs
-├── templates/             # Go HTML templates
-│   └── layouts/
-│       └── app.html       # Base app layout
-├── docs/                  # API documentation
-│   ├── docs.go            # Go handler (serves index.html)
-│   └── index.html         # Scalar mount point
-└── dist/                  # Build output (gitignored)
-    ├── shared.js
-    ├── docs.js            # Bundled Scalar
-    └── docs.css
+├── app/                         # Main app client
+│   ├── client/                  # TypeScript source
+│   │   ├── app.ts               # Entry point → dist/app.js
+│   │   ├── core/                # Utilities (created when needed)
+│   │   ├── design/              # CSS architecture (@layers)
+│   │   └── components/          # Web components (when needed)
+│   ├── dist/                    # Build output (gitignored)
+│   ├── public/                  # Static assets (favicons, manifest)
+│   ├── server/                  # Go templates (SSR)
+│   │   ├── layouts/
+│   │   └── pages/
+│   ├── app.go                   # Handler + Mount()
+│   └── client.config.ts         # Vite client config
+├── scalar/                      # Scalar OpenAPI UI
+│   ├── app.ts                   # Entry point → scalar.js
+│   ├── index.html               # Scalar mount point
+│   ├── scalar.go                # Mount()
+│   ├── client.config.ts         # Vite client config
+│   └── [scalar.js/css]          # Build output (gitignored)
+├── vite.client.ts               # Shared config module (ClientConfig, merge)
+├── vite.config.ts               # Root config (merges all clients)
+├── tsconfig.json
+└── package.json
 ```
 
-## Build Pipeline
+## URL Routing
 
-### CI/CD Flow
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         CI/CD                               │
-├─────────────────────────────────────────────────────────────┤
-│  1. bun install                                             │
-│  2. bun run build        → web/dist/                        │
-│  3. go build ./cmd/server → embeds web/dist/                │
-│  4. docker build          → container with Go binary only   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Container                              │
-├─────────────────────────────────────────────────────────────┤
-│  /app/server              (Go binary with embedded assets)  │
-│                                                             │
-│  No node_modules, no bun, no npm, no Node.js                │
-└─────────────────────────────────────────────────────────────┘
-```
+| Path | Client | Description |
+|------|--------|-------------|
+| `/app/*` | app | Main application (SSR pages, assets, public files) |
+| `/scalar/*` | scalar | OpenAPI documentation UI |
 
 ## Development Workflow
 
@@ -81,147 +66,134 @@ bun run build
 # After changing TypeScript/CSS
 cd web && bun run build
 
-# Run Go server
+# Run Go server (embeds fresh assets)
 go run ./cmd/server
+```
+
+Or use the Makefile from project root:
+
+```bash
+make dev    # Build web + run server
+make web    # Build web assets only
+make run    # Run server only
 ```
 
 ### Watch Mode
 
 ```bash
 cd web
-bun run dev          # Vite rebuilds on source changes
+bun run dev    # Vite rebuilds on source changes
 ```
 
-Run the Go server separately. Restart server and refresh browser to see changes.
-
-## Embedding Patterns
-
-### Static Assets (web.go)
-
-All Vite-built assets are embedded and served from `/static/`:
-
-```go
-//go:embed dist/*
-var distFS embed.FS
-
-func Static() http.HandlerFunc {
-    sub, _ := fs.Sub(distFS, "dist")
-    fileServer := http.StripPrefix("/static/", http.FileServer(http.FS(sub)))
-    return func(w http.ResponseWriter, r *http.Request) {
-        fileServer.ServeHTTP(w, r)
-    }
-}
-```
-
-### Templates (web.go)
-
-Go HTML templates for server-rendered pages:
-
-```go
-//go:embed templates/*
-var templateFS embed.FS
-
-func Templates() (*template.Template, error) {
-    return template.ParseFS(templateFS, "templates/**/*.html")
-}
-```
-
-### API Documentation (docs/docs.go)
-
-Serves the Scalar mount point HTML:
-
-```go
-//go:embed index.html
-var indexHTML []byte
-```
-
-## Scalar API Documentation
-
-Scalar is bundled through Vite for automated dependency management.
-
-### Architecture
-
-- `src/entries/docs.ts` imports Scalar's ESM module
-- Vite bundles to `dist/docs.js` and `dist/docs.css`
-- `docs/index.html` mounts Scalar to a div
-- Static handler serves bundled assets at `/static/`
-
-### Initialization
-
-Scalar uses programmatic initialization (not data attributes):
-
-```typescript
-// src/entries/docs.ts
-import { createApiReference } from '@scalar/api-reference'
-import '@scalar/api-reference/style.css'
-
-createApiReference('#api-reference', {
-  url: '/api/openapi.json',
-})
-```
-
-```html
-<!-- docs/index.html -->
-<div id="api-reference"></div>
-<script type="module" src="/static/docs.js"></script>
-```
-
-### Updating Scalar
-
-```bash
-cd web
-bun update @scalar/api-reference
-bun run build
-```
+Run the Go server separately. Restart server to pick up new embedded assets.
 
 ## Vite Configuration
 
-### Entry Points
+### Per-Client Configs
 
-Multiple entry points produce route-scoped bundles:
-
-```typescript
-lib: {
-  entry: {
-    shared: resolve(__dirname, 'src/entries/shared.ts'),
-    docs: resolve(__dirname, 'src/entries/docs.ts'),
-  },
-  formats: ['es'],
-  fileName: (_, entryName) => `${entryName}.js`,
-}
-```
-
-### Path Aliases
-
-Clean imports via TypeScript path aliases:
+Each client defines a `client.config.ts` that exports a `ClientConfig`:
 
 ```typescript
-resolve: {
-  alias: {
-    '@core': resolve(__dirname, 'src/core'),
-    '@design': resolve(__dirname, 'src/design'),
-    '@components': resolve(__dirname, 'src/components'),
+// web/app/client.config.ts
+import { resolve } from 'path'
+import type { ClientConfig } from '../vite.client'
+
+const config: ClientConfig = {
+  name: 'app',
+  aliases: {
+    '@app/design': resolve(__dirname, 'client/design'),
+    '@app/core': resolve(__dirname, 'client/core'),
+    '@app/components': resolve(__dirname, 'client/components'),
   },
 }
+
+export default config
 ```
 
-## Design System
+### ClientConfig Interface
 
-Global CSS custom properties in `src/design/styles.css`:
-
-```css
-:root {
-  --color-primary: #2563eb;
-  --color-surface: #ffffff;
-  --color-text: #1e293b;
+```typescript
+interface ClientConfig {
+  name: string                    // Client identifier
+  input?: string                  // Entry point (default: [name]/client/app.ts)
+  output?: {
+    entryFileNames?: string       // JS output (default: [name]/dist/app.js)
+    assetFileNames?: string       // CSS output (default: [name]/dist/[name][extname])
+  }
+  aliases?: Record<string, string> // Path aliases
 }
 ```
 
-Entry points import design tokens:
+### Root Config
+
+The root `vite.config.ts` imports and merges all client configs:
 
 ```typescript
-import '@design/styles.css'
+import { defineConfig } from 'vite'
+import { merge } from './vite.client'
+import appConfig from './app/client.config.ts'
+import scalarConfig from './scalar/client.config.ts'
+
+export default defineConfig(merge([appConfig, scalarConfig]))
 ```
+
+## Mount Pattern
+
+Web clients implement a `Mount()` function for route registration:
+
+```go
+func (h *Handler) Mount(r routes.System, prefix string) {
+    router := h.Router()
+
+    // Exact match for /prefix
+    r.RegisterRoute(routes.Route{
+        Method:  "GET",
+        Pattern: prefix,
+        Handler: func(w http.ResponseWriter, req *http.Request) {
+            req.URL.Path = "/"
+            router.ServeHTTP(w, req)
+        },
+    })
+
+    // Wildcard for /prefix/*
+    r.RegisterRoute(routes.Route{
+        Method:  "GET",
+        Pattern: prefix + "/{path...}",
+        Handler: http.StripPrefix(prefix, router).ServeHTTP,
+    })
+}
+```
+
+Each client has its own internal `http.ServeMux` router to handle requests properly.
+
+## Asset Paths
+
+- **SSR templates**: Use `{{ .BasePath }}` template variable for all URLs
+- **Static HTML**: Use absolute paths (`/scalar/scalar.js`) - relative paths depend on trailing slash
+
+## Adding a New Client
+
+1. Create `web/[client-name]/` directory
+2. Add TypeScript entry point and any source files
+3. Implement `[client-name].go` with `Mount()` function
+4. Create `client.config.ts` exporting `ClientConfig`
+5. Import and add to `web/vite.config.ts` merge array
+6. Register in `cmd/server/routes.go`
+
+## CSS Architecture
+
+The app client uses CSS `@layer` for cascade control:
+
+```
+client/design/
+├── reset.css       # Box-sizing, margin reset, a11y
+├── theme.css       # Color tokens, dark/light mode
+├── layout.css      # Spacing scale, typography
+├── components.css  # Semantic element classes
+└── styles.css      # Layer orchestration
+```
+
+Layer order: `reset` → `theme` → `layout` → `components`
 
 ## CI/CD Integration
 
@@ -230,70 +202,45 @@ import '@design/styles.css'
 ```yaml
 build:
   steps:
-    # Build web assets
     - run: cd web && bun install && bun run build
-
-    # Build Go binary (embeds web assets)
     - run: go build -o server ./cmd/server
-
-    # Build container (Go binary only)
     - run: docker build -t agent-lab .
 ```
 
 ### Dockerfile Pattern
 
 ```dockerfile
-# Build stage
-FROM golang:1.23 AS builder
+FROM golang:1.25 AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o server ./cmd/server
 
-# Runtime stage - no Node.js
 FROM gcr.io/distroless/base-debian12
 COPY --from=builder /app/server /server
 ENTRYPOINT ["/server"]
 ```
 
-Web assets must be built before the Docker build (or use a multi-stage build with Bun).
-
-## Air-Gap Verification
-
-Before deploying to air-gapped environments:
-
-```bash
-# Build everything
-cd web && bun install && bun run build && cd ..
-go build -o server ./cmd/server
-
-# Check for external URLs in built assets
-grep -r "http://" web/dist/ || echo "No http:// found"
-grep -r "https://" web/dist/ || echo "No https:// found"
-
-# Test with network disabled
-# 1. Disconnect network
-# 2. Run ./server
-# 3. Verify all routes function without external fetches
-```
+Web assets must be built before Docker build (or use multi-stage with Bun).
 
 ## Troubleshooting
 
-### Scalar UI not rendering
-
-Check browser console for errors. Common issues:
-- `dist/` not built: Run `cd web && bun run build`
-- Server not restarted after build
-- `process is not defined`: Ensure `define` is set in vite.config.ts
-
-### Changes to src/ not reflected
+### Assets not loading (404 or MIME errors)
 
 1. Rebuild: `cd web && bun run build`
 2. Restart Go server (re-embeds assets)
 3. Hard refresh browser (Ctrl+Shift+R)
 
-### go:embed errors during build
+### Scalar UI blank page
 
-Ensure dist/ exists:
+Check browser console. Common issues:
+- Build output missing: Run `bun run build`
+- Server not rebuilt after Vite build (Go embeds at compile time)
+
+### go:embed errors
+
+Ensure build outputs exist before Go build:
+
 ```bash
 cd web && bun install && bun run build
+go build ./cmd/server
 ```
