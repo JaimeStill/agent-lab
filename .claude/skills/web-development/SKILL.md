@@ -147,70 +147,122 @@ customElements.define('al-workflow-monitor', AlWorkflowMonitor);
 
 ## Directory Structure
 
+Each web client is fully isolated in its own directory:
+
 ```
 web/
-├── src/
-│   ├── core/                    # Foundation (created when needed)
-│   │   ├── api.ts               # Fetch wrapper
-│   │   ├── sse.ts               # SSE client
-│   │   └── signals.ts           # TC39 Signals wrapper
-│   ├── design/                  # Global CSS architecture
-│   │   ├── reset.css            # Box-sizing, a11y defaults
-│   │   ├── theme.css            # Color tokens, dark/light
-│   │   ├── layout.css           # Spacing, typography, layout utilities
-│   │   ├── components.css       # Semantic element classes
-│   │   └── styles.css           # Layer orchestration
-│   ├── components/              # Custom elements (when needed)
-│   │   └── al-*.ts
-│   └── entries/                 # Route-scoped bundles
-│       ├── shared.ts
-│       └── [domain].ts
-└── templates/
-    ├── layouts/
-    │   ├── app.html
-    │   ├── app.css              # Layout-scoped styles (optional)
-    │   └── app.ts               # Layout-scoped scripts (optional)
-    ├── partials/
-    │   └── [partial]/
-    │       ├── [partial].html
-    │       ├── [partial].css    # Partial-scoped styles (optional)
-    │       └── [partial].ts     # Partial-scoped scripts (optional)
-    └── pages/
-        └── [page]/
-            ├── [page].html
-            ├── [page].css       # Page-scoped styles (optional)
-            └── [page].ts        # Page-scoped scripts (optional)
+├── app/                         # Main app client (fully self-contained)
+│   ├── client/                  # TypeScript source
+│   │   ├── app.ts               # Entry point → dist/app.js
+│   │   ├── core/                # Foundation (created when needed)
+│   │   ├── design/              # CSS architecture
+│   │   └── components/          # Custom elements (when needed)
+│   ├── dist/                    # Build output (gitignored)
+│   ├── public/                  # Static assets (favicons, manifest)
+│   ├── server/                  # Go templates (SSR)
+│   │   ├── layouts/
+│   │   └── pages/
+│   └── app.go                   # Handler + Mount()
+├── scalar/                      # Scalar OpenAPI UI (fully self-contained)
+│   ├── app.ts                   # Entry point → scalar.js
+│   ├── index.html               # Scalar mount point
+│   ├── scalar.go                # Mount()
+│   └── [scalar.js/css]          # Build output (gitignored)
+├── vite.client.ts               # Shared Vite config module
+├── vite.config.ts               # Root config (merges clients)
+└── package.json
+```
+
+**URL Routing:**
+- `/app/*` - Main app (SSR pages, assets, public files)
+- `/scalar/*` - OpenAPI documentation UI
+
+## Mountable Web Clients
+
+Each `web/[client-name]/` directory is a self-contained web client that mounts to `/[client-name]`.
+
+### Mount Pattern
+
+Web clients implement `Mount(routes.System, prefix)` which registers:
+
+1. **Exact match** (`/prefix`) - Rewrites path to `/` and serves via internal router
+2. **Wildcard** (`/prefix/{path...}`) - Strips prefix and serves via internal router
+
+```go
+func (h *Handler) Mount(r routes.System, prefix string) {
+    router := h.Router()
+
+    r.RegisterRoute(routes.Route{
+        Method:  "GET",
+        Pattern: prefix,
+        Handler: func(w http.ResponseWriter, req *http.Request) {
+            req.URL.Path = "/"
+            router.ServeHTTP(w, req)
+        },
+    })
+
+    r.RegisterRoute(routes.Route{
+        Method:  "GET",
+        Pattern: prefix + "/{path...}",
+        Handler: http.StripPrefix(prefix, router).ServeHTTP,
+    })
+}
+```
+
+### Why Internal Router?
+
+Using `http.FileServer` directly with path rewriting causes unexpected redirects. Each client needs its own `http.ServeMux` router to handle requests properly.
+
+### Asset Paths
+
+- **SSR templates**: Use `{{ .BasePath }}` for all URLs
+- **Static HTML**: Use absolute paths (`/scalar/scalar.js`) since relative paths depend on trailing slash
+
+### Adding a New Client
+
+1. Create `web/[client-name]/` with standard structure
+2. Implement `[client-name].go` with `Mount()` function
+3. Add per-client config at `web/[client-name]/client.config.ts` (exports `ClientConfig`)
+4. Import config in `web/vite.config.ts`
+5. Register in `cmd/server/routes.go`: `[client].Mount(r, "/[client-name]")`
+
+### Vite Configuration
+
+Per-client configs are named `client.config.ts` to distinguish from the root `vite.config.ts`:
+
+```
+web/
+├── vite.config.ts            # Root config (imports and merges clients)
+├── vite.client.ts            # Shared merge utilities and ClientConfig type
+├── app/
+│   └── client.config.ts      # App client config
+└── scalar/
+    └── client.config.ts      # Scalar client config
 ```
 
 ## Asset Co-location
 
-Scoped styles and scripts live adjacent to their templates at any level:
+Global styles live in `client/design/`. Page-specific styles can be co-located with templates when needed:
 
 ```
-web/templates/
+web/server/
 ├── layouts/
-│   ├── app.html
-│   └── app.css              # Styles for the app layout
-├── partials/
-│   └── pagination/
-│       ├── pagination.html
-│       └── pagination.css   # Styles for pagination partial
+│   └── app.html
 └── pages/
     └── workflows/
         ├── list.html
-        └── list.css         # Styles for workflows list page
+        └── list.css         # Page-scoped styles (optional)
 ```
 
 **Loading scoped assets**: Entry files import the assets they need:
 
 ```typescript
-// entries/workflows.ts
+// client/app.ts
 import '@design/styles.css';
-import '../templates/layouts/app.css';
-import '../templates/pages/workflows/list.css';
+import '../server/pages/workflows/list.css';  // If page-specific styles exist
 ```
 
-**When to co-locate**: Only create scoped CSS/TS when styles or behavior are unique to that template. Prefer global utilities in `design/` when patterns are reusable across templates.
+**When to co-locate**: Only create scoped CSS when styles are unique to that template. Prefer global utilities in `client/design/` when patterns are reusable.
 
 ## Core Principles
 
@@ -220,7 +272,7 @@ import '../templates/pages/workflows/list.css';
 - Code belongs in `.ts` files
 - Never use inline `style` attributes in templates
 
-**Exception**: Third-party library overrides (e.g., Scalar font variables in `web/docs/index.html`) may use `<style>` in `<head>` when the library doesn't expose CSS custom properties.
+**Exception**: Third-party library overrides (e.g., Scalar font variables in `web/scalar/index.html`) may use `<style>` in `<head>` when the library doesn't expose CSS custom properties.
 
 ## Anti-Patterns
 

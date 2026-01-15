@@ -4,47 +4,40 @@ package routes
 import (
 	"log/slog"
 	"net/http"
+
+	pkgroutes "github.com/JaimeStill/agent-lab/pkg/routes"
 )
 
-// System manages route registration and HTTP handler construction.
-type System interface {
-	RegisterGroup(group Group)
-	RegisterRoute(route Route)
-	Build() http.Handler
-	Groups() []Group
-	Routes() []Route
-}
-
 type routes struct {
-	routes []Route
-	groups []Group
+	routes []pkgroutes.Route
+	groups []pkgroutes.Group
 	logger *slog.Logger
 }
 
 // New creates a route system with the specified logger.
-func New(logger *slog.Logger) System {
+func New(logger *slog.Logger) pkgroutes.System {
 	return &routes{
 		logger: logger,
-		groups: []Group{},
-		routes: []Route{},
+		groups: []pkgroutes.Group{},
+		routes: []pkgroutes.Route{},
 	}
 }
 
-func (r *routes) Groups() []Group {
+func (r *routes) Groups() []pkgroutes.Group {
 	return r.groups
 }
 
-func (r *routes) Routes() []Route {
+func (r *routes) Routes() []pkgroutes.Route {
 	return r.routes
 }
 
 // RegisterRoute adds a route to the route system.
-func (r *routes) RegisterRoute(route Route) {
+func (r *routes) RegisterRoute(route pkgroutes.Route) {
 	r.routes = append(r.routes, route)
 }
 
 // RegisterGroup adds a route group to the route system.
-func (r *routes) RegisterGroup(group Group) {
+func (r *routes) RegisterGroup(group pkgroutes.Group) {
 	r.groups = append(r.groups, group)
 }
 
@@ -63,7 +56,7 @@ func (r *routes) Build() http.Handler {
 	return mux
 }
 
-func (r *routes) registerGroup(mux *http.ServeMux, parentPrefix string, group Group) {
+func (r *routes) registerGroup(mux *http.ServeMux, parentPrefix string, group pkgroutes.Group) {
 	fullPrefix := parentPrefix + group.Prefix
 	for _, route := range group.Routes {
 		pattern := fullPrefix + route.Pattern

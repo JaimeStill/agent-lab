@@ -42,7 +42,9 @@ agent-lab/
 │   ├── decode/           # Type-safe map decoding
 │   └── repository/       # Database helpers
 ├── web/                  # Web assets
-│   └── docs/             # API documentation (Scalar UI)
+│   ├── client/           # TypeScript/CSS source
+│   ├── scalar/           # Scalar OpenAPI UI
+│   └── server/           # Go templates
 ├── tests/                # Black-box tests
 ├── compose/              # Docker Compose files
 └── config.toml           # Base configuration
@@ -73,7 +75,21 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/readyz
 
 # API documentation (Scalar UI)
-open http://localhost:8080/docs
+open http://localhost:8080/scalar
+```
+
+### Makefile Commands
+
+Common tasks are available via Make:
+
+```bash
+make dev      # Build web assets + run server
+make build    # Production build (web + Go binary)
+make web      # Build web assets only
+make run      # Run server only
+make test     # Run tests
+make vet      # Run go vet
+make clean    # Remove build artifacts
 ```
 
 ### Configuration
@@ -99,7 +115,7 @@ go test ./tests/... -cover
 
 ## API Overview
 
-All endpoints are documented in the interactive Scalar UI at `http://localhost:8080/docs`.
+All endpoints are documented in the interactive Scalar UI at `http://localhost:8080/scalar`.
 
 | Domain | Prefix | Description |
 |--------|--------|-------------|
@@ -114,7 +130,7 @@ All endpoints are documented in the interactive Scalar UI at `http://localhost:8
 
 ## Sample Workflows
 
-agent-lab includes sample workflows that demonstrate live agent integration. Test these via the Scalar API documentation at `http://localhost:8080/docs`.
+agent-lab includes sample workflows that demonstrate live agent integration. Test these via the Scalar API documentation at `http://localhost:8080/scalar`.
 
 ### Prerequisites
 
