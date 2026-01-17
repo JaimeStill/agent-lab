@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/JaimeStill/agent-lab/pkg/storage"
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 	"github.com/JaimeStill/agent-lab/pkg/query"
 	"github.com/JaimeStill/agent-lab/pkg/repository"
+	"github.com/JaimeStill/agent-lab/pkg/storage"
 	"github.com/google/uuid"
 )
 
@@ -30,6 +30,10 @@ func New(db *sql.DB, storage storage.System, logger *slog.Logger, pagination pag
 		logger:     logger.With("system", "documents"),
 		pagination: pagination,
 	}
+}
+
+func (r *repo) Handler(maxUploadSize int64) *Handler {
+	return NewHandler(r, r.logger, r.pagination, maxUploadSize)
 }
 
 func (r *repo) List(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Document], error) {

@@ -71,13 +71,16 @@ func NewTemplateSet(layoutFS, pageFS embed.FS, layoutGlob, pageSubdir, basePath 
 	}, nil
 }
 
-// ErrorHandler returns an HTTP handler that renders an error template with the
-// given status code.
-func (ts *TemplateSet) ErrorHandler(layout, template string, status int, title string) http.HandlerFunc {
+// ErrorHandler returns an HTTP handler that renders an error page with the given status code.
+func (ts *TemplateSet) ErrorHandler(layout string, page PageDef, status int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
-		data := PageData{Title: title, BasePath: ts.basePath}
-		if err := ts.Render(w, layout, template, data); err != nil {
+		data := PageData{
+			Title:    page.Title,
+			Bundle:   page.Bundle,
+			BasePath: ts.basePath,
+		}
+		if err := ts.Render(w, layout, page.Template, data); err != nil {
 			http.Error(w, http.StatusText(status), status)
 		}
 	}

@@ -11,10 +11,10 @@ import (
 	"sync"
 
 	"github.com/JaimeStill/agent-lab/internal/documents"
-	"github.com/JaimeStill/agent-lab/pkg/storage"
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 	"github.com/JaimeStill/agent-lab/pkg/query"
 	"github.com/JaimeStill/agent-lab/pkg/repository"
+	"github.com/JaimeStill/agent-lab/pkg/storage"
 	"github.com/JaimeStill/document-context/pkg/document"
 	"github.com/JaimeStill/document-context/pkg/image"
 	"github.com/google/uuid"
@@ -49,6 +49,10 @@ func New(
 		logger:     logger.With("system", "images"),
 		pagination: pagination,
 	}
+}
+
+func (r *repo) Handler() *Handler {
+	return NewHandler(r, r.logger, r.pagination)
 }
 
 func (r *repo) List(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Image], error) {

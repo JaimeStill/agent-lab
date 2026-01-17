@@ -17,7 +17,7 @@ run:
 
 # Run tests
 test:
-	go run ./tests/...
+	go test ./tests/...
 
 # Run go vet
 vet:
@@ -26,4 +26,5 @@ vet:
 # Clean build artifacts
 clean:
 	rm -rf bin/
-	rm -rf web/dist
+	rm -rf web/app/dist
+	rm -rf web/scalar/scalar.js web/scalar/scalar.css

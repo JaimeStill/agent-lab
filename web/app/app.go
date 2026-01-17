@@ -31,11 +31,11 @@ var publicFiles = []string{
 
 var pages = []web.PageDef{
 	{Route: "/{$}", Template: "home.html", Title: "Home", Bundle: "app"},
-	{Route: "/components/", Template: "components.html", Title: "Components", Bundle: "app"},
+	{Route: "/components", Template: "components.html", Title: "Components", Bundle: "app"},
 }
 
 var errorPages = []web.PageDef{
-	{Template: "404.html", Title: "Not Found"},
+	{Template: "404.html", Title: "Not Found", Bundle: "app"},
 }
 
 // NewModule creates the app module configured for the given base path.
@@ -61,9 +61,8 @@ func buildRouter(ts *web.TemplateSet) http.Handler {
 	r := web.NewRouter()
 	r.SetFallback(ts.ErrorHandler(
 		"app.html",
-		"404.html",
+		errorPages[0],
 		http.StatusNotFound,
-		"Not Found",
 	))
 
 	for _, page := range pages {

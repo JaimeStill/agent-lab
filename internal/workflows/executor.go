@@ -43,6 +43,10 @@ func NewSystem(
 	}
 }
 
+func (e *executor) Handler() *Handler {
+	return NewHandler(e, e.logger, e.repo.pagination)
+}
+
 func (e *executor) ListRuns(ctx context.Context, page pagination.PageRequest, filters RunFilters) (*pagination.PageResult[Run], error) {
 	return e.repo.ListRuns(ctx, page, filters)
 }

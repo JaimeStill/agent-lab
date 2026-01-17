@@ -1,35 +1,29 @@
 package api
 
 import (
-	"log/slog"
-
 	"github.com/JaimeStill/agent-lab/internal/config"
-	"github.com/JaimeStill/agent-lab/pkg/database"
-	"github.com/JaimeStill/agent-lab/pkg/lifecycle"
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
-	"github.com/JaimeStill/agent-lab/pkg/storage"
+	"github.com/JaimeStill/agent-lab/pkg/runtime"
 )
 
+// Runtime extends Infrastructure with API-specific configuration.
 type Runtime struct {
-	Logger     *slog.Logger
-	Database   database.System
-	Storage    storage.System
-	Lifecycle  *lifecycle.Coordinator
+	*runtime.Infrastructure
 	Pagination pagination.Config
 }
 
+// NewRuntime creates an API runtime with a module-scoped logger.
 func NewRuntime(
 	cfg *config.Config,
-	logger *slog.Logger,
-	db database.System,
-	store storage.System,
-	lc *lifecycle.Coordinator,
+	infra *runtime.Infrastructure,
 ) *Runtime {
 	return &Runtime{
-		Logger:     logger.With("module", "api"),
-		Database:   db,
-		Storage:    store,
-		Lifecycle:  lc,
+		Infrastructure: &runtime.Infrastructure{
+			Lifecycle: infra.Lifecycle,
+			Logger:    infra.Logger.With("module", "api"),
+			Database:  infra.Database,
+			Storage:   infra.Storage,
+		},
 		Pagination: cfg.API.Pagination,
 	}
 }

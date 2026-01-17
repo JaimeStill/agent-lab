@@ -11,12 +11,14 @@ import (
 	"github.com/google/uuid"
 )
 
+// Handler provides HTTP endpoints for workflow profile management.
 type Handler struct {
 	sys        System
 	logger     *slog.Logger
 	pagination pagination.Config
 }
 
+// NewHandler creates a new profiles HTTP handler.
 func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *Handler {
 	return &Handler{
 		sys:        sys,
@@ -25,6 +27,7 @@ func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *
 	}
 }
 
+// Routes returns the route configuration for profile endpoints.
 func (h *Handler) Routes() routes.Group {
 	return routes.Group{
 		Prefix:      "/profiles",

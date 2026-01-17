@@ -12,6 +12,8 @@ import (
 // System defines the interface for agent configuration management.
 // Implementations handle persistence and validation of agent configs.
 type System interface {
+	Handler() *Handler
+
 	// List returns a paginated list of agents matching the filter criteria.
 	List(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Agent], error)
 

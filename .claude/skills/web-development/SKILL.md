@@ -1,11 +1,13 @@
 ---
 name: web-development
 description: >
-  Web development patterns for Milestone 5. Use when implementing frontend
-  templates, CSS architecture, or client-side functionality.
+  Web development patterns including frontend templates, CSS architecture,
+  and server-side rendering infrastructure. Includes PageDef and TemplateSet
+  for Go template rendering.
   Triggers: Web Components, al-* components, templates, Vite, TypeScript,
-  custom elements, shadow DOM, frontend, client-side, CSS classes.
-  File patterns: web/**/*.ts, web/**/*.html, web/**/*.css
+  custom elements, shadow DOM, frontend, client-side, CSS classes, PageDef,
+  TemplateSet, PageData, server-side rendering, Go templates.
+  File patterns: web/**/*.ts, web/**/*.html, web/**/*.css, web/**/*.go, pkg/web/*.go
 ---
 
 # Web Development Patterns
@@ -16,6 +18,8 @@ description: >
 - Implementing frontend components in `web/`
 - Working with TypeScript custom elements
 - Styling native elements with semantic classes
+- Creating server-side rendered pages with Go templates
+- Using PageDef and TemplateSet for template infrastructure
 
 ## Native-First Principle
 
@@ -144,6 +148,64 @@ customElements.define('al-workflow-monitor', AlWorkflowMonitor);
 - Light DOM (no shadow DOM) for global CSS access
 - Cleanup in `disconnectedCallback`
 - Minimal internal state
+
+## Server-Side Rendering Infrastructure
+
+### PageDef and TemplateSet
+
+The `pkg/web` package provides infrastructure for server-side rendered pages:
+
+```go
+// PageDef defines a page with route, template, title, and bundle
+type PageDef struct {
+    Route    string  // URL pattern (e.g., "/", "/workflows")
+    Template string  // Template file path (e.g., "home.html")
+    Title    string  // Page title
+    Bundle   string  // JS bundle name (e.g., "app")
+}
+
+// PageData passed to templates during rendering
+type PageData struct {
+    Title    string
+    Bundle   string
+    BasePath string  // For portable URL generation
+    Data     any     // Custom page data
+}
+
+// TemplateSet holds pre-parsed templates
+type TemplateSet struct {
+    pages    map[string]*template.Template
+    basePath string
+}
+```
+
+**Creating a TemplateSet**:
+```go
+templates, err := web.NewTemplateSet(
+    layoutFS, pageFS,
+    "layouts/*.html",  // Layout glob
+    "pages",           // Page subdirectory
+    "/app",            // Base path for URLs
+    pages,             // []PageDef
+)
+```
+
+**Generating Handlers**:
+```go
+// Page handler - renders template with PageData
+mux.HandleFunc("GET /", templates.PageHandler("app.html", homePage))
+
+// Error handler - renders with status code
+mux.HandleFunc("GET /404", templates.ErrorHandler("app.html", notFoundPage, 404))
+```
+
+**Template Usage**:
+```html
+<!-- Use BasePath for portable URLs -->
+<base href="{{ .BasePath }}/">
+<link rel="stylesheet" href="dist/{{ .Bundle }}.css">
+<script type="module" src="dist/{{ .Bundle }}.js"></script>
+```
 
 ## Directory Structure
 

@@ -13,6 +13,8 @@ import (
 // System defines the interface for provider configuration management.
 // Implementations handle persistence and validation of provider configs.
 type System interface {
+	Handler() *Handler
+
 	// List returns a paginated list of providers matching the filter criteria.
 	List(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Provider], error)
 

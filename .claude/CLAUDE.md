@@ -33,17 +33,17 @@ Skills load automatically when context is relevant. Use these keywords/files to 
 
 | Skill | Triggers | File Patterns |
 |-------|----------|---------------|
-| **go-core** | error handling, naming, file structure, slog | `internal/**/*.go` |
+| **go-core** | error handling, naming, file structure, slog, domain system | `internal/**/*.go`, `pkg/**/*.go` |
 | **go-testing** | _test.go, TestXxx, t.Run, table-driven | `tests/**/*.go` |
-| **lca** | System interface, lifecycle, cold/hot start, config | `internal/config/*.go` |
-| **go-database** | repository, *sql.DB, query builder, pagination | `internal/*/repository.go` |
-| **go-storage** | storage.System, Store, atomic writes | `internal/storage/*.go` |
-| **go-http** | Handler struct, Routes(), middleware, SSE, long-running processes | `internal/*/handler.go`, `pkg/module/*.go`, `pkg/middleware/*.go`, `pkg/routes/*.go` |
-| **openapi** | OpenAPI, Spec.*, schemas, Scalar | `internal/*/openapi.go` |
+| **lca** | System interface, lifecycle, Infrastructure, Handler() factory, config | `internal/config/*.go`, `pkg/runtime/*.go`, `internal/*/system.go` |
+| **go-database** | repository, *sql.DB, query builder, pagination | `internal/*/repository.go`, `internal/*/mapping.go` |
+| **go-storage** | storage.System, Store, atomic writes | `pkg/storage/*.go` |
+| **go-http** | Handler struct, Routes(), module, middleware, path normalization, SSE | `internal/*/handler.go`, `pkg/module/*.go`, `pkg/middleware/*.go`, `pkg/routes/*.go` |
+| **openapi** | OpenAPI, Spec.*, schemas, Scalar | `internal/*/openapi.go`, `pkg/openapi/*.go` |
 | **agent-execution** | agent.Agent, VisionForm, token injection | `internal/agents/*.go` |
 | **workflow-orchestration** | StateGraph, Observer, CheckpointStore | `internal/workflows/*.go` |
-| **document-processing** | PDF, page rendering, RenderOptions | `internal/documents/*.go` |
-| **web-development** | al-* components, TypeScript, Vite | `web/**/*.ts` |
+| **document-processing** | PDF, page rendering, RenderOptions | `internal/documents/*.go`, `internal/images/*.go` |
+| **web-development** | al-* components, TypeScript, Vite, PageDef, TemplateSet | `web/**/*.ts`, `web/**/*.go`, `pkg/web/*.go` |
 | **development-methodology** | milestone planning, session workflow | `_context/*.md` |
 
 ### Always-Loaded Rules

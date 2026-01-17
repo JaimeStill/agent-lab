@@ -9,6 +9,8 @@ import (
 
 // System defines the interface for profile management operations.
 type System interface {
+	Handler() *Handler
+
 	// List returns a paginated list of profiles with optional filtering.
 	List(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Profile], error)
 

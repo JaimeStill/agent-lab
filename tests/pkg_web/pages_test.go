@@ -203,7 +203,7 @@ func TestErrorHandler(t *testing.T) {
 		t.Fatalf("NewTemplateSet() error = %v", err)
 	}
 
-	handler := ts.ErrorHandler("test.html", "404.html", http.StatusNotFound, "Not Found")
+	handler := ts.ErrorHandler("test.html", errorPages[0], http.StatusNotFound)
 	if handler == nil {
 		t.Fatal("ErrorHandler() returned nil")
 	}
@@ -241,7 +241,7 @@ func TestErrorHandlerDifferentStatus(t *testing.T) {
 		t.Fatalf("NewTemplateSet() error = %v", err)
 	}
 
-	handler := ts.ErrorHandler("test.html", "404.html", http.StatusInternalServerError, "Server Error")
+	handler := ts.ErrorHandler("test.html", errorPages[0], http.StatusInternalServerError)
 
 	req := httptest.NewRequest(http.MethodGet, "/error", nil)
 	w := httptest.NewRecorder()
@@ -256,7 +256,7 @@ func TestErrorHandlerDifferentStatus(t *testing.T) {
 	}
 
 	body, _ := io.ReadAll(resp.Body)
-	if !strings.Contains(string(body), "<title>Server Error</title>") {
-		t.Error("response does not contain custom error title")
+	if !strings.Contains(string(body), "<title>Not Found</title>") {
+		t.Error("response does not contain error title from PageDef")
 	}
 }

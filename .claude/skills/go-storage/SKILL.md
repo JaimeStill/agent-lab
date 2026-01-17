@@ -6,7 +6,7 @@ description: >
   Triggers: storage.System, Store, Retrieve, Delete, Validate, Path,
   atomic writes, path traversal protection, storage keys, filesystem,
   base_path, temp file.
-  File patterns: internal/storage/*.go
+  File patterns: pkg/storage/*.go
 ---
 
 # Go Storage Patterns

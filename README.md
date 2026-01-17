@@ -42,6 +42,7 @@ agent-lab/
 │   ├── query/            # SQL query builder
 │   ├── repository/       # Database helpers
 │   ├── routes/           # Route registration
+│   ├── runtime/          # Server infrastructure (lifecycle, database, storage)
 │   ├── storage/          # Blob storage abstraction
 │   └── web/              # Web template utilities
 ├── web/                  # Web modules
@@ -192,6 +193,36 @@ Multi-node workflow that performs step-by-step reasoning: analyze → reason →
 - `conclude_system_prompt` - Override the conclude node prompt
 - `token` - Runtime API token override
 
+### Classify Workflow
+
+Multi-stage document classification workflow that analyzes PDF documents:
+1. **Init** - Loads document, renders page images
+2. **Detect** - Parallel vision analysis to identify markings on each page
+3. **Enhance** - Re-renders low-clarity pages with adjusted filters
+4. **Classify** - Determines document classification based on detected markings
+5. **Score** - Calculates confidence score with weighted factors
+
+**Endpoint**: `POST /api/workflows/classify/execute`
+
+**Prerequisites**:
+1. Upload a document via `POST /api/documents`
+2. Create or seed a workflow profile (`POST /api/profiles` or use `go run ./cmd/seed -all`)
+3. Have a vision-capable agent configured
+
+**Request Body** (for Scalar interface):
+```json
+{
+  "params": {
+    "document_id": "<DOCUMENT_UUID>",
+    "token": "<API_TOKEN>"
+  }
+}
+```
+
+**Optional Parameters**:
+- `profile_id` - Use a specific profile instead of the default
+- `token` - API token for vision-capable LLM providers (e.g., Azure)
+
 ### Viewing Results
 
 **List all runs**:
@@ -207,6 +238,11 @@ GET /api/workflows/runs/{run_id}
 **View execution stages** (for multi-node workflows):
 ```
 GET /api/workflows/runs/{run_id}/stages
+```
+
+**View routing decisions**:
+```
+GET /api/workflows/runs/{run_id}/decisions
 ```
 
 ## Documentation

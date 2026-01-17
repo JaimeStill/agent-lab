@@ -1,4 +1,4 @@
-package main
+package runtime
 
 import (
 	"log/slog"
@@ -7,6 +7,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/config"
 )
 
+// newLogger creates a structured logger based on the logging configuration.
 func newLogger(cfg *config.LoggingConfig) *slog.Logger {
 	opts := &slog.HandlerOptions{
 		Level: cfg.Level.ToSlogLevel(),

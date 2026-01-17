@@ -45,4 +45,20 @@
   .constrain {
     max-width: 24rem;
   }
+
+  .align-start {
+    align-self: flex-start;
+  }
+
+  .align-center {
+    align-self: center;
+  }
+
+  .align-end {
+    align-self: flex-end;
+  }
+
+  .align-stretch {
+    align-self: stretch;
+  }
 }

@@ -1,6 +1,6 @@
 # agent-lab Project
 
-**Status**: Active Development - Planning Phase
+**Status**: Active Development - Milestone 5 In Progress
 
 ## Overview
 
@@ -617,7 +617,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 **Development Sessions**:
 
-#### Session 4a: Profiles Infrastructure & Workflow Migration ✓
+#### Session 4a: Profiles Infrastructure & Workflow Migration ✅
 
 **Deliverables**:
 - Database migration for profiles and profile_stages tables
@@ -635,9 +635,9 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 - `workflows/summarize/` (profile.go + summarize.go)
 - `workflows/reasoning/` (profile.go + reasoning.go)
 
-**Validation**: ✓ Profile CRUD, stage save, both profile scenarios (system_prompt only, agent_id configured)
+**Validation**: ✅ Profile CRUD, stage save, both profile scenarios (system_prompt only, agent_id configured)
 
-#### Session 4b: classify-docs Types and Detection Stage ✓
+#### Session 4b: classify-docs Types and Detection Stage ✅
 
 **Deliverables**:
 - Type definitions (PageImage, PageDetection, MarkingInfo, FilterSuggestion)
@@ -652,9 +652,9 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 - `workflows/classify/profile.go`
 - `workflows/classify/classify.go`
 
-**Validation**: ✓ Workflow executes through detect stage, parallel execution verified, token security implemented
+**Validation**: ✅ Workflow executes through detect stage, parallel execution verified, token security implemented
 
-#### Session 4c: Enhancement, Classification, and Scoring ✓
+#### Session 4c: Enhancement, Classification, and Scoring ✅
 
 **Deliverables**:
 - Enhancement conditional node (re-render low-clarity pages)
@@ -668,7 +668,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 - `workflows/classify/parse.go` (generic parser, classification/scoring parsers)
 - `workflows/classify/errors.go` (new error types)
 
-**Validation**: ✓ Full workflow execution with Azure GPT-5-mini, tested with challenging faded-marking document
+**Validation**: ✅ Full workflow execution with Azure GPT-5-mini, tested with challenging faded-marking document
 
 #### Session 4d: Data Security and Seed Infrastructure
 
@@ -701,9 +701,9 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 - `agent-lab/internal/workflows/profile.go`
 - `agent-lab/cmd/seed/` (new directory)
 
-**Validation**: ✓ Token NOT in checkpoints, stages, runs, or SSE events; seed command creates profiles correctly
+**Validation**: ✅ Token NOT in checkpoints, stages, runs, or SSE events; seed command creates profiles correctly
 
-#### Session 4e: Performance and Accuracy Refinement ✓
+#### Session 4e: Performance and Accuracy Refinement ✅
 
 **Status**: Completed (2026-01-07)
 
@@ -730,7 +730,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 - Lifecycle Context Pattern: Long-running processes use `runtime.Lifecycle().Context()` to survive HTTP disconnection while respecting server shutdown
 - Parallel Worker Pool: Dynamic sizing based on `runtime.NumCPU()` and workload size
 
-**Validation**: ✓ 27-page PDF completes in 1m40s, ~96% accuracy, all tests passing
+**Validation**: ✅ 27-page PDF completes in 1m40s, ~96% accuracy, all tests passing
 
 ---
 
@@ -1092,23 +1092,37 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - Session 5a: Web Infrastructure Setup ✅
   - Session 5b: Design Tokens + CSS Architecture ✅
   - Session 5c: Core Components + Patterns ✅
+  - Session 5d: Providers + Agents UI (pending)
+  - Session 5e: Documents + Images UI (pending)
+  - Session 5f: Profiles UI (pending)
+  - Session 5g: Workflow Execution Trigger (pending)
+  - Session 5h: Run Monitoring + SSE Integration (pending)
+  - Session 5i: Confidence Visualization + Results (pending)
+  - Session 5j: Comparison + Iteration (pending)
 
 **Recently Completed**:
+- **Maintenance Session mt07: Module Polish** ✅
+  - Path normalization at router level (replaced redirect-based slash middleware)
+  - Fixed 404 page empty bundle name with PageDef pattern
+  - Extracted shared `pkg/runtime.Infrastructure`
+  - Added Handler() factory to domain systems for simplified route registration
+  - Comprehensive infrastructure review (tests, .claude, comments, docs)
+- **Maintenance Session mt06: Mountable Modules** ✅
+  - Refactored server architecture into isolated, mountable modules
+  - Created `pkg/module` with Module and Router types
+  - Moved infrastructure packages to `pkg/` (middleware, lifecycle, database, storage)
+  - Created `internal/api` module encapsulating Runtime, Domain, and route registration
+  - Web clients use `NewModule(basePath)` pattern with `<base>` tag
 - **Milestone 4: classify-docs Workflow Integration** ✅
-  - Session 4a: Profiles Infrastructure & Workflow Migration ✓
-  - Session 4b: classify-docs Types and Detection Stage ✓
-  - Session 4c: Enhancement, Classification, and Scoring ✓
-  - Session 4d: Data Security and Seed Infrastructure ✓
-  - Session 4e: Performance and Accuracy Refinement ✓
-  - **Milestone Review** ✓
+  - Session 4a: Profiles Infrastructure & Workflow Migration ✅
+  - Session 4b: classify-docs Types and Detection Stage ✅
+  - Session 4c: Enhancement, Classification, and Scoring ✅
+  - Session 4d: Data Security and Seed Infrastructure ✅
+  - Session 4e: Performance and Accuracy Refinement ✅
+  - Milestone Review ✅
 
 **Next Steps**:
-- **Maintenance Session mt07: Module Polish** (guide ready at `_context/mt07-module-polish.md`)
-  - Fix AddSlash redirect at router level (`/app` → `/app/` not working)
-  - Fix 404 page empty bundle name
-  - Extract shared `pkg/runtime.Infrastructure` to simplify API module initialization
-  - Estimated time: 30-45 minutes
-- Continue Milestone 5: Session 05d (Providers + Agents UI)
+- Continue Milestone 5: Session 5d (Providers + Agents UI)
 
 ## Future Phases (Beyond Milestone 7)
 

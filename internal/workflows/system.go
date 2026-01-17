@@ -10,6 +10,7 @@ import (
 // System defines the public interface for the workflows domain.
 // It provides methods for listing, querying, and executing workflows.
 type System interface {
+	Handler() *Handler
 	ListRuns(ctx context.Context, page pagination.PageRequest, filters RunFilters) (*pagination.PageResult[Run], error)
 	FindRun(ctx context.Context, id uuid.UUID) (*Run, error)
 	GetStages(ctx context.Context, runID uuid.UUID) ([]Stage, error)
