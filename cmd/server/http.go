@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/JaimeStill/agent-lab/internal/config"
-	"github.com/JaimeStill/agent-lab/internal/lifecycle"
+	"github.com/JaimeStill/agent-lab/pkg/lifecycle"
 )
 
 type httpServer struct {

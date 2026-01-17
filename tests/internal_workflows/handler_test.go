@@ -27,8 +27,8 @@ func TestHandler_Routes(t *testing.T) {
 	handler := workflows.NewHandler(nil, logger, paginationCfg)
 	group := handler.Routes()
 
-	if group.Prefix != "/api/workflows" {
-		t.Errorf("Prefix = %q, want %q", group.Prefix, "/api/workflows")
+	if group.Prefix != "/workflows" {
+		t.Errorf("Prefix = %q, want %q", group.Prefix, "/workflows")
 	}
 
 	if len(group.Tags) != 1 || group.Tags[0] != "Workflows" {

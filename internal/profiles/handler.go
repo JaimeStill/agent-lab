@@ -27,7 +27,7 @@ func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *
 
 func (h *Handler) Routes() routes.Group {
 	return routes.Group{
-		Prefix:      "/api/profiles",
+		Prefix:      "/profiles",
 		Tags:        []string{"Profiles"},
 		Description: "Workflow profile configuration management",
 		Routes: []routes.Route{

@@ -35,7 +35,7 @@ func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config, m
 // Routes returns the document endpoint route group.
 func (h *Handler) Routes() routes.Group {
 	return routes.Group{
-		Prefix:      "/api/documents",
+		Prefix:      "/documents",
 		Tags:        []string{"Documents"},
 		Description: "Document upload and management",
 		Routes: []routes.Route{

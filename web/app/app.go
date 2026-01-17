@@ -1,11 +1,12 @@
+// Package app provides the web application module with embedded templates and assets.
 package app
 
 import (
 	"embed"
 	"net/http"
 
-	"github.com/JaimeStill/agent-lab/pkg/routes"
-	pkgweb "github.com/JaimeStill/agent-lab/pkg/web"
+	"github.com/JaimeStill/agent-lab/pkg/module"
+	"github.com/JaimeStill/agent-lab/pkg/web"
 )
 
 //go:embed dist/*
@@ -28,22 +29,19 @@ var publicFiles = []string{
 	"site.webmanifest",
 }
 
-var pages = []pkgweb.PageDef{
+var pages = []web.PageDef{
 	{Route: "/{$}", Template: "home.html", Title: "Home", Bundle: "app"},
-	{Route: "/components", Template: "components.html", Title: "Components", Bundle: "app"},
+	{Route: "/components/", Template: "components.html", Title: "Components", Bundle: "app"},
 }
 
-var errorPages = []pkgweb.PageDef{
+var errorPages = []web.PageDef{
 	{Template: "404.html", Title: "Not Found"},
 }
 
-type Handler struct {
-	templates *pkgweb.TemplateSet
-}
-
-func NewHandler(basePath string) (*Handler, error) {
+// NewModule creates the app module configured for the given base path.
+func NewModule(basePath string) (*module.Module, error) {
 	allPages := append(pages, errorPages...)
-	ts, err := pkgweb.NewTemplateSet(
+	ts, err := web.NewTemplateSet(
 		layoutFS,
 		pageFS,
 		"server/layouts/*.html",
@@ -54,33 +52,14 @@ func NewHandler(basePath string) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Handler{templates: ts}, nil
+
+	router := buildRouter(ts)
+	return module.New(basePath, router), nil
 }
 
-func (h *Handler) Mount(r routes.System, prefix string) {
-	router := h.Router()
-
-	// Exact match for prefix (e.g., /app)
-	r.RegisterRoute(routes.Route{
-		Method:  "GET",
-		Pattern: prefix,
-		Handler: func(w http.ResponseWriter, req *http.Request) {
-			req.URL.Path = "/"
-			router.ServeHTTP(w, req)
-		},
-	})
-
-	// Wildcard for all paths under prefix (e.g., /app/components)
-	r.RegisterRoute(routes.Route{
-		Method:  "GET",
-		Pattern: prefix + "/{path...}",
-		Handler: http.StripPrefix(prefix, router).ServeHTTP,
-	})
-}
-
-func (h *Handler) Router() http.Handler {
-	r := pkgweb.NewRouter()
-	r.SetFallback(h.templates.ErrorHandler(
+func buildRouter(ts *web.TemplateSet) http.Handler {
+	r := web.NewRouter()
+	r.SetFallback(ts.ErrorHandler(
 		"app.html",
 		"404.html",
 		http.StatusNotFound,
@@ -88,12 +67,12 @@ func (h *Handler) Router() http.Handler {
 	))
 
 	for _, page := range pages {
-		r.HandleFunc("GET "+page.Route, h.templates.PageHandler("app.html", page))
+		r.HandleFunc("GET "+page.Route, ts.PageHandler("app.html", page))
 	}
 
 	r.Handle("GET /dist/", http.FileServer(http.FS(distFS)))
 
-	for _, route := range pkgweb.PublicFileRoutes(publicFS, "public", publicFiles...) {
+	for _, route := range web.PublicFileRoutes(publicFS, "public", publicFiles...) {
 		r.HandleFunc(route.Method+" "+route.Pattern, route.Handler)
 	}
 

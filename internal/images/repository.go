@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/JaimeStill/agent-lab/internal/documents"
-	"github.com/JaimeStill/agent-lab/internal/storage"
+	"github.com/JaimeStill/agent-lab/pkg/storage"
 	"github.com/JaimeStill/agent-lab/pkg/pagination"
 	"github.com/JaimeStill/agent-lab/pkg/query"
 	"github.com/JaimeStill/agent-lab/pkg/repository"

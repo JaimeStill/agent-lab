@@ -6,8 +6,8 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/agents"
 	"github.com/JaimeStill/agent-lab/internal/documents"
 	"github.com/JaimeStill/agent-lab/internal/images"
-	"github.com/JaimeStill/agent-lab/internal/lifecycle"
 	"github.com/JaimeStill/agent-lab/internal/profiles"
+	"github.com/JaimeStill/agent-lab/pkg/lifecycle"
 )
 
 // Runtime aggregates runtime dependencies for workflow execution.

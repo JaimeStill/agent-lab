@@ -10,7 +10,7 @@ import (
 func TestConfig_Finalize_Defaults(t *testing.T) {
 	cfg := &pagination.Config{}
 
-	if err := cfg.Finalize(); err != nil {
+	if err := cfg.Finalize(nil); err != nil {
 		t.Fatalf("Finalize() failed: %v", err)
 	}
 
@@ -29,7 +29,7 @@ func TestConfig_Finalize_PreservesValues(t *testing.T) {
 		MaxPageSize:     50,
 	}
 
-	if err := cfg.Finalize(); err != nil {
+	if err := cfg.Finalize(nil); err != nil {
 		t.Fatalf("Finalize() failed: %v", err)
 	}
 
@@ -43,16 +43,20 @@ func TestConfig_Finalize_PreservesValues(t *testing.T) {
 }
 
 func TestConfig_Finalize_EnvOverrides(t *testing.T) {
-	os.Setenv("PAGINATION_DEFAULT_PAGE_SIZE", "15")
-	os.Setenv("PAGINATION_MAX_PAGE_SIZE", "75")
+	os.Setenv("TEST_PAGINATION_DEFAULT_PAGE_SIZE", "15")
+	os.Setenv("TEST_PAGINATION_MAX_PAGE_SIZE", "75")
 	defer func() {
-		os.Unsetenv("PAGINATION_DEFAULT_PAGE_SIZE")
-		os.Unsetenv("PAGINATION_MAX_PAGE_SIZE")
+		os.Unsetenv("TEST_PAGINATION_DEFAULT_PAGE_SIZE")
+		os.Unsetenv("TEST_PAGINATION_MAX_PAGE_SIZE")
 	}()
 
 	cfg := &pagination.Config{}
+	env := &pagination.ConfigEnv{
+		DefaultPageSize: "TEST_PAGINATION_DEFAULT_PAGE_SIZE",
+		MaxPageSize:     "TEST_PAGINATION_MAX_PAGE_SIZE",
+	}
 
-	if err := cfg.Finalize(); err != nil {
+	if err := cfg.Finalize(env); err != nil {
 		t.Fatalf("Finalize() failed: %v", err)
 	}
 
@@ -81,7 +85,7 @@ func TestConfig_Finalize_ValidationErrors(t *testing.T) {
 				MaxPageSize:     tt.maxPageSize,
 			}
 
-			err := cfg.Finalize()
+			err := cfg.Finalize(nil)
 			if err == nil {
 				t.Error("Finalize() succeeded, want error")
 			}

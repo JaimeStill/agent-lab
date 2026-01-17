@@ -38,7 +38,7 @@ Skills load automatically when context is relevant. Use these keywords/files to 
 | **lca** | System interface, lifecycle, cold/hot start, config | `internal/config/*.go` |
 | **go-database** | repository, *sql.DB, query builder, pagination | `internal/*/repository.go` |
 | **go-storage** | storage.System, Store, atomic writes | `internal/storage/*.go` |
-| **go-http** | Handler struct, Routes(), middleware, SSE, long-running processes | `internal/*/handler.go` |
+| **go-http** | Handler struct, Routes(), middleware, SSE, long-running processes | `internal/*/handler.go`, `pkg/module/*.go`, `pkg/middleware/*.go`, `pkg/routes/*.go` |
 | **openapi** | OpenAPI, Spec.*, schemas, Scalar | `internal/*/openapi.go` |
 | **agent-execution** | agent.Agent, VisionForm, token injection | `internal/agents/*.go` |
 | **workflow-orchestration** | StateGraph, Observer, CheckpointStore | `internal/workflows/*.go` |

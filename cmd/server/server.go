@@ -1,18 +1,16 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/JaimeStill/agent-lab/internal/config"
-	"github.com/JaimeStill/agent-lab/internal/routes"
 	_ "github.com/JaimeStill/agent-lab/workflows"
 )
 
 // Server coordinates the lifecycle of all subsystems.
 type Server struct {
 	runtime *Runtime
-	domain  *Domain
+	modules *Modules
 	http    *httpServer
 }
 
@@ -23,29 +21,24 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	domain := NewDomain(runtime)
-
-	routeSys := routes.New(runtime.Logger)
-	middlewareSys := buildMiddleware(runtime, cfg)
-
-	err = registerRoutes(routeSys, runtime, domain, cfg)
+	modules, err := NewModules(runtime, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("register routes: %w", err)
+		return nil, err
 	}
 
+	router := buildRouter(runtime)
+	modules.Mount(router)
+
 	runtime.Logger.Info(
-		"OpenAPI spec loaded",
-		"path", specFilePath(cfg.Env()),
+		"server initialized",
+		"addr", cfg.Server.Addr(),
 		"version", cfg.Version,
 	)
 
-	handler := middlewareSys.Apply(routeSys.Build())
-
-	http := newHTTPServer(&cfg.Server, handler, runtime.Logger)
 	return &Server{
 		runtime: runtime,
-		domain:  domain,
-		http:    http,
+		modules: modules,
+		http:    newHTTPServer(&cfg.Server, router, runtime.Logger),
 	}, nil
 }
 
@@ -58,7 +51,7 @@ func (s *Server) Start() error {
 	}
 
 	if err := s.http.Start(s.runtime.Lifecycle); err != nil {
-		return fmt.Errorf("http server start failed: %w", err)
+		return err
 	}
 
 	go func() {
