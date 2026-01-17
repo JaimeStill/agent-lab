@@ -1,12 +1,13 @@
 ---
 name: go-http
 description: >
-  HTTP handler, middleware, and routing patterns. Use when implementing
-  endpoints, middleware, routes, or HTTP responses.
+  HTTP handler, module, middleware, and routing patterns. Use when implementing
+  endpoints, modules, middleware, routes, or HTTP responses. Includes module
+  pattern for mountable sub-applications and path normalization at router level.
   Triggers: http.Handler, http.HandlerFunc, Handler struct, Routes() method,
-  routes.Group, routes.Route, middleware stack, RespondJSON, RespondError,
-  CORS, SSE, text/event-stream, MapHTTPStatus, long-running processes,
-  lifecycle context, client disconnect.
+  routes.Group, routes.Route, module.Module, module.Router, middleware stack,
+  RespondJSON, RespondError, CORS, SSE, text/event-stream, MapHTTPStatus,
+  long-running processes, lifecycle context, client disconnect, path normalization.
   File patterns: internal/*/handler.go, pkg/module/*.go, pkg/middleware/*.go, pkg/routes/*.go
 ---
 
@@ -16,9 +17,11 @@ description: >
 
 - Implementing HTTP handlers
 - Creating route groups
+- Creating mountable modules
 - Adding middleware
 - Building SSE streaming endpoints
 - Handling request/response patterns
+- Understanding path normalization
 
 ## Principles
 
@@ -143,30 +146,83 @@ func MapHTTPStatus(err error) int {
 }
 ```
 
-### 5. Module and Middleware
+### 5. Module Pattern
 
-Modules are mounted HTTP sub-applications with their own middleware chains:
+Modules are isolated HTTP sub-applications with their own middleware chains. Each module is mounted at a single-level path prefix.
 
 ```go
-// Create API module with domain routes
-apiMux := http.NewServeMux()
-routes.Register(apiMux, "/api", spec,
-    providerHandler.Routes(),
-    agentHandler.Routes(),
-)
-apiModule := module.New("/api", apiMux)
+// pkg/module/module.go
+type Module struct {
+    prefix     string
+    router     http.Handler
+    middleware middleware.System
+}
 
-// Add middleware to the module
-apiModule.Use(middleware.TrimSlash())
-apiModule.Use(middleware.CORS(&cfg.CORS))
-apiModule.Use(middleware.Logger(runtime.Logger))
-
-// Mount on router
-router := module.NewRouter()
-router.Mount(apiModule)
+func New(prefix string, router http.Handler) *Module
+func (m *Module) Use(mw func(http.Handler) http.Handler)
+func (m *Module) Handler() http.Handler
+func (m *Module) Prefix() string
+func (m *Module) Serve(w http.ResponseWriter, req *http.Request)
 ```
 
-### 6. Logger Middleware
+**Creating a Module**:
+```go
+func NewModule(cfg *config.Config, infra *runtime.Infrastructure) (*module.Module, error) {
+    runtime := NewRuntime(cfg, infra)
+    domain := NewDomain(runtime)
+
+    mux := http.NewServeMux()
+    registerRoutes(mux, spec, domain, cfg)
+
+    m := module.New("/api", mux)
+    m.Use(middleware.CORS(&cfg.API.CORS))
+    m.Use(middleware.Logger(runtime.Logger))
+
+    return m, nil
+}
+```
+
+**Module Router** routes requests to mounted modules:
+```go
+router := module.NewRouter()
+router.Mount(apiModule)
+router.Mount(appModule)
+router.HandleNative("GET /health", healthHandler)
+```
+
+### 6. Path Normalization
+
+Path normalization happens at the router level, not via redirect middleware. The router strips trailing slashes before routing:
+
+```go
+func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+    path := normalizePath(req)  // Strips trailing slash
+    prefix := extractPrefix(path)
+
+    if m, ok := r.modules[prefix]; ok {
+        m.Serve(w, req)
+        return
+    }
+    r.native.ServeHTTP(w, req)
+}
+
+func normalizePath(req *http.Request) string {
+    path := req.URL.Path
+    if len(path) > 1 && strings.HasSuffix(path, "/") {
+        path = strings.TrimSuffix(path, "/")
+        req.URL.Path = path  // Mutates request in place
+    }
+    return path
+}
+```
+
+**Key Points**:
+- No HTTP redirects for trailing slashes
+- Path is normalized before module routing
+- Modules receive paths without trailing slashes
+- Native handlers registered separately from modules
+
+### 7. Logger Middleware
 
 ```go
 func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
@@ -184,7 +240,7 @@ func Logger(logger *slog.Logger) func(http.Handler) http.Handler {
 }
 ```
 
-### 7. SSE Streaming Pattern
+### 8. SSE Streaming Pattern
 
 Server-Sent Events for streaming responses:
 

@@ -9,6 +9,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/workflows"
 )
 
+// Domain holds all domain systems that comprise the API.
 type Domain struct {
 	Providers providers.System
 	Agents    agents.System
@@ -18,6 +19,7 @@ type Domain struct {
 	Workflows workflows.System
 }
 
+// NewDomain creates all domain systems from the API runtime.
 func NewDomain(runtime *Runtime) *Domain {
 	providersSys := providers.New(
 		runtime.Database.Connection(),

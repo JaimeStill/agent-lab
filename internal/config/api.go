@@ -28,6 +28,7 @@ var paginationEnv = &pagination.ConfigEnv{
 	MaxPageSize:     "API_PAGINATION_MAX_PAGE_SIZE",
 }
 
+// APIConfig contains API module configuration.
 type APIConfig struct {
 	BasePath   string                `toml:"base_path"`
 	CORS       middleware.CORSConfig `toml:"cors"`
@@ -35,6 +36,7 @@ type APIConfig struct {
 	OpenAPI    openapi.Config        `toml:"openapi"`
 }
 
+// Finalize applies defaults, loads environment overrides, and validates nested configurations.
 func (c *APIConfig) Finalize() error {
 	c.loadDefaults()
 	c.loadEnv()
@@ -51,6 +53,7 @@ func (c *APIConfig) Finalize() error {
 	return nil
 }
 
+// Merge applies non-zero values from the overlay configuration.
 func (c *APIConfig) Merge(overlay *APIConfig) {
 	if overlay.BasePath != "" {
 		c.BasePath = overlay.BasePath

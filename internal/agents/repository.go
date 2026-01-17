@@ -31,6 +31,10 @@ func New(db *sql.DB, logger *slog.Logger, pagination pagination.Config) System {
 	}
 }
 
+func (r *repo) Handler() *Handler {
+	return NewHandler(r, r.logger, r.pagination)
+}
+
 func (r *repo) List(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Agent], error) {
 	page.Normalize(r.pagination)
 

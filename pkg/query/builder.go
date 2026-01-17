@@ -71,6 +71,7 @@ func ParseSortFields(s string) []SortField {
 	return fields
 }
 
+// Build returns a SELECT query with the current conditions and ordering.
 func (b *Builder) Build() (string, []any) {
 	where, args, _ := b.buildWhere(1)
 	orderBy := b.buildOrderBy()
@@ -124,6 +125,7 @@ func (b *Builder) BuildSingle(idField string, id any) (string, []any) {
 	return sql, []any{id}
 }
 
+// BuildSingleOrNull returns a SELECT query limited to one row with the current conditions.
 func (b *Builder) BuildSingleOrNull() (string, []any) {
 	where, args, _ := b.buildWhere(1)
 	sql := fmt.Sprintf(
@@ -185,6 +187,7 @@ func (b *Builder) WhereIn(field string, values []any) *Builder {
 	return b
 }
 
+// WhereNullable adds an equality or IS NULL condition depending on whether value is nil.
 func (b *Builder) WhereNullable(column string, val any) *Builder {
 	col := b.projection.Column(column)
 	if isNil(val) {

@@ -2,9 +2,10 @@
 name: go-core
 description: >
   Core Go development patterns. Use when working with file structure,
-  error handling, naming conventions, or package organization.
+  error handling, naming conventions, or package organization. Includes
+  domain system file organization and repository query method naming.
   Triggers: errors.go, domain errors, file structure, constants, interfaces,
-  structured logging, slog, naming convention, Err prefix.
+  structured logging, slog, naming convention, Err prefix, domain system.
   File patterns: internal/**/*.go, pkg/**/*.go
 ---
 
@@ -13,6 +14,7 @@ description: >
 ## When This Skill Applies
 
 - Organizing code within Go files
+- Organizing domain system packages
 - Defining package-level errors
 - Naming interface methods
 - Implementing structured logging
@@ -66,7 +68,31 @@ func (h *Handler) Execute(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### 2. Interface Naming Convention
+### 2. Domain System File Organization
+
+Each domain system follows a consistent file structure:
+
+```
+internal/<domain>/
+├── errors.go       # Package-level error definitions
+├── <entity>.go     # Domain entity and types
+├── openapi.go      # OpenAPI spec operations and schemas
+├── mapping.go      # Database scanner functions
+├── system.go       # System interface definition
+├── repository.go   # System implementation (repo)
+└── handler.go      # HTTP handlers and Routes() method
+```
+
+**File Responsibilities**:
+- **errors.go**: Exported `Err*` variables
+- **<entity>.go**: Entity struct, commands, filters, types
+- **openapi.go**: `Spec` variable with operations, `Schemas()` method
+- **mapping.go**: `scan<Entity>()` function for repository
+- **system.go**: `System` interface with `Handler()` factory
+- **repository.go**: `repo` struct implementing `System`
+- **handler.go**: `Handler` struct, `NewHandler()`, `Routes()`
+
+### 3. Interface Naming Convention
 
 **Getters** (Nouns - Access State):
 ```go
@@ -88,7 +114,7 @@ OnShutdown() <-chan struct{}
 OnError() <-chan error
 ```
 
-### 3. Repository Query Methods
+### 4. Repository Query Methods
 
 | Verb | Returns | Use Case |
 |------|---------|----------|
@@ -102,7 +128,7 @@ FindRun(ctx, id) (*Run, error)                          // Single by ID
 GetStages(ctx, runID) ([]Stage, error)                  // All for parent
 ```
 
-### 4. Data Mutation Methods
+### 5. Data Mutation Methods
 
 | Verb | Semantics |
 |------|-----------|
@@ -111,7 +137,7 @@ GetStages(ctx, runID) ([]Stage, error)                  // All for parent
 | `Save` | Create or update (idempotent) |
 | `Delete` | Remove record |
 
-### 5. Encapsulated Package Errors
+### 6. Encapsulated Package Errors
 
 Each package defines errors in a dedicated `errors.go` file:
 
@@ -130,7 +156,7 @@ var ErrNotReady = errors.New("database not ready")
 - Error messages are lowercase, no punctuation
 - Enables clean usage: `database.ErrNotReady`, `providers.ErrNotFound`
 
-### 6. Error Wrapping
+### 7. Error Wrapping
 
 ```go
 if err := doSomething(); err != nil {
@@ -138,7 +164,7 @@ if err := doSomething(); err != nil {
 }
 ```
 
-### 7. Structured Logging
+### 8. Structured Logging
 
 ```go
 logger.Info("operation succeeded", "id", id, "name", name)

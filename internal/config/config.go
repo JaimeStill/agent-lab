@@ -59,6 +59,7 @@ type Config struct {
 	Version         string          `toml:"version"`
 }
 
+// Env returns the current environment name from the SERVICE_ENV variable or "local".
 func (c *Config) Env() string {
 	if env := os.Getenv(EnvServiceEnv); env != "" {
 		return env

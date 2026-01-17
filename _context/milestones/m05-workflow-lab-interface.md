@@ -23,49 +23,48 @@ The interface uses a hybrid architecture combining server-rendered HTML with cli
 
 ## Directory Structure
 
+**Note:** This structure was updated during mt05 (Web Architecture Refactor) to use isolated, self-contained web clients.
+
 ```
 web/
 ├── package.json
-├── vite.config.ts
+├── vite.config.ts               # Root config (merges all clients)
+├── vite.client.ts               # Shared config module (ClientConfig, merge)
 ├── tsconfig.json
-├── src/
-│   ├── core/                    # Foundation layer
-│   │   ├── component.ts         # Base component class
-│   │   ├── api.ts               # Fetch wrapper
-│   │   ├── signals.ts           # TC39 Signals wrapper (Session 05h)
-│   │   └── sse.ts               # SSE client (Session 05h)
-│   ├── design/                  # Design tokens
-│   │   ├── reset.css            # Modern CSS reset
-│   │   ├── theme.css            # Color tokens + dark/light
-│   │   ├── layout.css           # Spacing/sizing tokens
-│   │   └── styles.css           # @layer imports + global
-│   ├── components/              # Web Components (atomic design)
-│   │   ├── atoms/               # al-button, al-input, al-badge
-│   │   ├── molecules/           # al-form-field, al-card, al-list-item
-│   │   └── organisms/           # al-data-table, al-workflow-monitor
-│   └── entries/                 # Route-scoped bundles
-│       ├── shared.ts            # Common components
-│       ├── providers.ts
-│       ├── agents.ts
-│       ├── documents.ts
-│       ├── profiles.ts
-│       └── workflows.ts
-├── templates/                   # Go templates (embedded)
-│   ├── layouts/
-│   │   └── app.html             # App shell with navigation
-│   ├── partials/                # Reusable fragments
-│   │   ├── pagination.html
-│   │   ├── search-bar.html
-│   │   └── status-badge.html
-│   └── pages/                   # Route destinations
-│       ├── providers/
-│       ├── agents/
-│       ├── documents/
-│       ├── profiles/
-│       └── workflows/
-├── dist/                        # Build output (embedded via go:embed)
-└── web.go                       # embed.FS + handlers + template rendering
+├── app/                         # Main app client
+│   ├── client/                  # TypeScript source
+│   │   ├── app.ts               # Entry point → dist/app.js
+│   │   ├── core/                # Utilities (created when needed)
+│   │   ├── design/              # CSS architecture (@layers)
+│   │   │   ├── reset.css
+│   │   │   ├── theme.css
+│   │   │   ├── layout.css
+│   │   │   ├── components.css
+│   │   │   └── styles.css
+│   │   └── components/          # Web components (when needed)
+│   ├── dist/                    # Build output (gitignored)
+│   ├── public/                  # Static assets (favicons, manifest)
+│   ├── server/                  # Go templates (SSR)
+│   │   ├── layouts/
+│   │   │   └── app.html
+│   │   └── pages/
+│   │       ├── home.html
+│   │       └── components.html
+│   ├── app.go                   # Handler + Mount()
+│   └── client.config.ts         # Vite client config
+├── scalar/                      # Scalar OpenAPI UI
+│   ├── app.ts                   # Entry point → scalar.js
+│   ├── index.html               # Scalar mount point
+│   ├── scalar.go                # Mount()
+│   └── client.config.ts         # Vite client config
+└── README.md                    # Web architecture documentation
 ```
+
+Each web client is fully isolated with its own:
+- TypeScript source (`client/` or direct files)
+- Build output (`dist/` or direct files)
+- Go handler (`*.go` with `Mount()` function)
+- Vite config (`client.config.ts`)
 
 ## Technology Decisions
 
@@ -203,32 +202,35 @@ Sessions follow this dependency order to ensure patterns are established before 
 
 ## Template Patterns
 
+**Note:** Updated during mt05 to use `pkg/web` infrastructure with `<base>` tag for relative URLs.
+
 ### Layout Template
 
 ```html
-{{/* templates/layouts/app.html */}}
+{{/* web/app/server/layouts/app.html */}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="{{ .BasePath }}/">
   <title>{{ .Title }} - agent-lab</title>
-  <link rel="stylesheet" href="/static/{{ .Bundle }}.css">
+  <link rel="stylesheet" href="dist/{{ .Bundle }}.css">
 </head>
 <body>
-  <nav class="app-nav">
-    <a href="/app/workflows">Workflows</a>
-    <a href="/app/documents">Documents</a>
-    <a href="/app/profiles">Profiles</a>
-    <a href="/app/agents">Agents</a>
-    <a href="/app/providers">Providers</a>
+  <nav class="nav">
+    <h1 class="nav-brand">agent-lab</h1>
+    <ul class="nav-links">
+      <li><a href="">Home</a></li>
+      <li><a href="components">Components</a></li>
+    </ul>
   </nav>
 
   <main class="app-content">
     {{ block "content" . }}{{ end }}
   </main>
 
-  <script type="module" src="/static/{{ .Bundle }}.js"></script>
+  <script type="module" src="dist/{{ .Bundle }}.js"></script>
 </body>
 </html>
 ```
@@ -236,58 +238,51 @@ Sessions follow this dependency order to ensure patterns are established before 
 ### Page Template
 
 ```html
-{{/* templates/pages/workflows/list.html */}}
-{{ template "layouts/app.html" . }}
-
+{{/* web/app/server/pages/home.html */}}
 {{ define "content" }}
-<section class="page-header">
-  <h1>Workflows</h1>
-</section>
-
-<ul class="workflow-list">
-  {{ range .Workflows }}
-  <li>
-    <a href="/app/workflows/{{ .Name }}">{{ .Name }}</a>
-    <span>{{ .Description }}</span>
-  </li>
-  {{ end }}
-</ul>
-
-{{/* Interactive island */}}
-<al-execution-form
-  data-workflows='{{ .WorkflowsJSON }}'
-  data-api-base="/api">
-</al-execution-form>
+<div class="stack-lg constrain-md">
+  <h1>Welcome to agent-lab</h1>
+  <p>Workflow orchestration platform for agentic systems.</p>
+</div>
 {{ end }}
 ```
 
 ## Go Integration
 
-### Handler Pattern
+### Module Mount Pattern
 
 ```go
-type Handler struct {
-    templates *template.Template
-    domain    *Domain
-}
-
-func NewHandler(templates *template.Template, domain *Domain) *Handler {
-    return &Handler{templates: templates, domain: domain}
-}
-
-func (h *Handler) WorkflowsPage(w http.ResponseWriter, r *http.Request) {
-    workflows := ListWorkflows()
-
-    data := WorkflowsPageData{
-        Title:     "Workflows",
-        Bundle:    "workflows",
-        Workflows: workflows,
+// web/app/app.go
+func NewModule(basePath string) (*module.Module, error) {
+    ts, err := web.NewTemplateSet(templateFS, "server", basePath)
+    if err != nil {
+        return nil, err
     }
 
-    w.Header().Set("Content-Type", "text/html; charset=utf-8")
-    if err := h.templates.ExecuteTemplate(w, "workflows/list.html", data); err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
+    router, err := buildRouter(ts, basePath)
+    if err != nil {
+        return nil, err
     }
+
+    return module.New(basePath, router), nil
+}
+
+func buildRouter(ts *web.TemplateSet, basePath string) (*web.Router, error) {
+    r := web.NewRouter()
+
+    // Register pages
+    for _, p := range pages {
+        r.HandleFunc("GET "+p.Route, ts.PageHandler("app.html", p))
+    }
+
+    // Static assets
+    web.DistServer(r, distFS, "dist", basePath+"/dist/")
+    web.PublicFileRoutes(r, publicFS, "public")
+
+    // 404 fallback
+    r.SetFallback(ts.ErrorHandler("app.html", errorPages[0], http.StatusNotFound))
+
+    return r, nil
 }
 ```
 
@@ -297,13 +292,11 @@ func (h *Handler) WorkflowsPage(w http.ResponseWriter, r *http.Request) {
 //go:embed dist/*
 var distFS embed.FS
 
-//go:embed templates/*
+//go:embed server/*
 var templateFS embed.FS
 
-func Static() http.Handler {
-    sub, _ := fs.Sub(distFS, "dist")
-    return http.FileServer(http.FS(sub))
-}
+//go:embed public/*
+var publicFS embed.FS
 ```
 
 ## Session Overview

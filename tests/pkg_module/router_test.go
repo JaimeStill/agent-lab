@@ -187,3 +187,49 @@ func TestRouter_UnmatchedPath(t *testing.T) {
 		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusNotFound)
 	}
 }
+
+func TestRouter_PathNormalization(t *testing.T) {
+	r := module.NewRouter()
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Write([]byte(req.URL.Path))
+	})
+
+	r.Mount(module.New("/api", handler))
+
+	tests := []struct {
+		name       string
+		inputPath  string
+		wantPath   string
+		wantStatus int
+	}{
+		{"strips trailing slash", "/api/users/", "/users", http.StatusOK},
+		{"no change for path without slash", "/api/users", "/users", http.StatusOK},
+		{"root path unchanged", "/", "/", http.StatusNotFound},
+		{"module root with slash normalized", "/api/", "/", http.StatusOK},
+		{"deep path trailing slash", "/api/users/123/posts/", "/users/123/posts", http.StatusOK},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.inputPath, nil)
+			w := httptest.NewRecorder()
+
+			r.ServeHTTP(w, req)
+
+			resp := w.Result()
+			defer resp.Body.Close()
+
+			if resp.StatusCode != tt.wantStatus {
+				t.Errorf("status = %d, want %d", resp.StatusCode, tt.wantStatus)
+			}
+
+			if tt.wantStatus == http.StatusOK {
+				body, _ := io.ReadAll(resp.Body)
+				if string(body) != tt.wantPath {
+					t.Errorf("path = %q, want %q", string(body), tt.wantPath)
+				}
+			}
+		})
+	}
+}

@@ -9,6 +9,8 @@ import (
 
 // System defines the interface for image management operations.
 type System interface {
+	Handler() *Handler
+
 	// List returns a paginated list of images matching the provided filters.
 	List(ctx context.Context, page pagination.PageRequest, filters Filters) (*pagination.PageResult[Image], error)
 

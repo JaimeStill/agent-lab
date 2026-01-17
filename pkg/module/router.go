@@ -32,7 +32,8 @@ func (r *Router) Mount(m *Module) {
 
 // ServeHTTP routes requests to the matching module or falls back to native handlers.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	prefix := extractPrefix(req.URL.Path)
+	path := normalizePath(req)
+	prefix := extractPrefix(path)
 
 	if m, ok := r.modules[prefix]; ok {
 		m.Serve(w, req)
@@ -46,6 +47,15 @@ func extractPrefix(path string) string {
 	parts := strings.SplitN(path, "/", 3)
 	if len(parts) >= 2 {
 		return "/" + parts[1]
+	}
+	return path
+}
+
+func normalizePath(req *http.Request) string {
+	path := req.URL.Path
+	if len(path) > 1 && strings.HasSuffix(path, "/") {
+		path = strings.TrimSuffix(path, "/")
+		req.URL.Path = path
 	}
 	return path
 }

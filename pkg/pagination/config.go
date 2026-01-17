@@ -7,16 +7,19 @@ import (
 	"strconv"
 )
 
+// Config holds pagination settings including page size limits.
 type Config struct {
 	DefaultPageSize int `toml:"default_page_size"`
 	MaxPageSize     int `toml:"max_page_size"`
 }
 
+// ConfigEnv maps environment variable names for pagination configuration.
 type ConfigEnv struct {
 	DefaultPageSize string
 	MaxPageSize     string
 }
 
+// Finalize applies defaults and environment variable overrides, then validates.
 func (c *Config) Finalize(env *ConfigEnv) error {
 	c.loadDefaults()
 	if env != nil {
@@ -25,6 +28,7 @@ func (c *Config) Finalize(env *ConfigEnv) error {
 	return c.validate()
 }
 
+// Merge applies non-zero values from the overlay configuration.
 func (c *Config) Merge(overlay *Config) {
 	if overlay.DefaultPageSize != 0 {
 		c.DefaultPageSize = overlay.DefaultPageSize

@@ -1,26 +1,19 @@
+// Package api assembles the API module with all domain systems and route registration.
 package api
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/JaimeStill/agent-lab/internal/config"
-	"github.com/JaimeStill/agent-lab/pkg/database"
-	"github.com/JaimeStill/agent-lab/pkg/lifecycle"
 	"github.com/JaimeStill/agent-lab/pkg/middleware"
 	"github.com/JaimeStill/agent-lab/pkg/module"
 	"github.com/JaimeStill/agent-lab/pkg/openapi"
-	"github.com/JaimeStill/agent-lab/pkg/storage"
+	"github.com/JaimeStill/agent-lab/pkg/runtime"
 )
 
-func NewModule(
-	cfg *config.Config,
-	logger *slog.Logger,
-	db database.System,
-	store storage.System,
-	lc *lifecycle.Coordinator,
-) (*module.Module, error) {
-	runtime := NewRuntime(cfg, logger, db, store, lc)
+// NewModule creates the API module with all domain handlers and middleware.
+func NewModule(cfg *config.Config, infra *runtime.Infrastructure) (*module.Module, error) {
+	runtime := NewRuntime(cfg, infra)
 	domain := NewDomain(runtime)
 
 	spec := openapi.NewSpec(cfg.API.OpenAPI.Title, cfg.Version)
@@ -28,7 +21,7 @@ func NewModule(
 	spec.AddServer(cfg.Domain)
 
 	mux := http.NewServeMux()
-	registerRoutes(mux, spec, runtime, domain, cfg)
+	registerRoutes(mux, spec, domain, cfg)
 
 	specBytes, err := openapi.MarshalJSON(spec)
 	if err != nil {
@@ -37,7 +30,6 @@ func NewModule(
 	mux.HandleFunc("GET /openapi.json", openapi.ServeSpec(specBytes))
 
 	m := module.New(cfg.API.BasePath, mux)
-	m.Use(middleware.TrimSlash())
 	m.Use(middleware.CORS(&cfg.API.CORS))
 	m.Use(middleware.Logger(runtime.Logger))
 

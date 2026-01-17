@@ -73,7 +73,7 @@ func TestModuleServesComponents(t *testing.T) {
 
 	handler := m.Handler()
 
-	req := httptest.NewRequest(http.MethodGet, "/components/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/components", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)

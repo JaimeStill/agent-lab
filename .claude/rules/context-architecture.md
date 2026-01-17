@@ -35,6 +35,11 @@ Skills load based on their `description` field matching:
 - **File patterns** being edited
 - **Use cases** mentioned in the task
 
+The `description` field is critical for discovery. Include:
+- Specific action verbs (extract, implement, configure)
+- Keywords users would naturally mention
+- File patterns that trigger the skill
+
 ## When to Update What
 
 | Change Type | Location |
@@ -54,7 +59,16 @@ Skills load based on their `description` field matching:
    ---
    name: skill-name
    description: >
-     When to use this skill. Include keywords, file patterns, use cases.
+     Brief description of what this skill does and when to use it.
+     Include trigger keywords, file patterns, and use cases.
+     Max 1024 characters. This is critical for discovery.
    ---
    ```
 3. Add sections: When This Skill Applies, Principles, Patterns, Anti-Patterns
+
+## Skill Best Practices
+
+- **Concise is key**: Context window is shared; minimize token usage
+- **Progressive disclosure**: Keep SKILL.md under 500 lines
+- **Link to references**: For detailed docs, link to files with "when to read" guidance
+- **No duplication**: Don't repeat information across skills
