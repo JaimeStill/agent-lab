@@ -2,54 +2,41 @@ package web_scalar_test
 
 import (
 	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/JaimeStill/agent-lab/internal/routes"
 	"github.com/JaimeStill/agent-lab/web/scalar"
 )
 
-func TestMount(t *testing.T) {
-	logger := slog.Default()
-	r := routes.New(logger)
-
-	scalar.Mount(r, "/scalar")
-
-	registered := r.Routes()
-	if len(registered) != 2 {
-		t.Errorf("Routes count = %d, want 2", len(registered))
+func TestNewModule(t *testing.T) {
+	m := scalar.NewModule("/scalar")
+	if m == nil {
+		t.Fatal("NewModule() returned nil")
 	}
+}
 
-	patterns := make(map[string]bool)
-	for _, route := range registered {
-		patterns[route.Pattern] = true
-		if route.Method != "GET" {
-			t.Errorf("route %s: Method = %q, want GET", route.Pattern, route.Method)
-		}
-		if route.Handler == nil {
-			t.Errorf("route %s: Handler is nil", route.Pattern)
-		}
+func TestModulePrefix(t *testing.T) {
+	m := scalar.NewModule("/scalar")
+	if m.Prefix() != "/scalar" {
+		t.Errorf("Prefix() = %q, want %q", m.Prefix(), "/scalar")
 	}
+}
 
-	if !patterns["/scalar"] {
-		t.Error("missing exact match route /scalar")
-	}
-	if !patterns["/scalar/{path...}"] {
-		t.Error("missing wildcard route /scalar/{path...}")
+func TestModuleHandler(t *testing.T) {
+	m := scalar.NewModule("/scalar")
+	handler := m.Handler()
+	if handler == nil {
+		t.Fatal("Handler() returned nil")
 	}
 }
 
 func TestServeIndex(t *testing.T) {
-	logger := slog.Default()
-	r := routes.New(logger)
-	scalar.Mount(r, "/scalar")
-	handler := r.Build()
+	m := scalar.NewModule("/scalar")
+	handler := m.Handler()
 
-	// Test with trailing slash (how browsers typically access after redirect)
-	req := httptest.NewRequest(http.MethodGet, "/scalar/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
 	handler.ServeHTTP(w, req)
@@ -72,18 +59,33 @@ func TestServeIndex(t *testing.T) {
 	}
 }
 
+func TestServeIndexContainsBasePath(t *testing.T) {
+	m := scalar.NewModule("/docs")
+	handler := m.Handler()
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if !strings.Contains(string(body), "/docs") {
+		t.Error("response body does not contain basePath")
+	}
+}
+
 func TestServeAssets(t *testing.T) {
-	logger := slog.Default()
-	r := routes.New(logger)
-	scalar.Mount(r, "/scalar")
-	handler := r.Build()
+	m := scalar.NewModule("/scalar")
+	handler := m.Handler()
 
 	tests := []struct {
-		path        string
-		contentType string
+		path string
 	}{
-		{"/scalar/scalar.js", "text/javascript"},
-		{"/scalar/scalar.css", "text/css"},
+		{"/scalar.js"},
+		{"/scalar.css"},
 	}
 
 	for _, tc := range tests {

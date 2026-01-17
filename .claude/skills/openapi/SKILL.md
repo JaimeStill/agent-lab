@@ -19,6 +19,28 @@ description: >
 - Working with Scalar UI documentation
 - Adding shared components
 
+## OpenAPI 3.1 Alignment
+
+OpenAPI 3.1 aligns with JSON Schema Draft 2020-12. Schema Objects are used everywhere - properties within an object schema are themselves Schema Objects.
+
+### Schema Object Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | string | Data type (string, number, integer, boolean, array, object) |
+| `format` | string | Extended format (uuid, date-time, int64, binary, etc.) |
+| `description` | string | Human-readable description |
+| `properties` | map[string]*Schema | Object properties (each is a Schema) |
+| `required` | []string | Required property names |
+| `items` | *Schema | Array item schema |
+| `$ref` | string | JSON Reference to another schema |
+| `example` | any | Example value |
+| `default` | any | Default value |
+| `enum` | []any | Enumerated values |
+| `minimum/maximum` | *float64 | Numeric constraints |
+| `minLength/maxLength` | *int | String length constraints |
+| `pattern` | string | Regex pattern for strings |
+
 ## Principles
 
 ### 1. Schema Ownership
@@ -123,7 +145,7 @@ Routes reference domain operations:
 ```go
 func (h *Handler) Routes() routes.Group {
     return routes.Group{
-        Prefix:      "/api/providers",
+        Prefix:      "/providers",  // API module adds /api prefix
         Tags:        []string{"Providers"},
         Description: "Provider configuration management",
         Routes: []routes.Route{
@@ -169,16 +191,18 @@ openapi.QueryParam("page", "integer", "Page number", false)
 
 ### 6. Environment-Specific Specs
 
-- Output location: `api/openapi.{env}.json`
+- Output location: `web/scalar/openapi.{env}.json`
 - Environment determined by `SERVICE_ENV` (default: `local`)
-- Example: `api/openapi.local.json`, `api/openapi.prod.json`
+- Example: `web/scalar/openapi.local.json`, `web/scalar/openapi.prod.json`
 
 ## Patterns
 
-### Schema Registration in Routes
+### Schema Registration
+
+Schemas are registered during API module initialization:
 
 ```go
-// In cmd/server/routes.go registerRoutes()
+// In cmd/server/modules.go or similar
 components.AddSchemas(providers.Spec.Schemas())
 components.AddSchemas(agents.Spec.Schemas())
 ```
@@ -186,10 +210,26 @@ components.AddSchemas(agents.Spec.Schemas())
 ### Multipart File Upload Schema
 
 ```go
-"images": {Type: "string", Description: "Image file (multiple supported via repeated field)"}
+RequestBody: &openapi.RequestBody{
+    Required: true,
+    Content: map[string]*openapi.MediaType{
+        "multipart/form-data": {
+            Schema: &openapi.Schema{
+                Type: "object",
+                Properties: map[string]*openapi.Schema{
+                    "file": {Type: "string", Description: "File to upload"},
+                    "name": {Type: "string"},
+                },
+                Required: []string{"file"},
+            },
+        },
+    },
+}
 ```
 
-HTTP multipart naturally supports multiple same-named fields.
+**Important**: For binary file upload fields, only use `Type` and `Description`. Do NOT include `Format: "binary"` - this causes Scalar UI to display "BINARY" as a placeholder instead of rendering a file upload button.
+
+HTTP multipart naturally supports multiple same-named fields for multi-file uploads.
 
 ### PageResult Schema
 
@@ -206,13 +246,33 @@ HTTP multipart naturally supports multiple same-named fields.
 }
 ```
 
+### Inline vs Referenced Schemas
+
+Use **references** for:
+- Reusable domain entities (Resource, CreateCommand)
+- Shared response schemas
+- Pagination results
+
+Use **inline schemas** for:
+- Multipart form definitions (specific to single endpoint)
+- Simple one-off response structures
+
+## Validation Checklist
+
+After API changes:
+
+1. Start server - spec auto-generates to `web/scalar/openapi.{env}.json`
+2. Visit `/scalar/` to verify Scalar UI renders correctly
+3. Test "Try It" functionality for new endpoints
+4. Verify schema references resolve correctly
+
 ## Import Hierarchy
 
 ```
 pkg/openapi          - Types and helpers only (no internal imports)
 internal/<domain>    - Domain-owned schemas and operations
-cmd/server/openapi.go - Generator logic (imports pkg and internal)
-web/docs             - Scalar UI handler
+cmd/server           - Generator logic (imports pkg and internal)
+web/scalar           - Scalar UI module
 ```
 
 ## Anti-Patterns

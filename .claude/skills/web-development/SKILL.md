@@ -162,11 +162,11 @@ web/
 │   ├── server/                  # Go templates (SSR)
 │   │   ├── layouts/
 │   │   └── pages/
-│   └── app.go                   # Handler + Mount()
+│   └── app.go                   # NewModule()
 ├── scalar/                      # Scalar OpenAPI UI (fully self-contained)
 │   ├── app.ts                   # Entry point → scalar.js
 │   ├── index.html               # Scalar mount point
-│   ├── scalar.go                # Mount()
+│   ├── scalar.go                # NewModule()
 │   └── [scalar.js/css]          # Build output (gitignored)
 ├── vite.client.ts               # Shared Vite config module
 ├── vite.config.ts               # Root config (merges clients)
@@ -181,50 +181,50 @@ web/
 
 Each `web/[client-name]/` directory is a self-contained web client that mounts to `/[client-name]`.
 
-### Mount Pattern
+### Module Pattern
 
-Web clients implement `Mount(routes.System, prefix)` which registers:
-
-1. **Exact match** (`/prefix`) - Rewrites path to `/` and serves via internal router
-2. **Wildcard** (`/prefix/{path...}`) - Strips prefix and serves via internal router
+Web clients implement `NewModule(basePath)` which returns a `*module.Module`:
 
 ```go
-func (h *Handler) Mount(r routes.System, prefix string) {
-    router := h.Router()
+func NewModule(basePath string) (*module.Module, error) {
+    router := buildRouter()
+    return module.New(basePath, router), nil
+}
 
-    r.RegisterRoute(routes.Route{
-        Method:  "GET",
-        Pattern: prefix,
-        Handler: func(w http.ResponseWriter, req *http.Request) {
-            req.URL.Path = "/"
-            router.ServeHTTP(w, req)
-        },
-    })
-
-    r.RegisterRoute(routes.Route{
-        Method:  "GET",
-        Pattern: prefix + "/{path...}",
-        Handler: http.StripPrefix(prefix, router).ServeHTTP,
-    })
+func buildRouter() http.Handler {
+    mux := http.NewServeMux()
+    // Register routes, file servers, etc.
+    return mux
 }
 ```
 
-### Why Internal Router?
+The module handles path prefix stripping automatically. Requests to `/app/components/` are routed to the internal handler as `/components/`.
 
-Using `http.FileServer` directly with path rewriting causes unexpected redirects. Each client needs its own `http.ServeMux` router to handle requests properly.
+### Middleware Integration
+
+Modules have their own middleware chains:
+
+```go
+appModule, _ := app.NewModule("/app")
+appModule.Use(middleware.AddSlash())  // Redirect /app/components to /app/components/
+appModule.Use(middleware.Logger(runtime.Logger))
+
+router := module.NewRouter()
+router.Mount(appModule)
+```
 
 ### Asset Paths
 
-- **SSR templates**: Use `{{ .BasePath }}` for all URLs
-- **Static HTML**: Use absolute paths (`/scalar/scalar.js`) since relative paths depend on trailing slash
+- **SSR templates**: Use `<base href="{{ .BasePath }}/">` tag with relative URLs
+- **Static HTML**: Same base tag pattern for relative URL resolution
 
 ### Adding a New Client
 
 1. Create `web/[client-name]/` with standard structure
-2. Implement `[client-name].go` with `Mount()` function
+2. Implement `NewModule(basePath)` function in `[client-name].go`
 3. Add per-client config at `web/[client-name]/client.config.ts` (exports `ClientConfig`)
 4. Import config in `web/vite.config.ts`
-5. Register in `cmd/server/routes.go`: `[client].Mount(r, "/[client-name]")`
+5. Create and mount module in `cmd/server/modules.go`
 
 ### Vite Configuration
 

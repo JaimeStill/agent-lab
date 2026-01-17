@@ -31,7 +31,7 @@ func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *
 // Routes returns the route configuration for image endpoints.
 func (h *Handler) Routes() routes.Group {
 	return routes.Group{
-		Prefix:      "/api/images",
+		Prefix:      "/images",
 		Tags:        []string{"Images"},
 		Description: "Document page image rendering and management",
 		Routes: []routes.Route{

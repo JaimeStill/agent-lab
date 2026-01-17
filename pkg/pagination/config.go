@@ -7,26 +7,24 @@ import (
 	"strconv"
 )
 
-// Environment variable names for pagination configuration.
-const (
-	EnvPaginationDefaultPageSize = "PAGINATION_DEFAULT_PAGE_SIZE"
-	EnvPaginationMaxPageSize     = "PAGINATION_MAX_PAGE_SIZE"
-)
-
-// Config holds pagination settings including default and maximum page sizes.
 type Config struct {
 	DefaultPageSize int `toml:"default_page_size"`
 	MaxPageSize     int `toml:"max_page_size"`
 }
 
-// Finalize applies defaults, loads environment overrides, and validates the configuration.
-func (c *Config) Finalize() error {
+type ConfigEnv struct {
+	DefaultPageSize string
+	MaxPageSize     string
+}
+
+func (c *Config) Finalize(env *ConfigEnv) error {
 	c.loadDefaults()
-	c.loadEnv()
+	if env != nil {
+		c.loadEnv(env)
+	}
 	return c.validate()
 }
 
-// Merge applies non-zero values from overlay onto the receiver.
 func (c *Config) Merge(overlay *Config) {
 	if overlay.DefaultPageSize != 0 {
 		c.DefaultPageSize = overlay.DefaultPageSize
@@ -45,15 +43,19 @@ func (c *Config) loadDefaults() {
 	}
 }
 
-func (c *Config) loadEnv() {
-	if v := os.Getenv(EnvPaginationDefaultPageSize); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			c.DefaultPageSize = n
+func (c *Config) loadEnv(env *ConfigEnv) {
+	if env.DefaultPageSize != "" {
+		if v := os.Getenv(env.DefaultPageSize); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				c.DefaultPageSize = n
+			}
 		}
 	}
-	if v := os.Getenv(EnvPaginationMaxPageSize); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			c.MaxPageSize = n
+	if env.MaxPageSize != "" {
+		if v := os.Getenv(env.MaxPageSize); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				c.MaxPageSize = n
+			}
 		}
 	}
 }

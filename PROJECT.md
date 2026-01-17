@@ -1078,6 +1078,14 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - URL routing: `/app/*` for main app, `/scalar/*` for OpenAPI UI
   - Added Makefile for development workflow
   - Pre-parse templates at startup for zero per-request overhead
+- Maintenance Session mt06: Mountable Modules ✅
+  - Refactored server architecture into isolated, mountable modules
+  - Created `pkg/module` with Module and Router types for modular HTTP routing
+  - Moved `internal/middleware`, `internal/lifecycle`, `internal/database`, `internal/storage` to `pkg/`
+  - Created `internal/api` module encapsulating Runtime, Domain, and route registration
+  - Web clients use `NewModule(basePath)` pattern with `<base>` tag for relative URLs
+  - AddSlash middleware for web clients, TrimSlash for API
+  - Config pattern: public packages define Env struct, app passes key mappings
 
 **In Progress**:
 - **Milestone 5: Workflow Lab Interface**
@@ -1095,10 +1103,11 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - **Milestone Review** ✓
 
 **Next Steps**:
-- **Prefix Session**: Fix broken 404 page in `web/app` before continuing M5
-  - Issue: 404 page requests `/app/dist/.css` and `/app/dist/.js` (empty bundle name)
-  - Cause: `ErrorHandler` passes empty `Bundle` field to template
-  - Fix: Either set a default bundle for error pages or conditionally render asset tags
+- **Maintenance Session mt07: Module Polish** (guide ready at `_context/mt07-module-polish.md`)
+  - Fix AddSlash redirect at router level (`/app` → `/app/` not working)
+  - Fix 404 page empty bundle name
+  - Extract shared `pkg/runtime.Infrastructure` to simplify API module initialization
+  - Estimated time: 30-45 minutes
 - Continue Milestone 5: Session 05d (Providers + Agents UI)
 
 ## Future Phases (Beyond Milestone 7)

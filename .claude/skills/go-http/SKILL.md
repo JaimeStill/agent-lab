@@ -7,7 +7,7 @@ description: >
   routes.Group, routes.Route, middleware stack, RespondJSON, RespondError,
   CORS, SSE, text/event-stream, MapHTTPStatus, long-running processes,
   lifecycle context, client disconnect.
-  File patterns: internal/*/handler.go, internal/middleware/*.go, internal/routes/*.go
+  File patterns: internal/*/handler.go, pkg/module/*.go, pkg/middleware/*.go, pkg/routes/*.go
 ---
 
 # Go HTTP Patterns
@@ -43,7 +43,7 @@ func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *
 
 func (h *Handler) Routes() routes.Group {
     return routes.Group{
-        Prefix:      "/api/providers",
+        Prefix:      "/providers",  // API module adds /api prefix
         Tags:        []string{"Providers"},
         Description: "Provider configuration management",
         Routes: []routes.Route{
@@ -79,14 +79,14 @@ type Route struct {
 **Hierarchical Routes** - Child groups inherit parent prefix:
 ```go
 routes.Group{
-    Prefix: "/api/workflows",
+    Prefix: "/workflows",  // API module adds /api prefix
     Routes: []routes.Route{
         {Method: "GET", Pattern: "", Handler: h.ListWorkflows},
         {Method: "POST", Pattern: "/{name}/execute", Handler: h.Execute},
     },
     Children: []routes.Group{
         {
-            Prefix: "/runs",  // Results in /api/workflows/runs
+            Prefix: "/runs",  // Results in /workflows/runs (then /api/workflows/runs with module prefix)
             Routes: []routes.Route{
                 {Method: "GET", Pattern: "/{id}", Handler: h.FindRun},
             },
@@ -143,20 +143,27 @@ func MapHTTPStatus(err error) int {
 }
 ```
 
-### 5. Middleware Stack
+### 5. Module and Middleware
+
+Modules are mounted HTTP sub-applications with their own middleware chains:
 
 ```go
-type System interface {
-    Use(mw func(http.Handler) http.Handler)
-    Apply(handler http.Handler) http.Handler
-}
+// Create API module with domain routes
+apiMux := http.NewServeMux()
+routes.Register(apiMux, "/api", spec,
+    providerHandler.Routes(),
+    agentHandler.Routes(),
+)
+apiModule := module.New("/api", apiMux)
 
-// Usage
-middlewareSys := middleware.New()
-middlewareSys.Use(middleware.Logger(runtime.Logger))
-middlewareSys.Use(middleware.CORS(&cfg.CORS))
+// Add middleware to the module
+apiModule.Use(middleware.TrimSlash())
+apiModule.Use(middleware.CORS(&cfg.CORS))
+apiModule.Use(middleware.Logger(runtime.Logger))
 
-handler := middlewareSys.Apply(routeHandler)
+// Mount on router
+router := module.NewRouter()
+router.Mount(apiModule)
 ```
 
 ### 6. Logger Middleware

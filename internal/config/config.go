@@ -7,7 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/JaimeStill/agent-lab/pkg/pagination"
+	"github.com/JaimeStill/agent-lab/pkg/database"
+	"github.com/JaimeStill/agent-lab/pkg/storage"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -29,17 +30,33 @@ const (
 	EnvServiceVersion = "SERVICE_VERSION"
 )
 
+var databaseEnv = &database.Env{
+	Host:            "DATABASE_HOST",
+	Port:            "DATABASE_PORT",
+	Name:            "DATABASE_NAME",
+	User:            "DATABASE_USER",
+	Password:        "DATABASE_PASSWORD",
+	MaxOpenConns:    "DATABASE_MAX_OPEN_CONNS",
+	MaxIdleConns:    "DATABASE_MAX_IDLE_CONNS",
+	ConnMaxLifetime: "DATABASE_CONN_MAX_LIFETIME",
+	ConnTimeout:     "DATABASE_CONN_TIMEOUT",
+}
+
+var storageEnv = &storage.Env{
+	BasePath:      "STORAGE_BASE_PATH",
+	MaxUploadSize: "STORAGE_MAX_UPLOAD_SIZE",
+}
+
 // Config represents the root service configuration.
 type Config struct {
-	Server          ServerConfig      `toml:"server"`
-	Database        DatabaseConfig    `toml:"database"`
-	Logging         LoggingConfig     `toml:"logging"`
-	CORS            CORSConfig        `toml:"cors"`
-	Pagination      pagination.Config `toml:"pagination"`
-	Storage         StorageConfig     `toml:"storage"`
-	Domain          string            `toml:"version"`
-	ShutdownTimeout string            `toml:"shutdown_timeout"`
-	Version         string            `toml:"version"`
+	Server          ServerConfig    `toml:"server"`
+	Database        database.Config `toml:"database"`
+	Logging         LoggingConfig   `toml:"logging"`
+	Storage         storage.Config  `toml:"storage"`
+	API             APIConfig       `toml:"api"`
+	Domain          string          `toml:"version"`
+	ShutdownTimeout string          `toml:"shutdown_timeout"`
+	Version         string          `toml:"version"`
 }
 
 func (c *Config) Env() string {
@@ -88,35 +105,37 @@ func (c *Config) finalize() error {
 	if err := c.Server.Finalize(); err != nil {
 		return fmt.Errorf("server: %w", err)
 	}
-	if err := c.Database.Finalize(); err != nil {
+	if err := c.Database.Finalize(databaseEnv); err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
 	if err := c.Logging.Finalize(); err != nil {
 		return fmt.Errorf("logging: %w", err)
 	}
-	if err := c.CORS.Finalize(); err != nil {
-		return fmt.Errorf("cors: %w", err)
-	}
-	if err := c.Pagination.Finalize(); err != nil {
-		return fmt.Errorf("pagination: %w", err)
-	}
-	if err := c.Storage.Finalize(); err != nil {
+	if err := c.Storage.Finalize(storageEnv); err != nil {
 		return fmt.Errorf("storage: %w", err)
+	}
+	if err := c.API.Finalize(); err != nil {
+		return fmt.Errorf("api: %w", err)
 	}
 	return nil
 }
 
 // Merge applies values from overlay configuration that differ from zero values.
 func (c *Config) Merge(overlay *Config) {
+	if overlay.Domain != "" {
+		c.Domain = overlay.Domain
+	}
 	if overlay.ShutdownTimeout != "" {
 		c.ShutdownTimeout = overlay.ShutdownTimeout
+	}
+	if overlay.Version != "" {
+		c.Version = overlay.Version
 	}
 	c.Server.Merge(&overlay.Server)
 	c.Database.Merge(&overlay.Database)
 	c.Logging.Merge(&overlay.Logging)
-	c.CORS.Merge(&overlay.CORS)
-	c.Pagination.Merge(&overlay.Pagination)
 	c.Storage.Merge(&overlay.Storage)
+	c.API.Merge(&overlay.API)
 }
 
 func (c *Config) loadDefaults() {

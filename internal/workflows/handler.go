@@ -37,7 +37,7 @@ func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *
 // Routes returns the route group for workflow endpoints.
 func (h *Handler) Routes() routes.Group {
 	return routes.Group{
-		Prefix:      "/api/workflows",
+		Prefix:      "/workflows",
 		Tags:        []string{"Workflows"},
 		Description: "Workflow execution and management",
 		Routes: []routes.Route{

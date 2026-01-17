@@ -27,7 +27,7 @@ func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *
 
 func (h *Handler) Routes() routes.Group {
 	return routes.Group{
-		Prefix:      "/api/providers",
+		Prefix:      "/providers",
 		Tags:        []string{"Providers"},
 		Description: "Provider configuration management",
 		Routes: []routes.Route{

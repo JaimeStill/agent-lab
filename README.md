@@ -18,12 +18,8 @@ agent-lab/
 │   ├── migrate/          # Database migration CLI
 │   └── seed/             # Database seeding CLI
 ├── internal/             # Private packages
+│   ├── api/              # API module composition
 │   ├── config/           # Configuration management
-│   ├── database/         # Database connection management
-│   ├── lifecycle/        # Startup/shutdown coordination
-│   ├── middleware/       # HTTP middleware
-│   ├── routes/           # Route registration
-│   ├── storage/          # Blob storage abstraction
 │   ├── providers/        # Provider domain (LLM configurations)
 │   ├── agents/           # Agents domain (LLM agents)
 │   ├── documents/        # Documents domain (file upload/management)
@@ -35,16 +31,22 @@ agent-lab/
 │   ├── reasoning/        # Multi-step reasoning workflow
 │   └── classify/         # Document classification workflow
 ├── pkg/                  # Public packages
+│   ├── database/         # Database connection management
+│   ├── decode/           # Type-safe map decoding
 │   ├── handlers/         # HTTP response utilities
+│   ├── lifecycle/        # Startup/shutdown coordination
+│   ├── middleware/       # HTTP middleware (CORS, Logger, etc.)
+│   ├── module/           # Modular HTTP routing
 │   ├── openapi/          # OpenAPI spec utilities
 │   ├── pagination/       # Pagination utilities
 │   ├── query/            # SQL query builder
-│   ├── decode/           # Type-safe map decoding
-│   └── repository/       # Database helpers
-├── web/                  # Web assets
-│   ├── client/           # TypeScript/CSS source
-│   ├── scalar/           # Scalar OpenAPI UI
-│   └── server/           # Go templates
+│   ├── repository/       # Database helpers
+│   ├── routes/           # Route registration
+│   ├── storage/          # Blob storage abstraction
+│   └── web/              # Web template utilities
+├── web/                  # Web modules
+│   ├── app/              # Main web application
+│   └── scalar/           # Scalar OpenAPI UI
 ├── tests/                # Black-box tests
 ├── compose/              # Docker Compose files
 └── config.toml           # Base configuration
@@ -75,7 +77,10 @@ curl http://localhost:8080/healthz
 curl http://localhost:8080/readyz
 
 # API documentation (Scalar UI)
-open http://localhost:8080/scalar
+open http://localhost:8080/scalar/
+
+# Web application
+open http://localhost:8080/app/
 ```
 
 ### Makefile Commands
@@ -115,7 +120,7 @@ go test ./tests/... -cover
 
 ## API Overview
 
-All endpoints are documented in the interactive Scalar UI at `http://localhost:8080/scalar`.
+All endpoints are documented in the interactive Scalar UI at `http://localhost:8080/scalar/`.
 
 | Domain | Prefix | Description |
 |--------|--------|-------------|
@@ -130,7 +135,7 @@ All endpoints are documented in the interactive Scalar UI at `http://localhost:8
 
 ## Sample Workflows
 
-agent-lab includes sample workflows that demonstrate live agent integration. Test these via the Scalar API documentation at `http://localhost:8080/scalar`.
+agent-lab includes sample workflows that demonstrate live agent integration. Test these via the Scalar API documentation at `http://localhost:8080/scalar/`.
 
 ### Prerequisites
 

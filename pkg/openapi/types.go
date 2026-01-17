@@ -3,15 +3,6 @@
 // with the routes system to auto-generate specifications at server startup.
 package openapi
 
-// Spec represents a complete OpenAPI 3.1 specification document.
-type Spec struct {
-	OpenAPI    string               `json:"openapi"`
-	Info       *Info                `json:"info"`
-	Servers    []*Server            `json:"servers,omitempty"`
-	Paths      map[string]*PathItem `json:"paths"`
-	Components *Components          `json:"components,omitempty"`
-}
-
 // Info provides metadata about the API.
 type Info struct {
 	Title       string `json:"title"`

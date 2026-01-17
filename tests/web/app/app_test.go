@@ -10,40 +10,40 @@ import (
 	"github.com/JaimeStill/agent-lab/web/app"
 )
 
-func TestNewHandler(t *testing.T) {
-	h, err := app.NewHandler("/app")
+func TestNewModule(t *testing.T) {
+	m, err := app.NewModule("/app")
 	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
+		t.Fatalf("NewModule() error = %v", err)
 	}
-	if h == nil {
-		t.Fatal("NewHandler() returned nil")
+	if m == nil {
+		t.Fatal("NewModule() returned nil")
 	}
 }
 
-func TestHandlerRouter(t *testing.T) {
-	h, err := app.NewHandler("/app")
+func TestModuleHandler(t *testing.T) {
+	m, err := app.NewModule("/app")
 	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
+		t.Fatalf("NewModule() error = %v", err)
 	}
 
-	router := h.Router()
-	if router == nil {
-		t.Fatal("Router() returned nil")
+	handler := m.Handler()
+	if handler == nil {
+		t.Fatal("Handler() returned nil")
 	}
 }
 
-func TestRouterServesHome(t *testing.T) {
-	h, err := app.NewHandler("/app")
+func TestModuleServesHome(t *testing.T) {
+	m, err := app.NewModule("/app")
 	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
+		t.Fatalf("NewModule() error = %v", err)
 	}
 
-	router := h.Router()
+	handler := m.Handler()
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
-	router.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()
@@ -65,18 +65,18 @@ func TestRouterServesHome(t *testing.T) {
 	}
 }
 
-func TestRouterServesComponents(t *testing.T) {
-	h, err := app.NewHandler("/app")
+func TestModuleServesComponents(t *testing.T) {
+	m, err := app.NewModule("/app")
 	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
+		t.Fatalf("NewModule() error = %v", err)
 	}
 
-	router := h.Router()
+	handler := m.Handler()
 
-	req := httptest.NewRequest(http.MethodGet, "/components", nil)
+	req := httptest.NewRequest(http.MethodGet, "/components/", nil)
 	w := httptest.NewRecorder()
 
-	router.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()
@@ -91,18 +91,18 @@ func TestRouterServesComponents(t *testing.T) {
 	}
 }
 
-func TestRouterServes404(t *testing.T) {
-	h, err := app.NewHandler("/app")
+func TestModuleServes404(t *testing.T) {
+	m, err := app.NewModule("/app")
 	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
+		t.Fatalf("NewModule() error = %v", err)
 	}
 
-	router := h.Router()
+	handler := m.Handler()
 
 	req := httptest.NewRequest(http.MethodGet, "/nonexistent-page", nil)
 	w := httptest.NewRecorder()
 
-	router.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()
@@ -119,18 +119,18 @@ func TestRouterServes404(t *testing.T) {
 	}
 }
 
-func TestRouterServesDistAssets(t *testing.T) {
-	h, err := app.NewHandler("/app")
+func TestModuleServesDistAssets(t *testing.T) {
+	m, err := app.NewModule("/app")
 	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
+		t.Fatalf("NewModule() error = %v", err)
 	}
 
-	router := h.Router()
+	handler := m.Handler()
 
 	req := httptest.NewRequest(http.MethodGet, "/dist/app.js", nil)
 	w := httptest.NewRecorder()
 
-	router.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()
@@ -145,18 +145,18 @@ func TestRouterServesDistAssets(t *testing.T) {
 	}
 }
 
-func TestRouterServesPublicFiles(t *testing.T) {
-	h, err := app.NewHandler("/app")
+func TestModuleServesPublicFiles(t *testing.T) {
+	m, err := app.NewModule("/app")
 	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
+		t.Fatalf("NewModule() error = %v", err)
 	}
 
-	router := h.Router()
+	handler := m.Handler()
 
 	req := httptest.NewRequest(http.MethodGet, "/favicon.ico", nil)
 	w := httptest.NewRecorder()
 
-	router.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()
@@ -171,18 +171,18 @@ func TestRouterServesPublicFiles(t *testing.T) {
 	}
 }
 
-func TestRouterBasePathInTemplates(t *testing.T) {
-	h, err := app.NewHandler("/myapp")
+func TestModuleBasePathInTemplates(t *testing.T) {
+	m, err := app.NewModule("/myapp")
 	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
+		t.Fatalf("NewModule() error = %v", err)
 	}
 
-	router := h.Router()
+	handler := m.Handler()
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
-	router.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()
@@ -195,18 +195,18 @@ func TestRouterBasePathInTemplates(t *testing.T) {
 	}
 }
 
-func TestRouterDistNotFound(t *testing.T) {
-	h, err := app.NewHandler("/app")
+func TestModuleDistNotFound(t *testing.T) {
+	m, err := app.NewModule("/app")
 	if err != nil {
-		t.Fatalf("NewHandler() error = %v", err)
+		t.Fatalf("NewModule() error = %v", err)
 	}
 
-	router := h.Router()
+	handler := m.Handler()
 
 	req := httptest.NewRequest(http.MethodGet, "/dist/nonexistent.js", nil)
 	w := httptest.NewRecorder()
 
-	router.ServeHTTP(w, req)
+	handler.ServeHTTP(w, req)
 
 	resp := w.Result()
 	defer resp.Body.Close()

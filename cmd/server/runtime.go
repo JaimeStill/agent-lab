@@ -5,18 +5,16 @@ import (
 	"log/slog"
 
 	"github.com/JaimeStill/agent-lab/internal/config"
-	"github.com/JaimeStill/agent-lab/internal/database"
-	"github.com/JaimeStill/agent-lab/internal/lifecycle"
-	"github.com/JaimeStill/agent-lab/internal/storage"
-	"github.com/JaimeStill/agent-lab/pkg/pagination"
+	"github.com/JaimeStill/agent-lab/pkg/database"
+	"github.com/JaimeStill/agent-lab/pkg/lifecycle"
+	"github.com/JaimeStill/agent-lab/pkg/storage"
 )
 
 type Runtime struct {
-	Lifecycle  *lifecycle.Coordinator
-	Logger     *slog.Logger
-	Database   database.System
-	Storage    storage.System
-	Pagination pagination.Config
+	Lifecycle *lifecycle.Coordinator
+	Logger    *slog.Logger
+	Database  database.System
+	Storage   storage.System
 }
 
 func NewRuntime(cfg *config.Config) (*Runtime, error) {
@@ -34,11 +32,10 @@ func NewRuntime(cfg *config.Config) (*Runtime, error) {
 	}
 
 	return &Runtime{
-		Lifecycle:  lc,
-		Logger:     logger,
-		Database:   dbSys,
-		Storage:    storageSys,
-		Pagination: cfg.Pagination,
+		Lifecycle: lc,
+		Logger:    logger,
+		Database:  dbSys,
+		Storage:   storageSys,
 	}, nil
 }
 

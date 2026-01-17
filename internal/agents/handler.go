@@ -34,7 +34,7 @@ func NewHandler(sys System, logger *slog.Logger, pagination pagination.Config) *
 // Routes returns the route group configuration for agent endpoints.
 func (h *Handler) Routes() routes.Group {
 	return routes.Group{
-		Prefix:      "/api/agents",
+		Prefix:      "/agents",
 		Tags:        []string{"Agents"},
 		Description: "Agent configuration and execution",
 		Routes: []routes.Route{
