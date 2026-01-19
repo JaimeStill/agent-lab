@@ -46,9 +46,9 @@ agent-lab enables organizations to:
 - OpenAPI specification with Scalar interactive interface
 
 **Enterprise Ready**:
-- RBAC with resource ownership and sharing (Phase 7)
+- RBAC with resource ownership and sharing (Phase 8)
 - Audit logging for compliance requirements
-- Azure cloud integration (Phase 7)
+- Azure cloud integration (Phase 8)
 - Air-gap deployable with embedded assets
 
 ### Technology Principles
@@ -125,9 +125,9 @@ agent-lab will enable experimentation with:
 ### Deployment
 
 - **Development**: Docker Compose (PostgreSQL 17 + agent-lab service)
-- **Production**: Kubernetes (Phase 7)
+- **Production**: Kubernetes (Phase 8)
 - **External Dependencies**: PostgreSQL 17, ImageMagick 7+
-- **Cloud Platform**: Azure (Phase 7)
+- **Cloud Platform**: Azure (Phase 8)
 
 ## Architecture Principles
 
@@ -962,7 +962,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 **Deliverables**:
 - Bulk document processing (`POST /api/workflows/{id}/execute/bulk`)
 - Execution history filtering and search (status, date range, workflow)
-- RBAC foundations (ownership model, defer authentication to Phase 7)
+- RBAC foundations (ownership model, defer authentication to Phase 8)
 - Audit logging (execution events, user actions)
 - Result export API (JSON, JSONL, CSV formats)
 - Webhook support for completion notifications (Phase 6+)
@@ -974,7 +974,67 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 - Export results in multiple formats
 - Audit log captures all significant actions
 
-### Milestone 7: Production Deployment
+### Milestone 7: User Workflow Interface
+
+**Objective**: Build user-facing interfaces that make workflow consumption accessible to non-technical users, abstracting away orchestration complexity (nodes, edges, profiles, stategraphs).
+
+**Analogy**: Claude Code : Claude Cowork :: Workflow Lab (M5) : User Workflow Interface (M7)
+
+**Architecture Document**: `_context/milestones/m07-user-workflow-interface.md` (created when milestone begins)
+
+**Key Decisions**:
+
+1. **Separate routes, same web client** - RBAC controls access, not separate apps
+   - User workflows: `/app/workflows/{workflow-name}` (e.g., `/app/workflows/classify-docs`)
+   - Lab interface: `/app/lab/workflows/{workflow-name}` (e.g., `/app/lab/workflows/classify-docs`)
+
+2. **Reusable components** - Maximize component reuse between workflows
+   - Queue/upload components
+   - Processing status indicators
+   - Result summary patterns
+   - Validation panels
+
+3. **One workflow run per document** - Clean execution model
+   - Multiple document uploads create queued workflow runs
+   - Parallel workflow execution (across documents) deferred for exploration
+
+4. **Human-in-the-loop actions**:
+   - Validate (confirm AI decision)
+   - Override (correct with reason)
+   - Re-run (same or modified parameters)
+   - Annotate (add notes for audit)
+   - Export (single or batch)
+
+**Route Structure**:
+```
+/app/workflows/classify-docs/
+├── /                    # Upload + queue view
+├── /queue               # Processing queue status
+├── /results/{run-id}    # Document result detail
+└── /export              # Batch export options
+```
+
+**Development Sessions** (proposed):
+
+| Session | Focus | Deliverables |
+|---------|-------|--------------|
+| 7a | Route Infrastructure | Consumer route structure, queue data model |
+| 7b | Upload & Queue UI | Document uploader, queue management, status display |
+| 7c | Result Display | Result summary, document detail view |
+| 7d | Human Validation | Validation panel, override workflow, annotations |
+| 7e | Workflow Visualization | classify-docs specific result views, page viewer |
+| 7f | Batch Operations | Multi-select, batch export, batch actions |
+
+**Success Criteria**:
+- Non-technical user can upload documents and view results without understanding workflow internals
+- Human-in-the-loop validation captures corrections with audit trail
+- Queue provides clear visibility into processing status
+- Results display is task-focused (classification outcome) not implementation-focused (nodes, stages)
+- Batch export enables integration with downstream systems
+
+---
+
+### Milestone 8: Production Deployment
 
 **Objective**: Deploy to Azure with production integrations.
 
@@ -1124,7 +1184,7 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 **Next Steps**:
 - Continue Milestone 5: Session 5d (Providers + Agents UI)
 
-## Future Phases (Beyond Milestone 7)
+## Future Phases (Beyond Milestone 8)
 
 ### Multi-Workflow Support
 
