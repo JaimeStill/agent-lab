@@ -11,17 +11,17 @@ import (
 	"net/http"
 )
 
-// PageDef defines a page with its route, template file, title, and bundle name.
-type PageDef struct {
+// ViewDef defines a page with its route, template file, title, and bundle name.
+type ViewDef struct {
 	Route    string
 	Template string
 	Title    string
 	Bundle   string
 }
 
-// PageData contains the data passed to page templates during rendering.
+// ViewData contains the data passed to page templates during rendering.
 // BasePath enables portable URL generation in templates via {{ .BasePath }}.
-type PageData struct {
+type ViewData struct {
 	Title    string
 	Bundle   string
 	BasePath string
@@ -32,7 +32,7 @@ type PageData struct {
 // Templates are parsed once at startup, avoiding per-request overhead.
 // The basePath is automatically included in PageData for all handlers.
 type TemplateSet struct {
-	pages    map[string]*template.Template
+	views    map[string]*template.Template
 	basePath string
 }
 
@@ -41,60 +41,60 @@ type TemplateSet struct {
 // for all handlers, enabling portable URL generation in templates.
 // This pre-parsing at startup enables fail-fast behavior and eliminates
 // per-request template parsing overhead.
-func NewTemplateSet(layoutFS, pageFS embed.FS, layoutGlob, pageSubdir, basePath string, pages []PageDef) (*TemplateSet, error) {
+func NewTemplateSet(layoutFS, viewFS embed.FS, layoutGlob, viewSubdir, basePath string, views []ViewDef) (*TemplateSet, error) {
 	layouts, err := template.ParseFS(layoutFS, layoutGlob)
 	if err != nil {
 		return nil, err
 	}
 
-	pageSub, err := fs.Sub(pageFS, pageSubdir)
+	viewSub, err := fs.Sub(viewFS, viewSubdir)
 	if err != nil {
 		return nil, err
 	}
 
-	pageTemplates := make(map[string]*template.Template, len(pages))
-	for _, p := range pages {
+	viewTemplates := make(map[string]*template.Template, len(views))
+	for _, p := range views {
 		t, err := layouts.Clone()
 		if err != nil {
 			return nil, fmt.Errorf("clone layouts for %s: %w", p.Template, err)
 		}
-		_, err = t.ParseFS(pageSub, p.Template)
+		_, err = t.ParseFS(viewSub, p.Template)
 		if err != nil {
 			return nil, fmt.Errorf("parse template: %s: %w", p.Template, err)
 		}
-		pageTemplates[p.Template] = t
+		viewTemplates[p.Template] = t
 	}
 
 	return &TemplateSet{
-		pages:    pageTemplates,
+		views:    viewTemplates,
 		basePath: basePath,
 	}, nil
 }
 
 // ErrorHandler returns an HTTP handler that renders an error page with the given status code.
-func (ts *TemplateSet) ErrorHandler(layout string, page PageDef, status int) http.HandlerFunc {
+func (ts *TemplateSet) ErrorHandler(layout string, view ViewDef, status int) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
-		data := PageData{
-			Title:    page.Title,
-			Bundle:   page.Bundle,
+		data := ViewData{
+			Title:    view.Title,
+			Bundle:   view.Bundle,
 			BasePath: ts.basePath,
 		}
-		if err := ts.Render(w, layout, page.Template, data); err != nil {
+		if err := ts.Render(w, layout, view.Template, data); err != nil {
 			http.Error(w, http.StatusText(status), status)
 		}
 	}
 }
 
 // PageHandler returns an HTTP handler that renders the given page.
-func (ts *TemplateSet) PageHandler(layout string, page PageDef) http.HandlerFunc {
+func (ts *TemplateSet) PageHandler(layout string, view ViewDef) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		data := PageData{
-			Title:    page.Title,
-			Bundle:   page.Bundle,
+		data := ViewData{
+			Title:    view.Title,
+			Bundle:   view.Bundle,
 			BasePath: ts.basePath,
 		}
-		if err := ts.Render(w, layout, page.Template, data); err != nil {
+		if err := ts.Render(w, layout, view.Template, data); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
@@ -102,10 +102,10 @@ func (ts *TemplateSet) PageHandler(layout string, page PageDef) http.HandlerFunc
 
 // Render executes the named layout template with the given page data.
 // It sets the Content-Type header to text/html.
-func (ts *TemplateSet) Render(w http.ResponseWriter, layoutName, pagePath string, data PageData) error {
-	t, ok := ts.pages[pagePath]
+func (ts *TemplateSet) Render(w http.ResponseWriter, layoutName, viewPath string, data ViewData) error {
+	t, ok := ts.views[viewPath]
 	if !ok {
-		return fmt.Errorf("template not found: %s", pagePath)
+		return fmt.Errorf("template not found: %s", viewPath)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	return t.ExecuteTemplate(w, layoutName, data)

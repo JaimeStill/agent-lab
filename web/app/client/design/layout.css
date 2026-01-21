@@ -61,4 +61,8 @@
   .align-stretch {
     align-self: stretch;
   }
+
+  .hidden {
+    display: none;
+  }
 }

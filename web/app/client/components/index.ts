@@ -1,1 +1,1 @@
-export { }
+export { AlPagination } from './al-pagination';

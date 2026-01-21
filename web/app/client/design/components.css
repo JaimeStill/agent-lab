@@ -131,4 +131,95 @@
     background-color: var(--red-bg);
     color: var(--red);
   }
+
+  dialog {
+    padding: var(--space-6);
+    border: 1px solid var(--divider);
+    border-radius: 8px;
+    background-color: var(--bg);
+    color: var(--color);
+    max-width: 32rem;
+    width: 100%;
+  }
+
+  dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  dialog h2 {
+    margin-top: 0;
+    margin-bottom: var(--space-4);
+  }
+
+  dialog form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  dialog .dialog-actions {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: flex-end;
+    margin-top: var(--space-2);
+  }
+
+  dialog .dialog-actions-split {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--space-2);
+  }
+
+  textarea.input {
+    resize: vertical;
+    min-height: 8rem;
+    font-family: var(--font-mono);
+  }
+
+  .table-clickable tbody tr {
+    cursor: pointer;
+  }
+
+  .table-clickable tbody tr:hover {
+    background-color: var(--bg-1);
+  }
+
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-6);
+  }
+
+  .page-header h1 {
+    margin: 0;
+  }
+
+  .search-bar {
+    display: flex;
+    gap: var(--space-3);
+    align-items: center;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+
+  .pagination-info {
+    color: var(--color-1);
+    font-size: var(--text-sm);
+  }
+
+  .text-muted {
+    color: var(--color-1);
+  }
+
+  .empty-state {
+    padding: var(--space-8);
+    text-align: center;
+    color: var(--color-1);
+  }
 }

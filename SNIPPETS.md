@@ -338,8 +338,8 @@ curl -X POST http://localhost:8080/api/workflows/classify-docs/execute \
   -H "Content-Type: application/json" \
   -d '{
     "params": {
-      "document_id": "<document-id>",
-      "agent_id": "<agent-id>"
+      "document_id": "1b760735-a0da-4c45-9868-e311e3c4117d",
+      "agent_id": "2b0c0844-e267-42a6-b45f-e08f08d1de5f"
     },
     "token": "<api-key>"
   }'
