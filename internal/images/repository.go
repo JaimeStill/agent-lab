@@ -294,12 +294,12 @@ func (r *repo) findExisting(ctx context.Context, documentID uuid.UUID, pageNum i
 		WhereEquals("PageNumber", pageNum).
 		WhereEquals("Format", opts.Format).
 		WhereEquals("DPI", opts.DPI).
-		WhereEquals("Quality", opts.Quality).
-		WhereEquals("Brightness", opts.Brightness).
-		WhereEquals("Contrast", opts.Contrast).
-		WhereEquals("Saturation", opts.Saturation).
-		WhereEquals("Rotation", opts.Rotation).
-		WhereEquals("Background", opts.Background).
+		WhereNullable("Quality", opts.Quality).
+		WhereNullable("Brightness", opts.Brightness).
+		WhereNullable("Contrast", opts.Contrast).
+		WhereNullable("Saturation", opts.Saturation).
+		WhereNullable("Rotation", opts.Rotation).
+		WhereNullable("Background", opts.Background).
 		BuildSingleOrNull()
 
 	img, err := repository.QueryOne(ctx, r.db, q, args, scanImage)
