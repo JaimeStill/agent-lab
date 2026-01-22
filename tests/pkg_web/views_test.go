@@ -17,12 +17,12 @@ var layoutFS embed.FS
 //go:embed testdata/pages/*
 var pageFS embed.FS
 
-var testPages = []web.PageDef{
+var testPages = []web.ViewDef{
 	{Route: "", Template: "home.html", Title: "Home", Bundle: "app"},
 	{Route: "/about", Template: "about.html", Title: "About", Bundle: "app"},
 }
 
-var errorPages = []web.PageDef{
+var errorPages = []web.ViewDef{
 	{Template: "404.html", Title: "Not Found"},
 }
 
@@ -51,7 +51,7 @@ func TestNewTemplateSetInvalidPageSubdir(t *testing.T) {
 }
 
 func TestNewTemplateSetInvalidTemplate(t *testing.T) {
-	invalidPages := []web.PageDef{
+	invalidPages := []web.ViewDef{
 		{Route: "", Template: "nonexistent.html", Title: "Missing", Bundle: "app"},
 	}
 	_, err := web.NewTemplateSet(layoutFS, pageFS, "testdata/layouts/*.html", "testdata/pages", "/app", invalidPages)
@@ -67,7 +67,7 @@ func TestRender(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	data := web.PageData{Title: "Test", Bundle: "test-bundle", BasePath: "/app"}
+	data := web.ViewData{Title: "Test", Bundle: "test-bundle", BasePath: "/app"}
 
 	err = ts.Render(w, "test.html", "home.html", data)
 	if err != nil {
@@ -109,7 +109,7 @@ func TestRenderNotFound(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	data := web.PageData{Title: "Test", Bundle: "app"}
+	data := web.ViewData{Title: "Test", Bundle: "app"}
 
 	err = ts.Render(w, "test.html", "nonexistent.html", data)
 	if err == nil {
@@ -162,7 +162,7 @@ func TestPageHandlerServesPages(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		page     web.PageDef
+		page     web.ViewDef
 		wantBody string
 	}{
 		{"home", testPages[0], "Home Page"},

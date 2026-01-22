@@ -18,8 +18,8 @@ var publicFS embed.FS
 //go:embed server/layouts/*
 var layoutFS embed.FS
 
-//go:embed server/pages/*
-var pageFS embed.FS
+//go:embed server/views/*
+var viewFS embed.FS
 
 var publicFiles = []string{
 	"favicon.ico",
@@ -29,25 +29,25 @@ var publicFiles = []string{
 	"site.webmanifest",
 }
 
-var pages = []web.PageDef{
+var views = []web.ViewDef{
 	{Route: "/{$}", Template: "home.html", Title: "Home", Bundle: "app"},
 	{Route: "/components", Template: "components.html", Title: "Components", Bundle: "app"},
 }
 
-var errorPages = []web.PageDef{
+var errorViews = []web.ViewDef{
 	{Template: "404.html", Title: "Not Found", Bundle: "app"},
 }
 
 // NewModule creates the app module configured for the given base path.
 func NewModule(basePath string) (*module.Module, error) {
-	allPages := append(pages, errorPages...)
+	allViews := append(views, errorViews...)
 	ts, err := web.NewTemplateSet(
 		layoutFS,
-		pageFS,
+		viewFS,
 		"server/layouts/*.html",
-		"server/pages",
+		"server/views",
 		basePath,
-		allPages,
+		allViews,
 	)
 	if err != nil {
 		return nil, err
@@ -61,12 +61,12 @@ func buildRouter(ts *web.TemplateSet) http.Handler {
 	r := web.NewRouter()
 	r.SetFallback(ts.ErrorHandler(
 		"app.html",
-		errorPages[0],
+		errorViews[0],
 		http.StatusNotFound,
 	))
 
-	for _, page := range pages {
-		r.HandleFunc("GET "+page.Route, ts.PageHandler("app.html", page))
+	for _, view := range views {
+		r.HandleFunc("GET "+view.Route, ts.PageHandler("app.html", view))
 	}
 
 	r.Handle("GET /dist/", http.FileServer(http.FS(distFS)))
