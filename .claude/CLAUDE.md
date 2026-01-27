@@ -1,71 +1,105 @@
-# agent-lab Development Guide
+# agent-lab
 
-## Role and Scope
+A Go web service for building and orchestrating agentic workflows. Built on go-agents, go-agents-orchestration, and document-context libraries.
 
-You are an expert in building web services and agentic workflow platforms with Go.
+## Quick Reference
 
-I'm asking for advice and mentorship, not direct code modifications. This is a project I want to execute myself, but I need guidance and sanity checks when making decisions.
+### Commands
 
-You are authorized to create and modify documentation files, but implementation should be guided through detailed planning documents rather than direct code changes.
+| Action | Command |
+|--------|---------|
+| Validate | `go vet ./...` |
+| Test | `go test ./tests/...` |
+| Run | `go run ./cmd/server` |
+| Migrate Up | `go run ./cmd/migrate -dsn "..." -up` |
+| Migrate Down | `go run ./cmd/migrate -dsn "..." -down` |
+| Seed | `go run ./cmd/seed -dsn "..." -all` |
+| Build Web | `cd web && bun run build` |
 
-## Project Overview
+### Session Workflow
 
-agent-lab is a containerized Go web service for building and orchestrating agentic workflows. It builds on:
-- **go-agents**: LLM integration core
-- **go-agents-orchestration**: Workflow orchestration patterns
-- **document-context**: Document processing with LCA architecture
+**Development Sessions:**
+1. Planning → 2. Plan Presentation → 3. Implementation Guide → 4. OpenAPI Maintenance → 5. Developer Execution → 6. Validation → 7. Documentation → 8. Closeout
 
-The project follows **Layered Composition Architecture (LCA)** principles from these libraries.
+**Maintenance Sessions:**
+1. Planning → 2. Execution → 3. Validation → 4. Closeout
 
-## Context Architecture
+**Implementation Guide Conventions:**
+- Session ID: `01a`, `01b` (milestone + letter), `mt01` (maintenance)
+- Code blocks: NO comments, NO tests, NO OpenAPI contents
+- Existing files: incremental changes; New files: complete implementation
 
-This project uses Claude Code's native context system:
+### Architecture
 
-| Type | Location | Loading | Purpose |
-|------|----------|---------|---------|
-| CLAUDE.md | `.claude/CLAUDE.md` | Always | Project orientation |
-| Rules | `.claude/rules/*.md` | Always | Commands, workflow, meta-docs |
-| Skills | `.claude/skills/*/SKILL.md` | On-demand | Domain-specific patterns |
+**Layered Composition Architecture (LCA):**
+- Cold Start: `New*()` builds state graph
+- Hot Start: `Start()` activates processes
+- State flows down through method parameters, never up
 
-### Skill Index
+**Domain System Files:**
+```
+internal/<domain>/
+├── errors.go      # Domain errors (Err prefix)
+├── <entity>.go    # Entity types and commands
+├── system.go      # System interface + implementation
+├── repository.go  # Database operations
+├── handler.go     # HTTP handlers
+└── openapi.go     # API documentation
+```
 
-Skills load automatically when context is relevant. Use these keywords/files to trigger:
+## Project Structure
 
-| Skill | Triggers | File Patterns |
-|-------|----------|---------------|
-| **go-core** | error handling, naming, file structure, slog, domain system | `internal/**/*.go`, `pkg/**/*.go` |
-| **go-testing** | _test.go, TestXxx, t.Run, table-driven | `tests/**/*.go` |
-| **lca** | System interface, lifecycle, Infrastructure, Handler() factory, config | `internal/config/*.go`, `pkg/runtime/*.go`, `internal/*/system.go` |
-| **go-database** | repository, *sql.DB, query builder, pagination | `internal/*/repository.go`, `internal/*/mapping.go` |
-| **go-storage** | storage.System, Store, atomic writes | `pkg/storage/*.go` |
-| **go-http** | Handler struct, Routes(), module, middleware, path normalization, SSE | `internal/*/handler.go`, `pkg/module/*.go`, `pkg/middleware/*.go`, `pkg/routes/*.go` |
-| **openapi** | OpenAPI, Spec.*, schemas, Scalar | `internal/*/openapi.go`, `pkg/openapi/*.go` |
-| **agent-execution** | agent.Agent, VisionForm, token injection | `internal/agents/*.go` |
-| **workflow-orchestration** | StateGraph, Observer, CheckpointStore | `internal/workflows/*.go` |
-| **document-processing** | PDF, page rendering, RenderOptions | `internal/documents/*.go`, `internal/images/*.go` |
-| **web-development** | al-* components, TypeScript, Vite, PageDef, TemplateSet | `web/**/*.ts`, `web/**/*.go`, `pkg/web/*.go` |
-| **development-methodology** | milestone planning, session workflow | `_context/*.md` |
+```
+agent-lab/
+├── cmd/server/          # Entry point, composition root
+├── internal/            # Domain systems (private)
+│   ├── config/          # Server configuration
+│   ├── infrastructure/  # Core services (lifecycle, logging, database, storage)
+│   ├── api/             # API module assembly
+│   └── <domain>/        # Domain systems
+├── pkg/                 # Shared utilities (public)
+│   ├── logging/         # Logging configuration and factory
+│   ├── database/        # Database management
+│   └── ...              # Other utilities
+├── web/                 # Web clients
+│   ├── app/             # Main Lit application
+│   └── scalar/          # OpenAPI documentation
+└── _context/            # Development documentation
+```
 
-### Always-Loaded Rules
+## Skills
 
-- **go-commands.md** - Validation, testing, run commands
-- **session-workflow.md** - Development/maintenance session phases
-- **context-architecture.md** - How this context system works
+Skills load automatically based on context. Available skills:
 
-## Documentation Hierarchy
+| Skill | Use When |
+|-------|----------|
+| go-core | Creating packages, errors, interfaces, slog logging |
+| go-testing | Writing tests, coverage analysis |
+| lca | Implementing systems, lifecycle, Handler() factory |
+| go-database | Repository implementation, queries, transactions |
+| go-http | HTTP handlers, routes, middleware, SSE |
+| go-storage | Blob storage, atomic writes |
+| openapi | API documentation, schema definitions |
+| agent-execution | Agent integration, vision forms |
+| workflow-orchestration | State graphs, observers, checkpoints |
+| document-processing | PDF rendering, document-context |
+| web-development | Lit components, views, services, CSS |
+| development-methodology | Session planning, milestones |
 
-| Document | Purpose |
-|----------|---------|
-| `.claude/CLAUDE.md` | Project orientation, skill index |
-| `PROJECT.md` | Vision, goals, milestone roadmap |
-| `_context/milestones/m##-*.md` | Milestone architecture documents |
-| `_context/sessions/*.md` | Session summaries |
+## Session Closeout Checklist
 
-**When to reference:**
-- **Workflow/process** → Rules auto-loaded, or trigger development-methodology skill
-- **Implementation patterns** → Trigger relevant domain skill
-- **Roadmap/priorities** → PROJECT.md
-- **Milestone context** → `_context/milestones/m##-*.md`
+1. Generate summary at `_context/sessions/[session-id]-[title].md`
+2. Archive guide to `_context/sessions/.archive/`
+3. Update context architecture if patterns changed
+4. Update PROJECT.md session status
+5. Update README.md only for critical user-facing changes
+
+## Testing Success Criteria
+
+- Happy paths covered
+- Security paths covered (validation, injection protection)
+- Error types distinguishable
+- Integration points verified
 
 ## Directory Conventions
 
@@ -73,11 +107,9 @@ Skills load automatically when context is relevant. Use these keywords/files to 
 
 **Context Directories (`_` prefix)**: Available for AI reference
 
-**Key Locations:**
 ```
 .claude/
 ├── CLAUDE.md              # This file
-├── rules/                 # Always-loaded rules
 └── skills/                # On-demand domain skills
 
 _context/
@@ -89,17 +121,27 @@ _context/
 └── prompts/               # Session start prompts
 ```
 
-## Pattern Decision Guide
+## Adding New Skills
 
-- **Stateful Systems** (own state and other systems) → Use config interface
-- **Functional Infrastructure** (stateless utilities) → Use simple parameters
+1. Create directory: `.claude/skills/{skill-name}/`
+2. Create `SKILL.md` with YAML frontmatter:
+   ```yaml
+   ---
+   name: skill-name
+   description: >
+     Brief description with "REQUIRED for..." pattern.
+     Include trigger keywords, file patterns, and use cases.
+     Max 1024 characters.
+   ---
+   ```
+3. Add sections: When This Skill Applies, Principles, Patterns, Anti-Patterns
 
 ## References
 
 | Resource | Description |
 |----------|-------------|
-| `README.md` | Installation, usage, getting started |
-| `PROJECT.md` | Roadmap and milestone tracking |
-| go-agents | Configuration patterns, interface design |
-| go-agents-orchestration | Workflow patterns, state management |
-| document-context | LCA architecture, external binary integration |
+| PROJECT.md | Roadmap, milestones, success criteria |
+| `_context/milestones/` | Milestone architecture documents |
+| go-agents | LLM integration, agent patterns |
+| go-agents-orchestration | Workflow orchestration |
+| document-context | Document processing |

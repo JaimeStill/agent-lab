@@ -1123,11 +1123,6 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
   - Config pattern: public packages define Env struct, app passes key mappings
 
 **In Progress**:
-- **Maintenance Session mt08: Context Optimization and Package Layering** (prerequisite for M5)
-  - Context optimization (remove rules/, consolidate CLAUDE.md, trigger-optimized skill descriptions)
-  - Package layering fix (create pkg/config, eliminate pkg/ → internal/ dependency)
-  - Web development skill rewrite (Lit architecture patterns)
-  - Implementation guide: `_context/mt08-context-and-package-layering.md`
 - **Milestone 5: Workflow Lab Interface** (architecture reset)
   - Previous sessions 5a-5c established foundation infrastructure (preserved, will be adapted)
   - Architecture document rewritten for Lit SPA approach
@@ -1135,6 +1130,10 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
   - Blocked by: mt08 completion
 
 **Recently Completed**:
+- **Maintenance Session mt08: Context Optimization and Package Layering** ✅
+  - Phase 1: Deleted `.claude/rules/`, consolidated CLAUDE.md under 200 lines
+  - Phase 2: Created `pkg/logging/`, moved `pkg/runtime/` to `internal/infrastructure/`
+  - Phase 3: Web development skill rewrite deferred to M5 preparation
 - **Maintenance Session mt07: Module Polish** ✅
   - Path normalization at router level (replaced redirect-based slash middleware)
   - Fixed 404 page empty bundle name with PageDef pattern
@@ -1156,8 +1155,7 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
   - Milestone Review ✅
 
 **Next Steps**:
-1. Execute Maintenance Session mt08 (Context Optimization and Package Layering)
-2. Continue Milestone 5: Session 5a (Lit Migration)
+1. Continue Milestone 5: Session 5a (Lit Migration)
 
 ## Future Phases (Beyond Milestone 8)
 

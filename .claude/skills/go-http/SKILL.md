@@ -1,13 +1,10 @@
 ---
 name: go-http
 description: >
-  HTTP handler, module, middleware, and routing patterns. Use when implementing
-  endpoints, modules, middleware, routes, or HTTP responses. Includes module
-  pattern for mountable sub-applications and path normalization at router level.
-  Triggers: http.Handler, http.HandlerFunc, Handler struct, Routes() method,
-  routes.Group, routes.Route, module.Module, module.Router, middleware stack,
-  RespondJSON, RespondError, CORS, SSE, text/event-stream, MapHTTPStatus,
-  long-running processes, lifecycle context, client disconnect, path normalization.
+  REQUIRED for HTTP handler implementation. Use when creating handlers,
+  defining routes, implementing middleware, or SSE streaming.
+  Triggers: handler.go, Handler struct, Routes(), middleware, module.Module,
+  RespondJSON, RespondError, CORS, SSE, "create endpoint", "HTTP handler".
   File patterns: internal/*/handler.go, pkg/module/*.go, pkg/middleware/*.go, pkg/routes/*.go
 ---
 

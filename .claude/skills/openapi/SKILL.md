@@ -1,11 +1,10 @@
 ---
 name: openapi
 description: >
-  OpenAPI 3.1 specification patterns. Use when defining API schemas,
-  operations, or documentation.
-  Triggers: openapi.go, OpenAPI, Spec.*, openapi.Operation, openapi.Schema,
-  openapi.Response, RequestBodyJSON, ResponseJSON, ResponseRef, SchemaRef,
-  Schemas(), /docs endpoint, Scalar UI.
+  REQUIRED for OpenAPI specification. Use when defining API schemas,
+  documenting endpoints, or generating specs.
+  Triggers: openapi.go, Spec.*, SchemaRef, RequestBodyJSON, ResponseRef,
+  Schemas(), "document API", "OpenAPI schema", Scalar UI.
   File patterns: internal/*/openapi.go, pkg/openapi/*.go, cmd/server/openapi.go
 ---
 

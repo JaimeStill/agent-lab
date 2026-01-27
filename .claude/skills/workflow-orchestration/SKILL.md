@@ -1,11 +1,10 @@
 ---
 name: workflow-orchestration
 description: >
-  Workflow patterns from go-agents-orchestration library. Use when implementing
-  workflows, state management, checkpoints, or parallel processing.
-  Triggers: StateGraph, workflows.Register, WorkflowFactory, state.State,
-  Observer, CheckpointStore, ProcessParallel, MultiObserver, StreamingObserver,
-  graph.Execute, graph.Resume, OnEvent, workflow_runs, stages, decisions.
+  REQUIRED for workflow implementation. Use when building state graphs,
+  implementing observers, or managing checkpoints.
+  Triggers: StateGraph, WorkflowFactory, Observer, CheckpointStore,
+  ProcessParallel, graph.Execute, graph.Resume, workflow_runs.
   File patterns: internal/workflows/*.go, workflows/**/*.go
 ---
 

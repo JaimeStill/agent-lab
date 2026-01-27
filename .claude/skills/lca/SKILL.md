@@ -1,14 +1,10 @@
 ---
 name: lca
 description: >
-  Layered Composition Architecture patterns. Use when designing system
-  boundaries, state flow, lifecycle management, configuration, or module structure.
-  Includes Infrastructure pattern for shared dependencies and Handler() factory
-  for domain system handler creation.
-  Triggers: System interface, New* constructor, Start() method, Cold Start,
-  Hot Start, Runtime struct, Domain struct, Infrastructure, Handler() factory,
-  lifecycle coordinator, OnStartup, OnShutdown, config.go, Finalize(),
-  validate(), loadDefaults(), loadEnv().
+  REQUIRED for Layered Composition Architecture. Use when implementing
+  domain systems, lifecycle coordination, Infrastructure, or Handler() factory.
+  Triggers: System interface, Cold Start, Hot Start, New* constructor,
+  Start(), Infrastructure, Handler(), state flows down, config.go, Finalize().
   File patterns: internal/config/*.go, pkg/lifecycle/*.go, pkg/runtime/*.go,
   internal/*/system.go, cmd/server/*.go
 ---

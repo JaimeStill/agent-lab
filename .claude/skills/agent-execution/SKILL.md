@@ -1,11 +1,10 @@
 ---
 name: agent-execution
 description: >
-  Agent execution patterns including LLM calls and token handling.
-  Use when implementing agent execution or multipart forms.
-  Triggers: agent.Agent, VisionForm, ParseVisionForm, Token injection,
-  constructAgent, ChatStream, VisionStream, multipart/form-data, base64,
-  Provider.Options["token"], go-agents, ExecuteRequest, SetSecret, GetSecret.
+  REQUIRED for agent execution patterns. Use when implementing LLM calls,
+  vision forms, token handling, or streaming responses.
+  Triggers: agent.Agent, VisionForm, ParseVisionForm, ChatStream, VisionStream,
+  constructAgent, multipart/form-data, base64, token injection.
   File patterns: internal/agents/*.go
 ---
 

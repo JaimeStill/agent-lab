@@ -84,11 +84,11 @@ agent-lab/
 ├── cmd/server/          # Entry point, composition root
 ├── internal/            # Domain systems (private)
 │   ├── config/          # Server configuration
+│   ├── infrastructure/  # Core services (lifecycle, logging, database, storage)
 │   ├── api/             # API module assembly
 │   └── <domain>/        # Domain systems
-├── pkg/                 # Shared infrastructure (public)
-│   ├── config/          # Configuration types
-│   ├── runtime/         # Infrastructure composition
+├── pkg/                 # Shared utilities (public)
+│   ├── logging/         # Logging configuration and factory
 │   ├── database/        # Database management
 │   └── ...              # Other utilities
 ├── web/                 # Web clients
@@ -243,147 +243,75 @@ description: >
 
 ## Phase 2: Package Layering Fix
 
-### 2.1 Create pkg/config Package
+### 2.1 Create pkg/logging Package
 
-**File:** `pkg/config/types.go`
+Following the pattern of `pkg/database/` and `pkg/storage/`, logging infrastructure belongs in its own package.
+
+**File:** `pkg/logging/logging.go`
 
 ```go
-package config
+package logging
 
 import (
 	"fmt"
 	"log/slog"
+	"os"
 )
 
-type LogLevel string
+type Level string
 
 const (
-	LogLevelDebug LogLevel = "debug"
-	LogLevelInfo  LogLevel = "info"
-	LogLevelWarn  LogLevel = "warn"
-	LogLevelError LogLevel = "error"
+	LevelDebug Level = "debug"
+	LevelInfo  Level = "info"
+	LevelWarn  Level = "warn"
+	LevelError Level = "error"
 )
 
-func (l LogLevel) Validate() error {
+func (l Level) Validate() error {
 	switch l {
-	case LogLevelDebug, LogLevelInfo, LogLevelWarn, LogLevelError:
+	case LevelDebug, LevelInfo, LevelWarn, LevelError:
 		return nil
 	default:
 		return fmt.Errorf("invalid log level: %s (must be debug, info, warn, or error)", l)
 	}
 }
 
-func (l LogLevel) ToSlogLevel() slog.Level {
+func (l Level) ToSlogLevel() slog.Level {
 	switch l {
-	case LogLevelDebug:
+	case LevelDebug:
 		return slog.LevelDebug
-	case LogLevelWarn:
+	case LevelWarn:
 		return slog.LevelWarn
-	case LogLevelError:
+	case LevelError:
 		return slog.LevelError
 	default:
 		return slog.LevelInfo
 	}
 }
 
-type LogFormat string
+type Format string
 
 const (
-	LogFormatText LogFormat = "text"
-	LogFormatJSON LogFormat = "json"
+	FormatText Format = "text"
+	FormatJSON Format = "json"
 )
 
-func (f LogFormat) Validate() error {
+func (f Format) Validate() error {
 	switch f {
-	case LogFormatText, LogFormatJSON:
+	case FormatText, FormatJSON:
 		return nil
 	default:
 		return fmt.Errorf("invalid log format: %s (must be text or json)", f)
 	}
 }
-```
 
-**File:** `pkg/config/logging.go`
-
-```go
-package config
-
-import "os"
-
-const (
-	EnvLoggingLevel  = "LOGGING_LEVEL"
-	EnvLoggingFormat = "LOGGING_FORMAT"
-)
-
-type LoggingConfig struct {
-	Level  LogLevel  `toml:"level"`
-	Format LogFormat `toml:"format"`
-}
-
-func (c *LoggingConfig) Finalize() error {
-	c.loadDefaults()
-	c.loadEnv()
-	return c.validate()
-}
-
-func (c *LoggingConfig) Merge(overlay *LoggingConfig) {
-	if overlay.Level != "" {
-		c.Level = overlay.Level
-	}
-	if overlay.Format != "" {
-		c.Format = overlay.Format
-	}
-}
-
-func (c *LoggingConfig) loadDefaults() {
-	if c.Level == "" {
-		c.Level = LogLevelInfo
-	}
-	if c.Format == "" {
-		c.Format = LogFormatText
-	}
-}
-
-func (c *LoggingConfig) loadEnv() {
-	if v := os.Getenv(EnvLoggingLevel); v != "" {
-		c.Level = LogLevel(v)
-	}
-	if v := os.Getenv(EnvLoggingFormat); v != "" {
-		c.Format = LogFormat(v)
-	}
-}
-
-func (c *LoggingConfig) validate() error {
-	if err := c.Level.Validate(); err != nil {
-		return err
-	}
-	return c.Format.Validate()
-}
-```
-
-### 2.2 Update pkg/runtime
-
-**File:** `pkg/runtime/logging.go`
-
-Update imports from `internal/config` to `pkg/config`:
-
-```go
-package runtime
-
-import (
-	"log/slog"
-	"os"
-
-	"github.com/JaimeStill/agent-lab/pkg/config"
-)
-
-func newLogger(cfg *config.LoggingConfig) *slog.Logger {
+func New(cfg *Config) *slog.Logger {
 	opts := &slog.HandlerOptions{
 		Level: cfg.Level.ToSlogLevel(),
 	}
 
 	var handler slog.Handler
-	if cfg.Format == config.LogFormatJSON {
+	if cfg.Format == FormatJSON {
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	} else {
 		handler = slog.NewTextHandler(os.Stdout, opts)
@@ -393,28 +321,88 @@ func newLogger(cfg *config.LoggingConfig) *slog.Logger {
 }
 ```
 
-**File:** `pkg/runtime/infrastructure.go`
-
-Update to accept an interface instead of concrete `*config.Config`:
+**File:** `pkg/logging/config.go`
 
 ```go
-package runtime
+package logging
+
+import "os"
+
+type Env struct {
+	Level  string
+	Format string
+}
+
+type Config struct {
+	Level  Level  `toml:"level"`
+	Format Format `toml:"format"`
+}
+
+func (c *Config) Finalize(env *Env) error {
+	c.loadDefaults()
+	c.loadEnv(env)
+	return c.validate()
+}
+
+func (c *Config) Merge(overlay *Config) {
+	if overlay.Level != "" {
+		c.Level = overlay.Level
+	}
+	if overlay.Format != "" {
+		c.Format = overlay.Format
+	}
+}
+
+func (c *Config) loadDefaults() {
+	if c.Level == "" {
+		c.Level = LevelInfo
+	}
+	if c.Format == "" {
+		c.Format = FormatText
+	}
+}
+
+func (c *Config) loadEnv(env *Env) {
+	if env == nil {
+		return
+	}
+	if v := os.Getenv(env.Level); v != "" {
+		c.Level = Level(v)
+	}
+	if v := os.Getenv(env.Format); v != "" {
+		c.Format = Format(v)
+	}
+}
+
+func (c *Config) validate() error {
+	if err := c.Level.Validate(); err != nil {
+		return err
+	}
+	return c.Format.Validate()
+}
+```
+
+### 2.2 Move pkg/runtime to internal/infrastructure
+
+Move the runtime package to internal, allowing direct use of `*config.Config` without interfaces.
+
+**Delete:** `pkg/runtime/` directory entirely.
+
+**Create:** `internal/infrastructure/infrastructure.go`
+
+```go
+package infrastructure
 
 import (
 	"fmt"
 	"log/slog"
 
-	"github.com/JaimeStill/agent-lab/pkg/config"
+	"github.com/JaimeStill/agent-lab/internal/config"
 	"github.com/JaimeStill/agent-lab/pkg/database"
 	"github.com/JaimeStill/agent-lab/pkg/lifecycle"
+	"github.com/JaimeStill/agent-lab/pkg/logging"
 	"github.com/JaimeStill/agent-lab/pkg/storage"
 )
-
-type InfrastructureConfig interface {
-	LoggingConfig() *config.LoggingConfig
-	DatabaseConfig() *database.Config
-	StorageConfig() *storage.Config
-}
 
 type Infrastructure struct {
 	Lifecycle *lifecycle.Coordinator
@@ -423,16 +411,16 @@ type Infrastructure struct {
 	Storage   storage.System
 }
 
-func New(cfg InfrastructureConfig) (*Infrastructure, error) {
+func New(cfg *config.Config) (*Infrastructure, error) {
 	lc := lifecycle.New()
-	logger := newLogger(cfg.LoggingConfig())
+	logger := logging.New(&cfg.Logging)
 
-	db, err := database.New(cfg.DatabaseConfig(), logger)
+	db, err := database.New(&cfg.Database, logger)
 	if err != nil {
 		return nil, fmt.Errorf("database init failed: %w", err)
 	}
 
-	store, err := storage.New(cfg.StorageConfig(), logger)
+	store, err := storage.New(&cfg.Storage, logger)
 	if err != nil {
 		return nil, fmt.Errorf("storage init failed: %w", err)
 	}
@@ -460,53 +448,54 @@ func (i *Infrastructure) Start() error {
 
 **File:** `internal/config/config.go`
 
-Remove `LogLevel` and `LogFormat` types (now in `pkg/config`), embed `pkg/config.LoggingConfig`:
+Add `loggingEnv`, update imports, change `Logging` field type, and update `finalize()` call:
 
 ```go
-package config
-
+// Add import
 import (
-	"fmt"
-	"os"
-	"time"
-
-	pkgconfig "github.com/JaimeStill/agent-lab/pkg/config"
-	"github.com/JaimeStill/agent-lab/pkg/database"
-	"github.com/JaimeStill/agent-lab/pkg/storage"
-	"github.com/pelletier/go-toml/v2"
+	"github.com/JaimeStill/agent-lab/pkg/logging"
 )
 
+// Add env var definition (alongside databaseEnv, storageEnv)
+var loggingEnv = &logging.Env{
+	Level:  "LOGGING_LEVEL",
+	Format: "LOGGING_FORMAT",
+}
+
+// Update Logging field type in Config struct
 type Config struct {
-	Server          ServerConfig           `toml:"server"`
-	Database        database.Config        `toml:"database"`
-	Logging         pkgconfig.LoggingConfig `toml:"logging"`
-	Storage         storage.Config         `toml:"storage"`
-	API             APIConfig              `toml:"api"`
-	Domain          string                 `toml:"domain"`
-	ShutdownTimeout string                 `toml:"shutdown_timeout"`
-	Version         string                 `toml:"version"`
+	// ...
+	Logging logging.Config `toml:"logging"`
+	// ...
 }
 
-func (c *Config) LoggingConfig() *pkgconfig.LoggingConfig {
-	return &c.Logging
-}
-
-func (c *Config) DatabaseConfig() *database.Config {
-	return &c.Database
-}
-
-func (c *Config) StorageConfig() *storage.Config {
-	return &c.Storage
+// Update finalize() to pass loggingEnv
+if err := c.Logging.Finalize(loggingEnv); err != nil {
+	return fmt.Errorf("logging: %w", err)
 }
 ```
 
 **File:** `internal/config/types.go`
 
-Delete this file (types moved to `pkg/config/types.go`).
+Delete this file (types moved to `pkg/logging/logging.go`).
 
 **File:** `internal/config/logging.go`
 
-Delete this file (moved to `pkg/config/logging.go`).
+Delete this file (moved to `pkg/logging/`).
+
+### 2.4 Update cmd/server
+
+Update imports from `pkg/runtime` to `internal/infrastructure`:
+
+```go
+// Change import
+import (
+	"github.com/JaimeStill/agent-lab/internal/infrastructure"
+)
+
+// Update usage
+infra, err := infrastructure.New(cfg)
+```
 
 ---
 
@@ -550,16 +539,17 @@ Test with natural language prompts:
 
 ## Closeout Checklist
 
-1. [ ] Delete `.claude/rules/` directory
-2. [ ] Rewrite `.claude/CLAUDE.md` (under 200 lines)
-3. [ ] Update all 12 skill descriptions with trigger-optimized format
-4. [ ] Create `pkg/config/` with types.go and logging.go
-5. [ ] Update `pkg/runtime/` to use pkg/config
-6. [ ] Update `internal/config/` to embed pkg/config types
+1. [x] Delete `.claude/rules/` directory
+2. [x] Rewrite `.claude/CLAUDE.md` (under 200 lines)
+3. [x] Update all 12 skill descriptions with trigger-optimized format
+4. [ ] Create `pkg/logging/` with logging.go and config.go
+5. [ ] Move `pkg/runtime/` to `internal/infrastructure/`
+6. [ ] Update `internal/config/` to use logging.Config and add loggingEnv
 7. [ ] Delete `internal/config/types.go` and `internal/config/logging.go`
-8. [ ] Complete rewrite of `.claude/skills/web-development/SKILL.md`
-9. [ ] Run `go vet ./...` - passes
-10. [ ] Verify no `pkg/` → `internal/` imports
-11. [ ] Archive this guide to `_context/sessions/.archive/`
-12. [ ] Create summary at `_context/sessions/mt08-context-and-package-layering.md`
-13. [ ] Update PROJECT.md with maintenance session status
+8. [ ] Update `cmd/server/` to use `internal/infrastructure`
+9. [ ] Complete rewrite of `.claude/skills/web-development/SKILL.md`
+10. [ ] Run `go vet ./...` - passes
+11. [ ] Verify no `pkg/` → `internal/` imports
+12. [ ] Archive this guide to `_context/sessions/.archive/`
+13. [ ] Create summary at `_context/sessions/mt08-context-and-package-layering.md`
+14. [ ] Update PROJECT.md with maintenance session status

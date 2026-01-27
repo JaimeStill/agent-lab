@@ -1,11 +1,10 @@
 ---
 name: development-methodology
 description: >
-  Milestone-anchored development methodology. Use when planning milestones,
-  starting sessions, creating implementation guides, or reviewing process.
+  REQUIRED for development process. Use when planning milestones,
+  starting sessions, creating guides, or conducting reviews.
   Triggers: milestone planning, session workflow, implementation guide,
-  session summary, milestone review, maintenance session, PROJECT.md,
-  session closeout, development session, planning phase, post session review.
+  PROJECT.md, session closeout, maintenance session, "start session".
   File patterns: _context/milestones/*.md, _context/sessions/*.md, PROJECT.md
 ---
 
