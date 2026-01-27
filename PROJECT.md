@@ -57,7 +57,7 @@ agent-lab enables organizations to:
 2. **Minimal Dependencies**: Only essential, industry-recognized libraries
 3. **Embedded Assets**: All dependencies embedded via `go:embed`, self-hosted
 4. **Tree-Shaken Bundles**: Vite builds eliminate unused code for optimal bundle sizes
-5. **Standards-Forward**: Web Components, TC39 Signals, SSE, Fetch API
+5. **Standards-Forward**: Lit Web Components, TC39 Signals, SSE, Fetch API
 6. **Air-Gap Compatible**: Single Go binary with embedded assets for air-gapped environments
 
 ## Success Criteria
@@ -108,12 +108,12 @@ agent-lab will enable experimentation with:
 ### Frontend
 
 - **Build**: Bun + Vite + TypeScript (CI only, not in container)
-- **Components**: Web Components for encapsulated UI elements
-- **State Management**: TC39 Signals for reactive state
+- **Framework**: Lit 3.x for web components (`@lit/context`, `@lit-labs/signals`)
+- **State Management**: Signal-based reactivity via `@lit-labs/signals`
 - **Real-Time**: Server-Sent Events (SSE) for execution monitoring
 - **HTTP**: Fetch API for REST interactions
 - **Visualization**: D3.js (embedded) for confidence score graphs
-- **Architecture**: See [web/README.md](./web/README.md) for full details
+- **Architecture**: See `_context/milestones/m05-workflow-lab-interface.md` for details
 
 ### API
 
@@ -163,7 +163,7 @@ See `.claude/skills/` for domain-specific patterns (loaded on-demand via context
 - Clear completion criteria at each level
 - Regular commit points for working code
 
-Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` for project orientation.
+Session workflow is documented in the development-methodology skill. See `.claude/CLAUDE.md` for project orientation.
 
 ---
 
@@ -751,199 +751,174 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
 
 **Architecture Document**: `_context/milestones/m05-workflow-lab-interface.md`
 
+**Prerequisite**: Maintenance Session mt08 (Context Optimization and Package Layering)
+
 **Key Decisions**:
 
-1. **Hybrid Architecture** - Go templates render page shell/lists, Web Components enhance interactive regions (monitoring, charts, previews). Fast initial render, smaller bundles, server-driven routing.
+1. **Lit SPA Architecture** - Single HTML shell served by Go for all `/app/*` routes. Client-side router handles view mounting. Hard boundary: Go owns data/routing, Lit owns presentation entirely.
 
-2. **Native Web Stack** - No frameworks. Web Components, TC39 Signals (via signal-polyfill, introduced when needed), D3.js for charts, Fetch API for REST, SSE for real-time.
+2. **Three-Tier Component Hierarchy** - Views (provide services via `@provide`) → Stateful Components (consume via `@consume`) → Pure Elements (props in, events out). Patterns validated in go-lit POC.
 
-3. **@layer CSS Architecture** - Cascade layers (reset → theme → layout → components) with CSS custom properties for design tokens. Dark/light theme via `prefers-color-scheme`.
+3. **Context-Based Services** - `@lit/context` for dependency injection. Each domain has consolidated `service.ts` exporting context, interface, and factory.
 
-4. **Route-Scoped Bundles** - Vite library mode produces per-route bundles. Each page loads only the JS/CSS it needs.
+4. **Signal-Based Reactivity** - `@lit-labs/signals` with `SignalWatcher` mixin for fine-grained reactive updates.
 
-5. **Foundation First** - Build infrastructure (Vite + Go embedding, design tokens, core components) before feature UIs.
+5. **@layer CSS Architecture** - Cascade layers (reset → theme → layout → components) with CSS custom properties for design tokens. Dark/light theme via `prefers-color-scheme`.
 
 **Technology Stack**:
 - Build: Bun + Vite + TypeScript (CI only, not in container)
-- Components: Web Components (`al-` prefix) with Light DOM (no Shadow DOM for global styling)
-- State: TC39 Signals via signal-polyfill (introduced in Session 05h)
+- Framework: Lit 3.x (`lit`, `@lit/context`, `@lit-labs/signals`)
+- Components: `al-` prefix with external CSS via `?inline` imports
 - Styling: @layer-based CSS with design tokens
 - Charts: D3.js (lazy-loaded/tree-shaken)
-- Templates: Go `html/template` for SSR
+- Router: Custom client-side router (History API)
+
+**Existing Infrastructure** (from previous 05a-05c sessions):
+- Vite build pipeline
+- CSS layer structure (partial)
+- Go `pkg/web` template infrastructure
+- Module mounting pattern
+
+This infrastructure will be adapted for Lit rather than discarded. Session numbering resets to acknowledge the architectural shift.
 
 **Development Sessions**:
 
-#### Session 5a: Web Infrastructure Setup ✅
+#### Session 5a: Lit Migration
 
-**Status**: Completed (2026-01-12)
-
-**Implemented**:
-- Vite + Bun + TypeScript build pipeline
-- Library mode with multiple entry points (shared, docs)
-- Scalar API docs integrated into Vite pipeline (replaced manual update-scalar.sh)
-- `web/web.go` with embed.FS for dist/ and templates/
-- Static asset serving at /static/
-- Design tokens CSS placeholder
-- Base layout template
-
-**Validation**: ✅ `/docs` renders Scalar UI, `/static/*` serves bundled assets, tests passing
-
----
-
-#### Session 5b: Design Tokens + CSS Architecture ✅
-
-**Status**: Completed (2026-01-13)
-
-**Implemented**:
-- CSS reset layer (box-sizing, margin reset, reduced-motion)
-- Theme layer (color tokens, dark/light via prefers-color-scheme)
-- Layout layer (spacing scale, typography scale)
-- Layer orchestration in styles.css
-- Web client handler (`/app` route) following docs.go pattern
-
-**Validation**: ✅ App shell renders with proper tokens, dark/light theme switching works
-
----
-
-#### Session 5c: Core Components + Patterns ✅
-
-**Status**: Completed (2026-01-14)
-
-**Implemented**:
-- Native-first guidelines documented in web-components skill
-- Semantic CSS classes for native elements (buttons, inputs, tables, badges)
-- Layout utilities (stack, cluster, constrain)
-- Template isolation pattern (clone + parse per page)
-- Favicon infrastructure via embedded public/ directory
-- Home and Components showcase pages
-- Nav with brand heading
-
-**Architectural Decisions**:
-- Native-first: Style native HTML elements with CSS classes, not wrapper components
-- Server-side rendering: Traditional form submissions and page reloads
-- Create components only for: SSE streaming, D3 charts, complex nested editors
-- Asset co-location: Templates can have adjacent .css/.ts files
-
-**Deferred**:
-- Responsive nav design (needs more thought on implementation)
-- API fetch wrapper (create when needed)
-- Base component class (create when first component needed)
-
-**Validation**: ✅ Pages render, CSS classes work, favicon loads, all tests passing
-
----
-
-#### Session 5d: Providers + Agents UI
-
-**Objective**: Establish CRUD UI patterns with data table component
+**Objective**: Adapt existing web infrastructure for Lit
 
 **Deliverables**:
-- `al-data-table` organism (sortable, filterable, paginated)
-- Providers list page with data table
-- Provider create/edit form (modal or page)
-- Agents list page (reuses data table)
-- Agent create/edit form
-- Agent execution modals (chat, vision with streaming)
-- Establish list/detail/form page patterns
+- Add Lit dependencies (`lit`, `@lit/context`, `@lit-labs/signals`)
+- Create client-side router from go-lit patterns
+- Update `app.ts` entry point for Lit
+- Convert Go routes to single catch-all shell pattern
+- Create home view as baseline
+
+**Validation**: Router mounts views, navigation works, Go serves shell correctly
+
+---
+
+#### Session 5b: Design System
+
+**Objective**: Complete CSS layer architecture
+
+**Deliverables**:
+- Complete design tokens (spacing, typography, colors)
+- Layout utilities (stack, cluster, constrain)
+- Element base styles for Shadow DOM components
+- App-shell scroll architecture (100dvh, flex layout)
+
+**Validation**: Tokens apply correctly, dark/light themes work, scroll regions function
+
+---
+
+#### Session 5c: Service Infrastructure
+
+**Objective**: Establish service patterns for domain data
+
+**Deliverables**:
+- API client utility (fetch wrapper with Result type)
+- Service pattern template (context + interface + factory)
+- Signal-based state management patterns
+- SSE client utility for streaming
+
+**Validation**: Services load data, signals trigger re-renders
+
+---
+
+#### Session 5d: Provider/Agent Config
+
+**Objective**: CRUD UI patterns with Lit components
+
+**Deliverables**:
+- Provider list/edit views
+- Agent list/edit views
+- Form handling patterns (FormData extraction)
+- CRUD operation patterns
 
 **Validation**: CRUD operations work for providers and agents
 
 ---
 
-#### Session 5e: Documents + Images UI
+#### Session 5e: Document Upload
 
-**Objective**: Media handling with upload, preview, and rendering controls
+**Objective**: Document management with storage integration
 
 **Deliverables**:
-- Document upload component (multipart form)
-- Documents list with thumbnails (first page preview)
-- Document detail page (metadata, page list)
-- `al-image-viewer` component (zoom, pan, enhance controls)
-- Image rendering form (page range, DPI, format, filters)
-- Binary image streaming display
+- Document upload form (multipart)
+- Document list view with metadata
+- Page viewer component
+- Image rendering controls
 
 **Validation**: Upload documents, render pages with filters, view images
 
 ---
 
-#### Session 5f: Profiles UI
+#### Session 5f: Profile Management
 
-**Objective**: Nested resource management with stage editor
+**Objective**: Nested resource management
 
 **Deliverables**:
-- Profiles list (filtered by workflow)
-- Profile detail page with stages list
-- `al-stage-editor` component (agent selection, prompt, options)
-- Inline stage save (create/update semantics)
-- Stage deletion with confirmation
-- Profile cloning for A/B testing prep
+- Profile list/edit views
+- Stage editor component
+- Nested form patterns
+- Profile cloning for A/B testing
 
-**Validation**: Create profile, add stages, modify agent assignments
+**Validation**: Create profiles, add stages, modify configurations
 
 ---
 
-#### Session 5g: Workflow Execution Trigger
+#### Session 5g: Workflow Execution
 
-**Objective**: Launch workflow executions with parameter configuration
+**Objective**: Launch workflow executions
 
 **Deliverables**:
-- Workflows list page (registered workflows)
-- Workflow detail page (description, execution history)
-- `al-execution-form` component (profile selection, params)
-- Execute action with SSE connection initiation
-- Navigation to run monitoring on execute
+- Workflow list view
+- Execution form (profile selection, params)
+- Execute action with navigation to monitoring
 
 **Validation**: Select workflow, configure params, trigger execution
 
 ---
 
-#### Session 5h: Run Monitoring + SSE Integration
+#### Session 5h: Run Monitoring
 
-**Objective**: Real-time execution monitoring with SSE event stream
+**Objective**: Real-time execution monitoring
 
 **Deliverables**:
-- Run detail page (status, timing, params)
-- `al-workflow-monitor` component (SSE integration)
-- TC39 Signals integration via signal-polyfill
-- SSE client utility (connect, disconnect, event handling)
-- Stage timeline visualization (started, completed, failed)
-- Decision flow display (from_node → to_node)
-- Live event stream display
-- Run actions (cancel, resume if applicable)
+- Run detail view with SSE integration
+- Stage timeline visualization
+- Decision flow display
+- Run actions (cancel, resume)
 
-**Validation**: Execute workflow, watch real-time progress, see stages complete
+**Validation**: Execute workflow, watch real-time progress
 
 ---
 
-#### Session 5i: Confidence Visualization + Results
+#### Session 5i: Visualization
 
-**Objective**: D3.js-based confidence score charts and result display
+**Objective**: Confidence score visualization
 
 **Deliverables**:
-- `al-confidence-chart` component (D3.js integration)
-- Line chart: confidence evolution across pages
-- Bar chart: per-factor confidence breakdown
-- Interactive tooltips with detail
-- Results summary display (classification, markings)
-- Detected markings overlay preparation
+- Confidence chart component (evaluate D3 vs native)
+- Results summary display
+- Per-page confidence breakdown
 
-**Validation**: Execute classify-docs, view confidence charts, see results
+**Validation**: Execute classify-docs, view confidence charts
 
 ---
 
-#### Session 5j: Comparison + Iteration
+#### Session 5j: Comparison
 
-**Objective**: Side-by-side run comparison and re-execution workflow
+**Objective**: Side-by-side run comparison
 
 **Deliverables**:
-- `al-run-comparison` component (two runs side-by-side)
-- Diff highlighting for detection differences
-- Profile variation comparison
-- Quick re-execute with modified parameters
-- Parameter adjustment panel (profile, filters)
-- Complete iteration cycle validation
+- Run comparison component
+- Diff highlighting
+- Re-execute with modifications
+- Complete iteration cycle
 
-**Validation**: Compare two runs, identify differences, re-execute with changes
+**Validation**: Compare runs, identify differences, re-execute
 
 ---
 
@@ -1148,17 +1123,16 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - Config pattern: public packages define Env struct, app passes key mappings
 
 **In Progress**:
-- **Milestone 5: Workflow Lab Interface**
-  - Session 5a: Web Infrastructure Setup ✅
-  - Session 5b: Design Tokens + CSS Architecture ✅
-  - Session 5c: Core Components + Patterns ✅
-  - Session 5d: Providers + Agents UI (pending)
-  - Session 5e: Documents + Images UI (pending)
-  - Session 5f: Profiles UI (pending)
-  - Session 5g: Workflow Execution Trigger (pending)
-  - Session 5h: Run Monitoring + SSE Integration (pending)
-  - Session 5i: Confidence Visualization + Results (pending)
-  - Session 5j: Comparison + Iteration (pending)
+- **Maintenance Session mt08: Context Optimization and Package Layering** (prerequisite for M5)
+  - Context optimization (remove rules/, consolidate CLAUDE.md, trigger-optimized skill descriptions)
+  - Package layering fix (create pkg/config, eliminate pkg/ → internal/ dependency)
+  - Web development skill rewrite (Lit architecture patterns)
+  - Implementation guide: `_context/mt08-context-and-package-layering.md`
+- **Milestone 5: Workflow Lab Interface** (architecture reset)
+  - Previous sessions 5a-5c established foundation infrastructure (preserved, will be adapted)
+  - Architecture document rewritten for Lit SPA approach
+  - Session numbering reset; new sessions 5a-5j defined
+  - Blocked by: mt08 completion
 
 **Recently Completed**:
 - **Maintenance Session mt07: Module Polish** ✅
@@ -1182,7 +1156,8 @@ Session workflow is auto-loaded via `.claude/rules/`. See `.claude/CLAUDE.md` fo
   - Milestone Review ✅
 
 **Next Steps**:
-- Continue Milestone 5: Session 5d (Providers + Agents UI)
+1. Execute Maintenance Session mt08 (Context Optimization and Package Layering)
+2. Continue Milestone 5: Session 5a (Lit Migration)
 
 ## Future Phases (Beyond Milestone 8)
 
@@ -1238,7 +1213,7 @@ Manage workflow evolution:
 
 This project is currently in early development. Contributions welcome as the project matures.
 
-**Development Workflow**: Session workflow auto-loaded via `.claude/rules/`.
+**Development Workflow**: Session workflow documented in the development-methodology skill.
 
 **Architecture Patterns**: Domain-specific patterns in `.claude/skills/` (loaded on-demand).
 
