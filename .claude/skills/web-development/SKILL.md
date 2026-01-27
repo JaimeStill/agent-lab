@@ -1,345 +1,551 @@
 ---
 name: web-development
 description: >
-  Web development patterns including frontend templates, CSS architecture,
-  and server-side rendering infrastructure. Includes PageDef and TemplateSet
-  for Go template rendering.
-  Triggers: Web Components, al-* components, templates, Vite, TypeScript,
-  custom elements, shadow DOM, frontend, client-side, CSS classes, PageDef,
-  TemplateSet, PageData, server-side rendering, Go templates.
-  File patterns: web/**/*.ts, web/**/*.html, web/**/*.css, web/**/*.go, pkg/web/*.go
+  REQUIRED for web client development with Lit. Use when creating views,
+  components, elements, services, or styling with CSS layers.
+  Triggers: web/app/client/, LitElement, @customElement, @provide, @consume,
+  SignalWatcher, design/tokens, "create component", "add view", router,
+  SSE streaming, "web client".
+  File patterns: web/**/*.ts, web/**/*.css, web/**/*.go, pkg/web/*.go
 ---
 
-# Web Development Patterns
+# Web Development with Lit
 
 ## When This Skill Applies
 
-- Deciding whether to create a component or use native HTML
-- Implementing frontend components in `web/`
-- Working with TypeScript custom elements
-- Styling native elements with semantic classes
-- Creating server-side rendered pages with Go templates
-- Using PageDef and TemplateSet for template infrastructure
+- Creating or modifying web client code in `web/app/client/`
+- Implementing Lit components (views, stateful components, elements)
+- Working with services and context-based dependency injection
+- Styling with CSS cascade layers and design tokens
+- Integrating Go server with Lit client
 
-## Native-First Principle
+## Architecture Overview
 
-**Goal**: Keep the frontend as native as possible so a designer can extend it rather than fight an opinionated system.
+### Hard Boundary Principle
 
-**Architecture**:
-- Server-side rendering with traditional form submissions
-- Semantic CSS classes for styling native elements
-- Web components only for functionality HTML cannot provide
+**Go owns data/routing, Lit owns presentation entirely.**
 
-### Don't Create Components For
+- Go serves a single HTML shell for all `/app/*` routes
+- Client-side router handles view mounting
+- No server-side view awareness for client routes
 
-Use native HTML with CSS classes instead:
+### Three-Tier Component Hierarchy
 
-| Need | Use |
-|------|-----|
-| Buttons | `<button class="btn btn-primary">` |
-| Inputs | `<input class="input">`, `<textarea>`, `<select>` |
-| Badges | `<span class="badge badge-success">` |
-| Cards | `<article>` or `<section>` |
-| Lists | `<ul>`, `<ol>`, `<li>` |
-| Dialogs | `<dialog>` |
-| Forms | `<form>` |
-| Tables | `<table class="table">` |
+| Tier | Role | Tools | Example |
+|------|------|-------|---------|
+| Views | Provide services, route-level | `@provide`, `SignalWatcher` | `al-provider-list-view` |
+| Stateful Components | Consume services, coordinate UI | `@consume`, event handlers | `al-provider-list` |
+| Pure Elements | Props in, events out | `@property`, `CustomEvent` | `al-provider-card` |
 
-### Create Components When
+## Component Patterns
 
-1. **Native HTML lacks the functionality**
-   - SSE streaming connections
-   - D3.js or canvas-based visualizations
-   - Complex nested data editors
-
-2. **Client-side state management is required**
-   - Reactive updates during live execution
-   - Real-time data synchronization
-
-## Component Candidates
-
-| Component | Justification | Session |
-|-----------|---------------|---------|
-| `al-workflow-monitor` | SSE + reactive state for live execution | 05h |
-| `al-confidence-chart` | D3.js visualization | 05i |
-| `al-stage-editor` | Complex nested data editing (evaluate need) | 05f |
-
-## CSS Classes Reference
-
-### Buttons
-
-```html
-<button class="btn">Default</button>
-<button class="btn btn-primary">Primary action</button>
-<button class="btn btn-danger">Destructive action</button>
-```
-
-### Form Elements
-
-```html
-<div class="form-group">
-  <label class="form-label">Field name</label>
-  <input class="input" type="text">
-  <span class="form-error">Error message</span>
-</div>
-
-<input class="input input-error" type="text">
-```
-
-### Tables
-
-```html
-<table class="table">
-  <thead>...</thead>
-  <tbody>...</tbody>
-</table>
-
-<table class="table table-striped">...</table>
-```
-
-### Badges
-
-```html
-<span class="badge">Default</span>
-<span class="badge badge-success">Active</span>
-<span class="badge badge-warning">Pending</span>
-<span class="badge badge-error">Failed</span>
-```
-
-## Component Implementation Pattern
-
-When a component IS needed, follow this pattern:
+### View Component (provides services)
 
 ```typescript
-class AlWorkflowMonitor extends HTMLElement {
-  static observedAttributes = ['workflow-id'];
+import { LitElement, html } from 'lit';
+import { customElement } from 'lit/decorators.js';
+import { provide } from '@lit/context';
+import { SignalWatcher } from '@lit-labs/signals';
+import { configServiceContext, createConfigService, ConfigService } from './service';
+
+@customElement('al-config-list-view')
+export class ConfigListView extends SignalWatcher(LitElement) {
+  @provide({ context: configServiceContext })
+  private configService: ConfigService = createConfigService();
 
   connectedCallback() {
-    this.render();
-    this.connect();
+    super.connectedCallback();
+    this.configService.list();
   }
 
-  disconnectedCallback() {
-    this.disconnect();
-  }
-
-  attributeChangedCallback() {
-    this.render();
-  }
-
-  private render() {
-    // Update DOM based on state
-  }
-
-  private connect() {
-    // SSE or other async connection
-  }
-
-  private disconnect() {
-    // Cleanup
+  render() {
+    return html`<al-config-list></al-config-list>`;
   }
 }
 
-customElements.define('al-workflow-monitor', AlWorkflowMonitor);
-```
-
-**Conventions**:
-- `al-` prefix for all custom elements
-- Light DOM (no shadow DOM) for global CSS access
-- Cleanup in `disconnectedCallback`
-- Minimal internal state
-
-## Server-Side Rendering Infrastructure
-
-### PageDef and TemplateSet
-
-The `pkg/web` package provides infrastructure for server-side rendered pages:
-
-```go
-// PageDef defines a page with route, template, title, and bundle
-type PageDef struct {
-    Route    string  // URL pattern (e.g., "/", "/workflows")
-    Template string  // Template file path (e.g., "home.html")
-    Title    string  // Page title
-    Bundle   string  // JS bundle name (e.g., "app")
-}
-
-// PageData passed to templates during rendering
-type PageData struct {
-    Title    string
-    Bundle   string
-    BasePath string  // For portable URL generation
-    Data     any     // Custom page data
-}
-
-// TemplateSet holds pre-parsed templates
-type TemplateSet struct {
-    pages    map[string]*template.Template
-    basePath string
+declare global {
+  interface HTMLElementTagNameMap {
+    'al-config-list-view': ConfigListView;
+  }
 }
 ```
 
-**Creating a TemplateSet**:
-```go
-templates, err := web.NewTemplateSet(
-    layoutFS, pageFS,
-    "layouts/*.html",  // Layout glob
-    "pages",           // Page subdirectory
-    "/app",            // Base path for URLs
-    pages,             // []PageDef
-)
-```
-
-**Generating Handlers**:
-```go
-// Page handler - renders template with PageData
-mux.HandleFunc("GET /", templates.PageHandler("app.html", homePage))
-
-// Error handler - renders with status code
-mux.HandleFunc("GET /404", templates.ErrorHandler("app.html", notFoundPage, 404))
-```
-
-**Template Usage**:
-```html
-<!-- Use BasePath for portable URLs -->
-<base href="{{ .BasePath }}/">
-<link rel="stylesheet" href="dist/{{ .Bundle }}.css">
-<script type="module" src="dist/{{ .Bundle }}.js"></script>
-```
-
-## Directory Structure
-
-Each web client is fully isolated in its own directory:
-
-```
-web/
-├── app/                         # Main app client (fully self-contained)
-│   ├── client/                  # TypeScript source
-│   │   ├── app.ts               # Entry point → dist/app.js
-│   │   ├── core/                # Foundation (created when needed)
-│   │   ├── design/              # CSS architecture
-│   │   └── components/          # Custom elements (when needed)
-│   ├── dist/                    # Build output (gitignored)
-│   ├── public/                  # Static assets (favicons, manifest)
-│   ├── server/                  # Go templates (SSR)
-│   │   ├── layouts/
-│   │   └── pages/
-│   └── app.go                   # NewModule()
-├── scalar/                      # Scalar OpenAPI UI (fully self-contained)
-│   ├── app.ts                   # Entry point → scalar.js
-│   ├── index.html               # Scalar mount point
-│   ├── scalar.go                # NewModule()
-│   └── [scalar.js/css]          # Build output (gitignored)
-├── vite.client.ts               # Shared Vite config module
-├── vite.config.ts               # Root config (merges clients)
-└── package.json
-```
-
-**URL Routing:**
-- `/app/*` - Main app (SSR pages, assets, public files)
-- `/scalar/*` - OpenAPI documentation UI
-
-## Mountable Web Clients
-
-Each `web/[client-name]/` directory is a self-contained web client that mounts to `/[client-name]`.
-
-### Module Pattern
-
-Web clients implement `NewModule(basePath)` which returns a `*module.Module`:
-
-```go
-func NewModule(basePath string) (*module.Module, error) {
-    router := buildRouter()
-    return module.New(basePath, router), nil
-}
-
-func buildRouter() http.Handler {
-    mux := http.NewServeMux()
-    // Register routes, file servers, etc.
-    return mux
-}
-```
-
-The module handles path prefix stripping automatically. Requests to `/app/components/` are routed to the internal handler as `/components/`.
-
-### Middleware Integration
-
-Modules have their own middleware chains:
-
-```go
-appModule, _ := app.NewModule("/app")
-appModule.Use(middleware.AddSlash())  // Redirect /app/components to /app/components/
-appModule.Use(middleware.Logger(runtime.Logger))
-
-router := module.NewRouter()
-router.Mount(appModule)
-```
-
-### Asset Paths
-
-- **SSR templates**: Use `<base href="{{ .BasePath }}/">` tag with relative URLs
-- **Static HTML**: Same base tag pattern for relative URL resolution
-
-### Adding a New Client
-
-1. Create `web/[client-name]/` with standard structure
-2. Implement `NewModule(basePath)` function in `[client-name].go`
-3. Add per-client config at `web/[client-name]/client.config.ts` (exports `ClientConfig`)
-4. Import config in `web/vite.config.ts`
-5. Create and mount module in `cmd/server/modules.go`
-
-### Vite Configuration
-
-Per-client configs are named `client.config.ts` to distinguish from the root `vite.config.ts`:
-
-```
-web/
-├── vite.config.ts            # Root config (imports and merges clients)
-├── vite.client.ts            # Shared merge utilities and ClientConfig type
-├── app/
-│   └── client.config.ts      # App client config
-└── scalar/
-    └── client.config.ts      # Scalar client config
-```
-
-## Asset Co-location
-
-Global styles live in `client/design/`. Page-specific styles can be co-located with templates when needed:
-
-```
-web/server/
-├── layouts/
-│   └── app.html
-└── pages/
-    └── workflows/
-        ├── list.html
-        └── list.css         # Page-scoped styles (optional)
-```
-
-**Loading scoped assets**: Entry files import the assets they need:
+### Stateful Component (consumes services)
 
 ```typescript
-// client/app.ts
-import '@design/styles.css';
-import '../server/pages/workflows/list.css';  // If page-specific styles exist
+import { LitElement, html, css, unsafeCSS } from 'lit';
+import { customElement } from 'lit/decorators.js';
+import { consume } from '@lit/context';
+import { SignalWatcher } from '@lit-labs/signals';
+import { configServiceContext, ConfigService } from './service';
+import styles from './config-list.css?inline';
+
+@customElement('al-config-list')
+export class ConfigList extends SignalWatcher(LitElement) {
+  static styles = unsafeCSS(styles);
+
+  @consume({ context: configServiceContext })
+  private configService!: ConfigService;
+
+  private handleDelete(e: CustomEvent<{ id: string }>) {
+    this.configService.delete(e.detail.id);
+  }
+
+  private renderConfigs() {
+    return this.configService.configs.get().map(
+      (config) => html`
+        <al-config-card
+          .config=${config}
+          @delete=${this.handleDelete}
+        ></al-config-card>
+      `
+    );
+  }
+
+  render() {
+    return html`<div class="grid">${this.renderConfigs()}</div>`;
+  }
+}
 ```
 
-**When to co-locate**: Only create scoped CSS when styles are unique to that template. Prefer global utilities in `client/design/` when patterns are reusable.
+### Pure Element (stateless)
 
-## Core Principles
+```typescript
+import { LitElement, html, unsafeCSS } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+import type { AgentConfig } from './types';
+import styles from './config-card.css?inline';
 
-**Separation of Concerns**:
-- Styles belong in `.css` files
-- Markup belongs in `.html` files
-- Code belongs in `.ts` files
-- Never use inline `style` attributes in templates
+@customElement('al-config-card')
+export class ConfigCard extends LitElement {
+  static styles = unsafeCSS(styles);
 
-**Exception**: Third-party library overrides (e.g., Scalar font variables in `web/scalar/index.html`) may use `<style>` in `<head>` when the library doesn't expose CSS custom properties.
+  @property({ type: Object }) config!: AgentConfig;
+
+  private handleDelete() {
+    this.dispatchEvent(new CustomEvent('delete', {
+      detail: { id: this.config.id },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  render() {
+    return html`
+      <div class="card">
+        <h3>${this.config.name}</h3>
+        <p>${this.config.provider.name} / ${this.config.model.name}</p>
+        <button @click=${this.handleDelete}>Delete</button>
+      </div>
+    `;
+  }
+}
+```
+
+## Service Infrastructure
+
+### Consolidated Service File
+
+Each domain has a single `service.ts` exporting context, interface, and factory:
+
+```typescript
+// <domain>/service.ts
+import { createContext } from '@lit/context';
+import { Signal } from '@lit-labs/signals';
+
+export interface ConfigService {
+  configs: Signal.State<AgentConfig[]>;
+  loading: Signal.State<boolean>;
+  error: Signal.State<string | null>;
+
+  list(): void;
+  find(id: string): AgentConfig | undefined;
+  save(config: AgentConfig): void;
+  delete(id: string): void;
+}
+
+export const configServiceContext = createContext<ConfigService>('config-service');
+
+export function createConfigService(): ConfigService {
+  const configs = new Signal.State<AgentConfig[]>([]);
+  const loading = new Signal.State<boolean>(false);
+  const error = new Signal.State<string | null>(null);
+
+  return {
+    configs,
+    loading,
+    error,
+
+    list() {
+      loading.set(true);
+      api.get<AgentConfig[]>('/providers')
+        .then((result) => {
+          if (result.ok) {
+            configs.set(result.data);
+          } else {
+            error.set(result.error);
+          }
+        })
+        .finally(() => loading.set(false));
+    },
+
+    find(id: string) {
+      return configs.get().find((c) => c.id === id);
+    },
+
+    save(config: AgentConfig) {
+      // API call + update local state
+    },
+
+    delete(id: string) {
+      // API call + update local state
+    },
+  };
+}
+```
+
+## CSS Architecture
+
+### Cascade Layers
+
+```css
+/* design/index.css */
+@layer reset, theme, layout, components;
+
+@import './core/reset.css' layer(reset);
+@import './core/theme.css' layer(theme);
+@import './core/tokens.css' layer(theme);
+@import './core/layout.css' layer(layout);
+@import './app/app.css' layer(components);
+```
+
+### Design Tokens
+
+```css
+/* design/core/tokens.css */
+:root {
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Typography */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+
+  /* Colors (dark mode default) */
+  --bg: #1a1a1a;
+  --bg-1: #242424;
+  --bg-2: #2a2a2a;
+  --color: #e0e0e0;
+  --color-muted: #888;
+  --divider: #333;
+  --blue: #4a9eff;
+  --green: #4ade80;
+  --red: #f87171;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #ffffff;
+    --bg-1: #f5f5f5;
+    --bg-2: #e5e5e5;
+    --color: #1a1a1a;
+    --color-muted: #666;
+    --divider: #ddd;
+  }
+}
+```
+
+### Layout Utilities
+
+```css
+/* design/core/layout.css */
+.stack { display: flex; flex-direction: column; gap: var(--space-4); }
+.stack-sm { display: flex; flex-direction: column; gap: var(--space-2); }
+.cluster { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
+.constrain { max-width: 80ch; margin-inline: auto; }
+```
+
+### External Component Styles
+
+Co-locate CSS with components, import with `?inline`:
+
+```typescript
+import styles from './component.css?inline';
+import { unsafeCSS } from 'lit';
+
+static styles = unsafeCSS(styles);
+```
+
+Component CSS imports shared element styles:
+
+```css
+/* component.css */
+@import '@app/design/app/elements.css';
+
+:host {
+  display: block;
+  background: var(--bg-1);
+  border: 1px solid var(--divider);
+  padding: var(--space-4);
+}
+```
+
+### App-Shell Scroll Architecture
+
+Body fills viewport, never scrolls; views manage own scroll regions:
+
+```css
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  margin: 0;
+  overflow: hidden;
+}
+
+#app-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#app-content > * {
+  flex: 1;
+  min-height: 0;
+}
+```
+
+View pattern for scroll regions:
+
+```css
+:host {
+  display: flex;
+  flex-direction: column;
+}
+
+.scrollable-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+```
+
+## Router Pattern
+
+### Route Definition
+
+```typescript
+// router/routes.ts
+export interface RouteConfig {
+  component: string;
+  title: string;
+}
+
+export const routes: Record<string, RouteConfig> = {
+  '': { component: 'al-home-view', title: 'Home' },
+  'providers': { component: 'al-provider-list-view', title: 'Providers' },
+  'providers/:id': { component: 'al-provider-edit-view', title: 'Edit Provider' },
+  '*': { component: 'al-not-found-view', title: 'Not Found' },
+};
+```
+
+### Navigation
+
+```typescript
+import { navigate } from '@app/router';
+
+// Programmatic navigation
+navigate('providers');
+navigate(`providers/${id}`);
+
+// Template links (router intercepts clicks)
+html`<a href="providers">View Providers</a>`
+```
+
+## Template Patterns
+
+### Render Methods
+
+Extract complex template logic into private `renderXxx()` methods:
+
+```typescript
+import { nothing } from 'lit';
+
+private renderError() {
+  const error = this.service.error.get();
+  if (!error) return nothing;
+  return html`<div class="error">${error}</div>`;
+}
+
+private renderLoading() {
+  if (!this.service.loading.get()) return nothing;
+  return html`<div class="loading">Loading...</div>`;
+}
+
+render() {
+  return html`
+    ${this.renderError()}
+    ${this.renderLoading()}
+    ${this.renderContent()}
+  `;
+}
+```
+
+### Form Handling
+
+Extract values on submit via FormData:
+
+```typescript
+function buildConfigFromForm(form: HTMLFormElement, id: string): AgentConfig {
+  const data = new FormData(form);
+  return {
+    id,
+    name: data.get('name') as string,
+    // ...
+  };
+}
+
+private handleSubmit(e: Event) {
+  e.preventDefault();
+  const form = e.target as HTMLFormElement;
+  const config = buildConfigFromForm(form, this.config.id);
+  this.configService.save(config);
+  navigate('config');
+}
+
+render() {
+  return html`
+    <form @submit=${this.handleSubmit}>
+      <input name="name" .value=${this.config.name} required />
+      <button type="submit">Save</button>
+    </form>
+  `;
+}
+```
+
+### Host Attribute Reflection
+
+Reflect state to host for CSS-driven layout changes:
+
+```typescript
+@state() private expanded = false;
+
+updated(changed: Map<string, unknown>) {
+  if (changed.has('expanded')) {
+    this.toggleAttribute('expanded', this.expanded);
+  }
+}
+```
+
+```css
+:host { grid-template-rows: auto auto 1fr; }
+:host([expanded]) { grid-template-rows: auto 1fr 1fr; }
+```
+
+### Object URL Lifecycle
+
+Manage blob URLs to prevent memory leaks:
+
+```typescript
+private imageUrls = new Map<File, string>();
+
+disconnectedCallback() {
+  super.disconnectedCallback();
+  this.imageUrls.forEach((url) => URL.revokeObjectURL(url));
+  this.imageUrls.clear();
+}
+
+private getImageUrl(file: File): string {
+  let url = this.imageUrls.get(file);
+  if (!url) {
+    url = URL.createObjectURL(file);
+    this.imageUrls.set(file, url);
+  }
+  return url;
+}
+```
+
+## Go Integration
+
+### Single Shell Pattern
+
+Go serves one template for all `/app/*` routes:
+
+```go
+var views = []web.ViewDef{
+    {Route: "/{path...}", Template: "shell.html", Title: "agent-lab", Bundle: "app"},
+}
+```
+
+### Shell Template
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="{{ .BasePath }}/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ .Title }}</title>
+  <link rel="stylesheet" href="dist/{{ .Bundle }}.css">
+</head>
+<body>
+  <header class="app-header"><!-- nav --></header>
+  <main id="app-content">{{ block "content" . }}{{ end }}</main>
+  <script type="module" src="dist/{{ .Bundle }}.js"></script>
+</body>
+</html>
+```
+
+### Embedding
+
+```go
+//go:embed dist/*
+var distFS embed.FS
+
+//go:embed server/layouts/*
+var layoutFS embed.FS
+
+//go:embed public/*
+var publicFS embed.FS
+```
+
+## Naming Conventions
+
+- **Component prefix**: `al-` (agent-lab)
+- **Views**: `al-<domain>-<action>-view` (e.g., `al-provider-list-view`)
+- **Components**: `al-<domain>-<name>` (e.g., `al-provider-list`)
+- **Elements**: `al-<name>` (e.g., `al-config-card`)
+- **Avoid HTMLElement conflicts**: Use `configId` not `id`, `heading` not `title`
 
 ## Anti-Patterns
 
-- Creating `al-button` when `<button class="btn">` works
-- Adding client-side validation when server validation suffices
-- Building component wrappers for native elements
-- Using shadow DOM when global styles should apply
-- Using inline `style` attributes instead of CSS classes
+### Do Not
+
+- Create components for native HTML (buttons, inputs, badges)
+- Use shadow DOM when global styles should apply
+- Store service references in component state
+- Skip `SignalWatcher` mixin when using signals
+- Use `height: 100%` in flex contexts (use `flex: 1` instead)
+- Forget `min-height: 0` for scroll boundaries
+- Use inline `style` attributes (use CSS classes)
+- Access `this.id` or `this.title` (conflicts with HTMLElement)
+
+### Prefer
+
+- Native HTML with CSS classes for simple elements
+- `@provide`/`@consume` over prop drilling
+- `nothing` from Lit for conditional non-rendering
+- FormData extraction over controlled inputs
+- Event delegation over individual handlers
+- `disconnectedCallback` cleanup for resources
