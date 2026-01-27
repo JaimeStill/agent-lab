@@ -1,8 +1,8 @@
-# MT08: Filter Image Cache Fix
+# EF01: Filter Image Cache Fix
 
 **Date**: 2026-01-22
-**Type**: Bug Fix
-**Branch**: `mt08-filter-image-cache-fix`
+**Type**: Emergency Fix
+**Branch**: `ef01-filter-image-cache-fix`
 
 ## Problem
 
