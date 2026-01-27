@@ -1,6 +1,6 @@
-// Package runtime provides shared infrastructure initialization for application startup.
+// Package infrastructure provides core service initialization for application startup.
 // It assembles common dependencies (logging, database, storage) that domain systems require.
-package runtime
+package infrastructure
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"github.com/JaimeStill/agent-lab/internal/config"
 	"github.com/JaimeStill/agent-lab/pkg/database"
 	"github.com/JaimeStill/agent-lab/pkg/lifecycle"
+	"github.com/JaimeStill/agent-lab/pkg/logging"
 	"github.com/JaimeStill/agent-lab/pkg/storage"
 )
 
@@ -26,7 +27,7 @@ type Infrastructure struct {
 // It initializes all systems but does not start them; call Start separately.
 func New(cfg *config.Config) (*Infrastructure, error) {
 	lc := lifecycle.New()
-	logger := newLogger(&cfg.Logging)
+	logger := logging.New(&cfg.Logging)
 
 	db, err := database.New(&cfg.Database, logger)
 	if err != nil {

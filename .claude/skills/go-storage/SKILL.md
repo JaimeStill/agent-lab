@@ -1,11 +1,10 @@
 ---
 name: go-storage
 description: >
-  Blob storage patterns for file persistence. Use when implementing
-  storage operations or file management.
+  REQUIRED for blob storage operations. Use when implementing file
+  persistence, storage validation, or path handling.
   Triggers: storage.System, Store, Retrieve, Delete, Validate, Path,
-  atomic writes, path traversal protection, storage keys, filesystem,
-  base_path, temp file.
+  atomic writes, path traversal, storage keys, filesystem.
   File patterns: pkg/storage/*.go
 ---
 

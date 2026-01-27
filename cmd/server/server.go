@@ -4,20 +4,20 @@ import (
 	"time"
 
 	"github.com/JaimeStill/agent-lab/internal/config"
-	"github.com/JaimeStill/agent-lab/pkg/runtime"
+	"github.com/JaimeStill/agent-lab/internal/infrastructure"
 	_ "github.com/JaimeStill/agent-lab/workflows"
 )
 
 // Server coordinates the lifecycle of all subsystems.
 type Server struct {
-	infra   *runtime.Infrastructure
+	infra   *infrastructure.Infrastructure
 	modules *Modules
 	http    *httpServer
 }
 
 // NewServer creates and initializes the service with all subsystems.
 func NewServer(cfg *config.Config) (*Server, error) {
-	infra, err := runtime.New(cfg)
+	infra, err := infrastructure.New(cfg)
 	if err != nil {
 		return nil, err
 	}

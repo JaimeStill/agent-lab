@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/JaimeStill/agent-lab/pkg/database"
+	"github.com/JaimeStill/agent-lab/pkg/logging"
 	"github.com/JaimeStill/agent-lab/pkg/storage"
 	"github.com/pelletier/go-toml/v2"
 )
@@ -42,6 +43,11 @@ var databaseEnv = &database.Env{
 	ConnTimeout:     "DATABASE_CONN_TIMEOUT",
 }
 
+var loggingEnv = &logging.Env{
+	Level:  "LOGGING_LEVEL",
+	Format: "LOGGING_FORMAT",
+}
+
 var storageEnv = &storage.Env{
 	BasePath:      "STORAGE_BASE_PATH",
 	MaxUploadSize: "STORAGE_MAX_UPLOAD_SIZE",
@@ -51,7 +57,7 @@ var storageEnv = &storage.Env{
 type Config struct {
 	Server          ServerConfig    `toml:"server"`
 	Database        database.Config `toml:"database"`
-	Logging         LoggingConfig   `toml:"logging"`
+	Logging         logging.Config  `toml:"logging"`
 	Storage         storage.Config  `toml:"storage"`
 	API             APIConfig       `toml:"api"`
 	Domain          string          `toml:"version"`
@@ -109,7 +115,7 @@ func (c *Config) finalize() error {
 	if err := c.Database.Finalize(databaseEnv); err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
-	if err := c.Logging.Finalize(); err != nil {
+	if err := c.Logging.Finalize(loggingEnv); err != nil {
 		return fmt.Errorf("logging: %w", err)
 	}
 	if err := c.Storage.Finalize(storageEnv); err != nil {

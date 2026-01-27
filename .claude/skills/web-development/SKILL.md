@@ -4,8 +4,7 @@ description: >
   REQUIRED for web client development with Lit. Use when creating views,
   components, elements, services, or styling with CSS layers.
   Triggers: web/app/client/, LitElement, @customElement, @provide, @consume,
-  SignalWatcher, design/tokens, "create component", "add view", router,
-  SSE streaming, "web client".
+  SignalWatcher, design/tokens, "create component", "add view".
   File patterns: web/**/*.ts, web/**/*.css, web/**/*.go, pkg/web/*.go
 ---
 

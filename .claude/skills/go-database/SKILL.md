@@ -1,11 +1,10 @@
 ---
 name: go-database
 description: >
-  Database patterns including repository, query building, and pagination.
-  Use when working with SQL, repositories, or database operations.
-  Triggers: repository.go, *sql.DB, *sql.Tx, ProjectionMap, query.Builder,
-  PageRequest, PageResult, ScanFunc, WithTx, QueryOne, QueryMany, migrations,
-  mapping.go, scanProvider, cross-domain dependencies.
+  REQUIRED for database access patterns. Use when writing repositories,
+  building queries, implementing pagination, or handling transactions.
+  Triggers: repository.go, sql.DB, sql.Tx, query.Builder, ProjectionMap,
+  QueryOne, QueryMany, WithTx, pagination, mapping.go, ScanFunc.
   File patterns: internal/*/repository.go, internal/*/mapping.go,
   pkg/query/*.go, pkg/pagination/*.go, pkg/repository/*.go
 ---

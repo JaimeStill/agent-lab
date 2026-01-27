@@ -1,11 +1,10 @@
 ---
 name: go-core
 description: >
-  Core Go development patterns. Use when working with file structure,
-  error handling, naming conventions, or package organization. Includes
-  domain system file organization and repository query method naming.
-  Triggers: errors.go, domain errors, file structure, constants, interfaces,
-  structured logging, slog, naming convention, Err prefix, domain system.
+  REQUIRED for Go code organization and error handling. Use when creating
+  packages, defining domain errors, naming interfaces, or using slog.
+  Triggers: errors.go, Err prefix, interface naming, package structure,
+  slog, structured logging, "where should I put", "error handling".
   File patterns: internal/**/*.go, pkg/**/*.go
 ---
 

@@ -1,11 +1,10 @@
 ---
 name: document-processing
 description: >
-  Document processing using document-context library. Use when
-  working with PDFs or image rendering.
+  REQUIRED for document processing. Use when working with PDFs, image
+  rendering, or document-context library integration.
   Triggers: document-context, PDF, page rendering, RenderOptions,
-  page range expressions, documents domain, images domain, pdfcpu,
-  ImageMagick, brightness, contrast, saturation.
+  page range, documents domain, images domain, pdfcpu, ImageMagick.
   File patterns: internal/documents/*.go, internal/images/*.go
 ---
 

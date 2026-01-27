@@ -5,9 +5,9 @@ import (
 
 	"github.com/JaimeStill/agent-lab/internal/api"
 	"github.com/JaimeStill/agent-lab/internal/config"
+	"github.com/JaimeStill/agent-lab/internal/infrastructure"
 	"github.com/JaimeStill/agent-lab/pkg/middleware"
 	"github.com/JaimeStill/agent-lab/pkg/module"
-	"github.com/JaimeStill/agent-lab/pkg/runtime"
 	"github.com/JaimeStill/agent-lab/web/app"
 	"github.com/JaimeStill/agent-lab/web/scalar"
 )
@@ -20,7 +20,7 @@ type Modules struct {
 }
 
 // NewModules creates and configures all application modules.
-func NewModules(infra *runtime.Infrastructure, cfg *config.Config) (*Modules, error) {
+func NewModules(infra *infrastructure.Infrastructure, cfg *config.Config) (*Modules, error) {
 	apiModule, err := api.NewModule(cfg, infra)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func (m *Modules) Mount(router *module.Router) {
 	router.Mount(m.Scalar)
 }
 
-func buildRouter(infra *runtime.Infrastructure) *module.Router {
+func buildRouter(infra *infrastructure.Infrastructure) *module.Router {
 	router := module.NewRouter()
 
 	router.HandleNative("GET /healthz", func(w http.ResponseWriter, r *http.Request) {

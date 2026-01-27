@@ -1,10 +1,10 @@
 ---
 name: go-testing
 description: >
-  Testing patterns and conventions. Use when writing tests, reviewing
-  test coverage, or organizing test infrastructure.
-  Triggers: _test.go, TestXxx, t.Run, table-driven tests, black-box testing,
-  package name_test, test coverage, t.Fatal, t.Error, t.Errorf.
+  REQUIRED for writing Go tests. Use when creating test files, writing
+  table-driven tests, or checking coverage.
+  Triggers: _test.go, TestXxx, t.Run, black-box testing, table-driven,
+  test coverage, "write tests for", "how do I test".
   File patterns: tests/**/*.go, *_test.go
 ---
 
