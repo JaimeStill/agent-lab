@@ -783,36 +783,24 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
 
 **Development Sessions**:
 
-#### Session 5a: Lit Migration
+#### Session 5a: Lit Migration ✅
 
-**Objective**: Adapt existing web infrastructure for Lit
+**Status**: Completed (2026-01-28)
 
-**Deliverables**:
-- Add Lit dependencies (`lit`, `@lit/context`, `@lit-labs/signals`)
-- Create client-side router from go-lit patterns
-- Update `app.ts` entry point for Lit
-- Convert Go routes to single catch-all shell pattern
-- Create home view as baseline
+**Implemented**:
+- Lit 3.x dependencies (`lit`, `@lit/context`, `@lit-labs/signals`)
+- Client-side router with History API (parameter extraction, query parsing)
+- CSS cascade layers (`@layer tokens, reset, theme`) with design tokens
+- App-shell layout (100dvh flex, scroll containment)
+- Baseline views: `lab-home-view`, `lab-not-found-view`
+- Go single shell pattern (`/{path...}` → `shell.html`)
+- Component prefix: `lab-`
 
-**Validation**: Router mounts views, navigation works, Go serves shell correctly
-
----
-
-#### Session 5b: Design System
-
-**Objective**: Complete CSS layer architecture
-
-**Deliverables**:
-- Complete design tokens (spacing, typography, colors)
-- Layout utilities (stack, cluster, constrain)
-- Element base styles for Shadow DOM components
-- App-shell scroll architecture (100dvh, flex layout)
-
-**Validation**: Tokens apply correctly, dark/light themes work, scroll regions function
+**Validation**: ✅ Router mounts views, navigation works, dark/light themes respond to system preference
 
 ---
 
-#### Session 5c: Service Infrastructure
+#### Session 5b: Service Infrastructure
 
 **Objective**: Establish service patterns for domain data
 
@@ -826,7 +814,7 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
 
 ---
 
-#### Session 5d: Provider/Agent Config
+#### Session 5c: Provider/Agent Config
 
 **Objective**: CRUD UI patterns with Lit components
 
@@ -840,7 +828,7 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
 
 ---
 
-#### Session 5e: Document Upload
+#### Session 5d: Document Upload
 
 **Objective**: Document management with storage integration
 
@@ -854,7 +842,7 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
 
 ---
 
-#### Session 5f: Profile Management
+#### Session 5e: Profile Management
 
 **Objective**: Nested resource management
 
@@ -868,7 +856,7 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
 
 ---
 
-#### Session 5g: Workflow Execution
+#### Session 5f: Workflow Execution
 
 **Objective**: Launch workflow executions
 
@@ -881,7 +869,7 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
 
 ---
 
-#### Session 5h: Run Monitoring
+#### Session 5g: Run Monitoring
 
 **Objective**: Real-time execution monitoring
 
@@ -895,7 +883,7 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
 
 ---
 
-#### Session 5i: Visualization
+#### Session 5h: Visualization
 
 **Objective**: Confidence score visualization
 
@@ -908,7 +896,7 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
 
 ---
 
-#### Session 5j: Comparison
+#### Session 5i: Comparison
 
 **Objective**: Side-by-side run comparison
 
@@ -1123,11 +1111,8 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
   - Config pattern: public packages define Env struct, app passes key mappings
 
 **In Progress**:
-- **Milestone 5: Workflow Lab Interface** (architecture reset)
-  - Previous sessions 5a-5c established foundation infrastructure (preserved, will be adapted)
-  - Architecture document rewritten for Lit SPA approach
-  - Session numbering reset; new sessions 5a-5j defined
-  - Blocked by: mt08 completion
+- **Milestone 5: Workflow Lab Interface**
+  - Session 5a: Lit Migration ✅
 
 **Recently Completed**:
 - **Maintenance Session mt08: Context Optimization and Package Layering** ✅
@@ -1155,7 +1140,7 @@ This infrastructure will be adapted for Lit rather than discarded. Session numbe
   - Milestone Review ✅
 
 **Next Steps**:
-1. Continue Milestone 5: Session 5a (Lit Migration)
+1. Continue Milestone 5: Session 5b (Service Infrastructure)
 
 ## Future Phases (Beyond Milestone 8)
 

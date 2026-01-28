@@ -1,0 +1,20 @@
+{
+  "plansDirectory": "./_context/plans",
+  "permissions": {
+    "allow": [
+      "Edit(./claude/**)",
+      "Skill(agent-execution)",
+      "Skill(development-methodology)",
+      "Skill(document-processing)",
+      "Skill(go-core)",
+      "Skill(go-database)",
+      "Skill(go-http)",
+      "Skill(go-storage)",
+      "Skill(go-testing)",
+      "Skill(lca)",
+      "Skill(openapi)",
+      "Skill(web-development)",
+      "Skill(workflow-orchestration)"
+    ]
+  }
+}

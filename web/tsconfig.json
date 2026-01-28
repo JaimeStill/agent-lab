@@ -8,17 +8,13 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "paths": {
-      "@app/core/*": [
-        "./app/client/core/*"
-      ],
-      "@app/design/*": [
-        "./app/client/design/*"
-      ],
-      "@app/components/*": [
-        "./app/client/components/*"
+      "@app/*": [
+        "./app/client/*"
       ]
     }
   },

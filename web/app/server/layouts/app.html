@@ -14,18 +14,17 @@
 </head>
 
 <body>
-  <nav class="app-nav">
-    <a href="." class="app-nav-brand">Agent Lab</a>
-    <div class="app-nav-links">
+  <header class="app-header">
+    <a href="" class="brand">Agent Lab</a>
+    <nav>
       <a href="workflows">Workflows</a>
       <a href="documents">Documents</a>
       <a href="profiles">Profiles</a>
       <a href="agents">Agents</a>
       <a href="providers">Providers</a>
-      <a href="components">Components</a>
-    </div>
-  </nav>
-  <main class="app-content">
+    </nav>
+  </header>
+  <main id="app-content">
     {{ block "content" . }}{{ end }}
   </main>
 

@@ -30,24 +30,18 @@ var publicFiles = []string{
 }
 
 var views = []web.ViewDef{
-	{Route: "/{$}", Template: "home.html", Title: "Home", Bundle: "app"},
-	{Route: "/components", Template: "components.html", Title: "Components", Bundle: "app"},
-}
-
-var errorViews = []web.ViewDef{
-	{Template: "404.html", Title: "Not Found", Bundle: "app"},
+	{Route: "/{path...}", Template: "shell.html", Title: "Agent Lab", Bundle: "app"},
 }
 
 // NewModule creates the app module configured for the given base path.
 func NewModule(basePath string) (*module.Module, error) {
-	allViews := append(views, errorViews...)
 	ts, err := web.NewTemplateSet(
 		layoutFS,
 		viewFS,
 		"server/layouts/*.html",
 		"server/views",
 		basePath,
-		allViews,
+		views,
 	)
 	if err != nil {
 		return nil, err
@@ -59,15 +53,8 @@ func NewModule(basePath string) (*module.Module, error) {
 
 func buildRouter(ts *web.TemplateSet) http.Handler {
 	r := web.NewRouter()
-	r.SetFallback(ts.ErrorHandler(
-		"app.html",
-		errorViews[0],
-		http.StatusNotFound,
-	))
 
-	for _, view := range views {
-		r.HandleFunc("GET "+view.Route, ts.PageHandler("app.html", view))
-	}
+	r.HandleFunc("GET /{path...}", ts.PageHandler("app.html", views[0]))
 
 	r.Handle("GET /dist/", http.FileServer(http.FS(distFS)))
 

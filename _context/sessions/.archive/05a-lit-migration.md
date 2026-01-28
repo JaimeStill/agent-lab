@@ -35,10 +35,12 @@ Add to `compilerOptions`:
 "useDefineForClassFields": false
 ```
 
-Add to `paths`:
+Replace `paths` with single wildcard pattern:
 
 ```json
-"@app/router/*": ["./app/client/router/*"]
+"paths": {
+  "@app/*": ["./app/client/*"]
+}
 ```
 
 ---
@@ -47,39 +49,55 @@ Add to `paths`:
 
 **File:** `web/app/client.config.ts`
 
-Add router alias to `aliases`:
+Replace `aliases` with single wildcard pattern:
 
 ```typescript
-'@app/router': resolve(root, 'client/router'),
+aliases: {
+  '@app': resolve(root, 'client'),
+},
 ```
 
 ---
 
-### Step 4: Reorganize CSS Infrastructure
+### Step 4: Add CSS Module Declaration
 
-#### 4.1 Create Directory Structure
+**New file:** `web/app/client/css.d.ts`
+
+```typescript
+declare module '*.css?inline' {
+  const styles: string;
+  export default styles;
+}
+```
+
+This tells TypeScript how to handle Vite's `?inline` CSS imports used in Lit components.
+
+---
+
+### Step 5: Reorganize CSS Infrastructure
+
+#### 5.1 Create Directory Structure
 
 ```bash
 mkdir -p web/app/client/design/core
 mkdir -p web/app/client/design/app
 ```
 
-#### 4.2 Create `design/index.css`
+#### 5.2 Create `design/index.css`
 
 **New file:** `web/app/client/design/index.css`
 
 ```css
-@layer tokens, reset, theme, layout;
+@layer tokens, reset, theme;
 
 @import url(./core/tokens.css);
 @import url(./core/reset.css);
 @import url(./core/theme.css);
-@import url(./core/layout.css);
 
 @import url(./app/app.css);
 ```
 
-#### 4.3 Create `design/core/tokens.css`
+#### 5.3 Create `design/core/tokens.css`
 
 **New file:** `web/app/client/design/core/tokens.css`
 
@@ -160,7 +178,7 @@ mkdir -p web/app/client/design/app
 }
 ```
 
-#### 4.4 Create `design/core/reset.css`
+#### 5.4 Create `design/core/reset.css`
 
 **New file:** `web/app/client/design/core/reset.css`
 
@@ -197,7 +215,7 @@ mkdir -p web/app/client/design/app
 }
 ```
 
-#### 4.5 Create `design/core/theme.css`
+#### 5.5 Create `design/core/theme.css`
 
 **New file:** `web/app/client/design/core/theme.css`
 
@@ -216,16 +234,7 @@ mkdir -p web/app/client/design/app
 }
 ```
 
-#### 4.6 Create `design/core/layout.css`
-
-**New file:** `web/app/client/design/core/layout.css`
-
-```css
-@layer layout {
-}
-```
-
-#### 4.7 Create `design/app/app.css`
+#### 5.6 Create `design/app/app.css`
 
 **New file:** `web/app/client/design/app/app.css`
 
@@ -288,7 +297,7 @@ body {
 }
 ```
 
-#### 4.8 Create `design/app/elements.css`
+#### 5.7 Create `design/app/elements.css`
 
 **New file:** `web/app/client/design/app/elements.css`
 
@@ -299,7 +308,7 @@ body {
  */
 ```
 
-#### 4.9 Delete Old CSS Files
+#### 5.8 Delete Old CSS Files
 
 ```bash
 rm web/app/client/design/components.css
@@ -311,15 +320,15 @@ rm web/app/client/design/reset.css
 
 ---
 
-### Step 5: Create Router
+### Step 6: Create Router
 
-#### 5.1 Create Router Directory
+#### 6.1 Create Router Directory
 
 ```bash
 mkdir -p web/app/client/router
 ```
 
-#### 5.2 Create `router/types.ts`
+#### 6.2 Create `router/types.ts`
 
 **New file:** `web/app/client/router/types.ts`
 
@@ -336,7 +345,7 @@ export interface RouteMatch {
 }
 ```
 
-#### 5.3 Create `router/routes.ts`
+#### 6.3 Create `router/routes.ts`
 
 **New file:** `web/app/client/router/routes.ts`
 
@@ -344,12 +353,12 @@ export interface RouteMatch {
 import type { RouteConfig } from './types';
 
 export const routes: Record<string, RouteConfig> = {
-  '': { component: 'al-home-view', title: 'Home' },
-  '*': { component: 'al-not-found-view', title: 'Not Found' },
+  '': { component: 'lab-home-view', title: 'Home' },
+  '*': { component: 'lab-not-found-view', title: 'Not Found' },
 };
 ```
 
-#### 5.4 Create `router/router.ts`
+#### 6.4 Create `router/router.ts`
 
 **New file:** `web/app/client/router/router.ts`
 
@@ -483,7 +492,7 @@ export class Router {
 }
 ```
 
-#### 5.5 Create `router/index.ts`
+#### 6.5 Create `router/index.ts`
 
 **New file:** `web/app/client/router/index.ts`
 
@@ -494,15 +503,15 @@ export type { RouteConfig, RouteMatch } from './types';
 
 ---
 
-### Step 6: Create Baseline Views
+### Step 7: Create Baseline Views
 
-#### 6.1 Create Views Directory
+#### 7.1 Create Views Directory
 
 ```bash
 mkdir -p web/app/client/views
 ```
 
-#### 6.2 Create `views/home-view.ts`
+#### 7.2 Create `views/home-view.ts`
 
 **New file:** `web/app/client/views/home-view.ts`
 
@@ -511,7 +520,7 @@ import { LitElement, html, unsafeCSS } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import styles from './home-view.css?inline';
 
-@customElement('al-home-view')
+@customElement('lab-home-view')
 export class HomeView extends LitElement {
   static styles = unsafeCSS(styles);
 
@@ -527,12 +536,12 @@ export class HomeView extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'al-home-view': HomeView;
+    'lab-home-view': HomeView;
   }
 }
 ```
 
-#### 6.3 Create `views/home-view.css`
+#### 7.3 Create `views/home-view.css`
 
 **New file:** `web/app/client/views/home-view.css`
 
@@ -556,7 +565,7 @@ p {
 }
 ```
 
-#### 6.4 Create `views/not-found-view.ts`
+#### 7.4 Create `views/not-found-view.ts`
 
 **New file:** `web/app/client/views/not-found-view.ts`
 
@@ -565,7 +574,7 @@ import { LitElement, html, unsafeCSS } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import styles from './not-found-view.css?inline';
 
-@customElement('al-not-found-view')
+@customElement('lab-not-found-view')
 export class NotFoundView extends LitElement {
   static styles = unsafeCSS(styles);
 
@@ -584,12 +593,12 @@ export class NotFoundView extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'al-not-found-view': NotFoundView;
+    'lab-not-found-view': NotFoundView;
   }
 }
 ```
 
-#### 6.5 Create `views/not-found-view.css`
+#### 7.5 Create `views/not-found-view.css`
 
 **New file:** `web/app/client/views/not-found-view.css`
 
@@ -621,7 +630,7 @@ a {
 
 ---
 
-### Step 7: Update App Entry Point
+### Step 8: Update App Entry Point
 
 **File:** `web/app/client/app.ts`
 
@@ -641,9 +650,9 @@ router.start();
 
 ---
 
-### Step 8: Convert Go to Single Shell
+### Step 9: Convert Go to Single Shell
 
-#### 8.1 Create Shell View Template
+#### 9.1 Create Shell View Template
 
 **New file:** `web/app/server/views/shell.html`
 
@@ -651,7 +660,7 @@ router.start();
 {{ define "content" }}{{ end }}
 ```
 
-#### 8.2 Update Go Module
+#### 9.2 Update Go Module
 
 **File:** `web/app/app.go`
 
@@ -704,7 +713,7 @@ func buildRouter(ts *web.TemplateSet, basePath string) http.Handler {
 }
 ```
 
-#### 8.3 Delete Old View Templates
+#### 9.3 Delete Old View Templates
 
 ```bash
 rm web/app/server/views/home.html
@@ -714,7 +723,7 @@ rm web/app/server/views/404.html
 
 ---
 
-### Step 9: Update Shell Template
+### Step 10: Update Shell Template
 
 **File:** `web/app/server/layouts/app.html`
 
