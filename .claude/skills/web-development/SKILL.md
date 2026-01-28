@@ -12,11 +12,13 @@ description: >
 
 ## When This Skill Applies
 
-- Creating or modifying web client code in `web/app/client/`
+- Creating or modifying web client code in `<client>/` directories
 - Implementing Lit components (views, stateful components, elements)
 - Working with services and context-based dependency injection
 - Styling with CSS cascade layers and design tokens
 - Integrating Go server with Lit client
+
+**Note**: `<client>/` refers to the TypeScript source directory (e.g., `web/app/client/`).
 
 ## Architecture Overview
 
@@ -32,9 +34,9 @@ description: >
 
 | Tier | Role | Tools | Example |
 |------|------|-------|---------|
-| Views | Provide services, route-level | `@provide`, `SignalWatcher` | `al-provider-list-view` |
-| Stateful Components | Consume services, coordinate UI | `@consume`, event handlers | `al-provider-list` |
-| Pure Elements | Props in, events out | `@property`, `CustomEvent` | `al-provider-card` |
+| Views | Provide services, route-level | `@provide`, `SignalWatcher` | `lab-provider-list-view` |
+| Stateful Components | Consume services, coordinate UI | `@consume`, event handlers | `lab-provider-list` |
+| Pure Elements | Props in, events out | `@property`, `CustomEvent` | `lab-provider-card` |
 
 ## Component Patterns
 
@@ -47,7 +49,7 @@ import { provide } from '@lit/context';
 import { SignalWatcher } from '@lit-labs/signals';
 import { configServiceContext, createConfigService, ConfigService } from './service';
 
-@customElement('al-config-list-view')
+@customElement('lab-config-list-view')
 export class ConfigListView extends SignalWatcher(LitElement) {
   @provide({ context: configServiceContext })
   private configService: ConfigService = createConfigService();
@@ -58,13 +60,13 @@ export class ConfigListView extends SignalWatcher(LitElement) {
   }
 
   render() {
-    return html`<al-config-list></al-config-list>`;
+    return html`<lab-config-list></lab-config-list>`;
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'al-config-list-view': ConfigListView;
+    'lab-config-list-view': ConfigListView;
   }
 }
 ```
@@ -79,7 +81,7 @@ import { SignalWatcher } from '@lit-labs/signals';
 import { configServiceContext, ConfigService } from './service';
 import styles from './config-list.css?inline';
 
-@customElement('al-config-list')
+@customElement('lab-config-list')
 export class ConfigList extends SignalWatcher(LitElement) {
   static styles = unsafeCSS(styles);
 
@@ -93,10 +95,10 @@ export class ConfigList extends SignalWatcher(LitElement) {
   private renderConfigs() {
     return this.configService.configs.get().map(
       (config) => html`
-        <al-config-card
+        <lab-config-card
           .config=${config}
           @delete=${this.handleDelete}
-        ></al-config-card>
+        ></lab-config-card>
       `
     );
   }
@@ -115,7 +117,7 @@ import { customElement, property } from 'lit/decorators.js';
 import type { AgentConfig } from './types';
 import styles from './config-card.css?inline';
 
-@customElement('al-config-card')
+@customElement('lab-config-card')
 export class ConfigCard extends LitElement {
   static styles = unsafeCSS(styles);
 
@@ -283,6 +285,15 @@ import { unsafeCSS } from 'lit';
 static styles = unsafeCSS(styles);
 ```
 
+**Required**: TypeScript declaration for CSS imports at `<client>/css.d.ts`:
+
+```typescript
+declare module '*.css?inline' {
+  const styles: string;
+  export default styles;
+}
+```
+
 Component CSS imports shared element styles:
 
 ```css
@@ -351,10 +362,10 @@ export interface RouteConfig {
 }
 
 export const routes: Record<string, RouteConfig> = {
-  '': { component: 'al-home-view', title: 'Home' },
-  'providers': { component: 'al-provider-list-view', title: 'Providers' },
-  'providers/:id': { component: 'al-provider-edit-view', title: 'Edit Provider' },
-  '*': { component: 'al-not-found-view', title: 'Not Found' },
+  '': { component: 'lab-home-view', title: 'Home' },
+  'providers': { component: 'lab-provider-list-view', title: 'Providers' },
+  'providers/:id': { component: 'lab-provider-edit-view', title: 'Edit Provider' },
+  '*': { component: 'lab-not-found-view', title: 'Not Found' },
 };
 ```
 
@@ -521,10 +532,10 @@ var publicFS embed.FS
 
 ## Naming Conventions
 
-- **Component prefix**: `al-` (agent-lab)
-- **Views**: `al-<domain>-<action>-view` (e.g., `al-provider-list-view`)
-- **Components**: `al-<domain>-<name>` (e.g., `al-provider-list`)
-- **Elements**: `al-<name>` (e.g., `al-config-card`)
+- **Component prefix**: `lab-`
+- **Views**: `lab-<domain>-<action>-view` (e.g., `lab-provider-list-view`)
+- **Components**: `lab-<domain>-<name>` (e.g., `lab-provider-list`)
+- **Elements**: `lab-<name>` (e.g., `lab-config-card`)
 - **Avoid HTMLElement conflicts**: Use `configId` not `id`, `heading` not `title`
 
 ## Anti-Patterns
