@@ -1,5 +1,5 @@
 {
-  "plansDirectory": "./_context/plans",
+  "plansDirectory": "./.claude/plans",
   "permissions": {
     "allow": [
       "Edit(./claude/**)",

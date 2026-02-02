@@ -44,8 +44,7 @@ web/
 │   │   │   ├── core/            # Foundational system
 │   │   │   │   ├── tokens.css   # Design tokens
 │   │   │   │   ├── reset.css    # CSS reset
-│   │   │   │   ├── theme.css    # Color scheme
-│   │   │   │   └── layout.css   # Layout utilities
+│   │   │   │   └── theme.css    # Theme application
 │   │   │   ├── app/             # Application-specific
 │   │   │   │   ├── app.css      # Shell styles
 │   │   │   │   └── elements.css # Shadow DOM base styles
@@ -104,15 +103,14 @@ web/
 
 **Cascade Layers** (`@layer`):
 ```css
-@layer reset, theme, layout, components;
+@layer tokens, reset, theme;
 ```
 
 | Layer | Purpose |
 |-------|---------|
+| tokens | Design tokens (fonts, spacing, typography, colors) |
 | reset | Modern CSS reset |
-| theme | Color tokens via `prefers-color-scheme` |
-| layout | Spacing, sizing, typography tokens |
-| components | Application component styles |
+| theme | Body theme application via token references |
 
 **Design Tokens** (CSS Custom Properties):
 ```css
@@ -157,13 +155,13 @@ static styles = unsafeCSS(styles);
 
 **Example Structure**:
 ```
-al-execute-view (provides: configService, executionService)
-├── al-config-selector (consumes: configService)
-│   └── al-config-card (stateless)
-├── al-chat-panel (consumes: executionService)
-│   ├── al-message-list (consumes: executionService)
-│   │   └── al-message-bubble (stateless)
-│   └── al-prompt-input (stateless)
+lab-execute-view (provides: configService, executionService)
+├── lab-config-selector (consumes: configService)
+│   └── lab-config-card (stateless)
+├── lab-chat-panel (consumes: executionService)
+│   ├── lab-message-list (consumes: executionService)
+│   │   └── lab-message-bubble (stateless)
+│   └── lab-prompt-input (stateless)
 ```
 
 ### Service Pattern
@@ -206,12 +204,12 @@ export function createConfigService(): ConfigService {
 **Static Route Mapping**:
 ```typescript
 export const routes: Record<string, RouteConfig> = {
-  '': { component: 'al-home-view', title: 'Home' },
-  'providers': { component: 'al-provider-list-view', title: 'Providers' },
-  'providers/:id': { component: 'al-provider-edit-view', title: 'Edit Provider' },
-  'workflows': { component: 'al-workflow-list-view', title: 'Workflows' },
-  'workflows/:id/run': { component: 'al-workflow-run-view', title: 'Run Workflow' },
-  '*': { component: 'al-not-found-view', title: 'Not Found' },
+  '': { component: 'lab-home-view', title: 'Home' },
+  'providers': { component: 'lab-providers-view', title: 'Providers' },
+  'providers/:id': { component: 'lab-provider-edit-view', title: 'Edit Provider' },
+  'workflows': { component: 'lab-workflows-view', title: 'Workflows' },
+  'workflows/:id/run': { component: 'lab-workflow-run-view', title: 'Run Workflow' },
+  '*': { component: 'lab-not-found-view', title: 'Not Found' },
 };
 ```
 
@@ -332,34 +330,15 @@ var publicFS embed.FS
 
 | Session | Phase | Focus | Key Deliverable |
 |---------|-------|-------|-----------------|
-| 05a | Foundation | Lit Migration | Adapt existing: Lit deps, router, shell pattern |
-| 05b | Foundation | Design System | Complete CSS layers, tokens, element styles |
-| 05c | Foundation | Service Infrastructure | Context services, API client, signal patterns |
-| 05d | Config UI | Provider/Agent Config | List/edit views, CRUD patterns |
-| 05e | Config UI | Document Upload | Document management, storage integration |
-| 05f | Config UI | Profile Management | Stage editor, nested forms |
-| 05g | Workflow | Execution Trigger | Profile selection, workflow execute |
-| 05h | Workflow | Run Monitoring | SSE integration, live updates |
-| 05i | Workflow | Visualization | Confidence charts |
-| 05j | Workflow | Comparison | Side-by-side, iteration |
-
-### Session 05a Details
-
-Adapts existing web infrastructure for Lit:
-
-1. Add Lit dependencies to `package.json`
-2. Create router from go-lit patterns
-3. Update `app.ts` entry point
-4. Convert Go routes to single catch-all shell
-5. Create home view as baseline
-
-### Existing Infrastructure (from previous 05a-05c)
-
-The following exists and will be adapted:
-- Vite build pipeline
-- CSS layer structure (partial)
-- Go `pkg/web` template infrastructure
-- Module mounting pattern
+| 05a | Foundation | Lit Migration | ✅ Lit deps, router, shell, CSS layers, baseline views |
+| 05b | Foundation | Service Infrastructure | API client, context services, signal patterns, SSE client |
+| 05c | Config UI | Provider/Agent Config | List/edit views, CRUD patterns |
+| 05d | Config UI | Document Upload | Document management, storage integration |
+| 05e | Config UI | Profile Management | Stage editor, nested forms |
+| 05f | Workflow | Execution Trigger | Profile selection, workflow execute |
+| 05g | Workflow | Run Monitoring | SSE integration, live updates |
+| 05h | Workflow | Visualization | Confidence charts |
+| 05i | Workflow | Comparison | Side-by-side, iteration |
 
 ## Success Criteria
 
@@ -396,7 +375,7 @@ From PROJECT.md:
 ### View Component (provides services)
 
 ```typescript
-@customElement('al-config-list-view')
+@customElement('lab-config-list-view')
 export class ConfigListView extends SignalWatcher(LitElement) {
   @provide({ context: configServiceContext })
   private configService: ConfigService = createConfigService();
@@ -407,7 +386,7 @@ export class ConfigListView extends SignalWatcher(LitElement) {
   }
 
   render() {
-    return html`<al-config-list></al-config-list>`;
+    return html`<lab-config-list></lab-config-list>`;
   }
 }
 ```
@@ -415,7 +394,7 @@ export class ConfigListView extends SignalWatcher(LitElement) {
 ### Stateful Component (consumes services)
 
 ```typescript
-@customElement('al-config-list')
+@customElement('lab-config-list')
 export class ConfigList extends SignalWatcher(LitElement) {
   @consume({ context: configServiceContext })
   private configService!: ConfigService;
@@ -427,10 +406,10 @@ export class ConfigList extends SignalWatcher(LitElement) {
   render() {
     return html`
       ${this.configService.configs.get().map(config => html`
-        <al-config-card
+        <lab-config-card
           .config=${config}
           @delete=${this.handleDelete}
-        ></al-config-card>
+        ></lab-config-card>
       `)}
     `;
   }
@@ -440,7 +419,7 @@ export class ConfigList extends SignalWatcher(LitElement) {
 ### Pure Element (stateless)
 
 ```typescript
-@customElement('al-config-card')
+@customElement('lab-config-card')
 export class ConfigCard extends LitElement {
   @property({ type: Object }) config!: AgentConfig;
 
